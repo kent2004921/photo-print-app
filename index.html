@@ -78,47 +78,51 @@
     }
 
     async function submitForm() {
-      const username = document.getElementById('username').value;
-      const password = document.getElementById('password').value;
-      if (!username || !password) {
-        alert('请填写完整信息！');
-        return;
-      }
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  if (!username || !password) {
+    alert('请填写完整信息！');
+    return;
+  }
 
-      const endpoint = isLogin ? '/.netlify/functions/auth' : '/.netlify/functions/auth/register';
-      const body = JSON.stringify({ username, password });
+  const endpoint = '/.netlify/functions/auth'; // 统一端点
+  const body = JSON.stringify({
+    action: isLogin ? 'login' : 'signup', // 使用action区分登录和注册
+    username,
+    password
+  });
 
-      try {
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body
-        });
-        const data = await response.json();
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body
+    });
+    const data = await response.json();
 
-        if (isLogin) {
-          if (data.success) {
-            if (data.approved) {
-              localStorage.setItem('user', username);
-              window.location.href = '/dashboard.html';
-            } else {
-              alert('您的账户还在等待审核，请耐心等候！');
-            }
-          } else {
-            alert('登录失败，请检查用户名或密码！');
-          }
+    if (isLogin) {
+      if (data.success) {
+        if (data.approved) {
+          localStorage.setItem('user', username);
+          window.location.href = '/dashboard.html';
         } else {
-          if (data.success) {
-            alert('注册成功，请等待管理员审核！');
-            toggleForm();
-          } else {
-            alert('注册失败，用户名可能已存在！');
-          }
+          alert('您的账户还在等待审核，请耐心等候！');
         }
-      } catch (error) {
-        alert('网络错误，请稍后再试！');
+      } else {
+        alert('登录失败，请检查用户名或密码！');
+      }
+    } else {
+      if (data.success) {
+        alert('注册成功，请等待管理员审核！');
+        toggleForm();
+      } else {
+        alert('注册失败，用户名可能已存在！');
       }
     }
+  } catch (error) {
+    alert('网络错误，请稍后再试！');
+  }
+}
   </script>
 </body>
 </html>
