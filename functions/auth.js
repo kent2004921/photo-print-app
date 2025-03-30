@@ -3,7 +3,20 @@ const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 exports.handler = async (event, context) => {
-  const { action, username, password, printerId } = JSON.parse(event.body || '{}');
+  let body;
+  try {
+    body = JSON.parse(event.body || '{}');
+  } catch (error) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ success: false, message: '无效的请求体' })
+    };
+  }
+
+  const { action, username, password, printerId } = body;
+
+  // 调试日志：确认action值
+  console.log('Received action:', action);
 
   try {
     if (action === 'signup') {
@@ -13,10 +26,11 @@ exports.handler = async (event, context) => {
         .eq('username', username)
         .single();
 
-      if (checkError && checkError.code !== 'PGRST116') { // PGRST116表示未找到记录
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking username:', checkError);
         return {
           statusCode: 500,
-          body: JSON.stringify({ success: false, message: '检查用户名时出错' })
+          body: JSON.stringify({ success: false, message: '检查用户名时出错', error: checkError.message })
         };
       }
 
@@ -38,10 +52,13 @@ exports.handler = async (event, context) => {
           photos: []
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Insert error:', error);
+        throw error;
+      }
       return {
         statusCode: 200,
-        body: JSON.stringify({ success: true })
+        body: JSON.stringify({ success: true, message: '注册成功' })
       };
     } else if (action === 'bind-printer') {
       const { error } = await supabase
@@ -49,10 +66,13 @@ exports.handler = async (event, context) => {
         .update({ printer_id: printerId })
         .eq('username', username);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Update error:', error);
+        throw error;
+      }
       return {
         statusCode: 200,
-        body: JSON.stringify({ success: true })
+        body: JSON.stringify({ success: true, message: '打印机绑定成功' })
       };
     } else if (action === 'login') {
       const { data: user, error } = await supabase
@@ -86,9 +106,10 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({ success: false, message: '无效请求' })
     };
   } catch (error) {
+    console.error('Server error:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ success: false, message: '服务器错误' })
+      body: JSON.stringify({ success: false, message: '服务器错误', error: error.message })
     };
   }
 };
