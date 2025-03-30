@@ -1,20 +1,24 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = 'https://nqapfcosintqipzttflo.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8';
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 exports.handler = async (event, context) => {
-  const { username, password, printerId } = JSON.parse(event.body || '{}');
-  const path = event.path;
+  const { action, username, password, printerId } = JSON.parse(event.body || '{}');
 
   try {
-    if (path.includes('/register')) {
-      const { data: existingUser } = await supabase
+    if (action === 'signup') {
+      const { data: existingUser, error: checkError } = await supabase
         .from('franchisees')
         .select('username')
         .eq('username', username)
         .single();
+
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116表示未找到记录
+        return {
+          statusCode: 500,
+          body: JSON.stringify({ success: false, message: '检查用户名时出错' })
+        };
+      }
 
       if (existingUser) {
         return {
@@ -39,7 +43,7 @@ exports.handler = async (event, context) => {
         statusCode: 200,
         body: JSON.stringify({ success: true })
       };
-    } else if (path.includes('/bind-printer')) {
+    } else if (action === 'bind-printer') {
       const { error } = await supabase
         .from('franchisees')
         .update({ printer_id: printerId })
@@ -50,7 +54,7 @@ exports.handler = async (event, context) => {
         statusCode: 200,
         body: JSON.stringify({ success: true })
       };
-    } else {
+    } else if (action === 'login') {
       const { data: user, error } = await supabase
         .from('franchisees')
         .select('*')
@@ -76,6 +80,11 @@ exports.handler = async (event, context) => {
         })
       };
     }
+
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ success: false, message: '无效请求' })
+    };
   } catch (error) {
     return {
       statusCode: 500,
