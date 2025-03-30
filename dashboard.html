@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>加盟商仪表板</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f0f0f0;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .section {
+      margin: 20px 0;
+    }
+    .section h3 {
+      color: #007bff;
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 4px;
+    }
+    input {
+      border: 1px solid #ddd;
+      width: calc(100% - 22px);
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #photo-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    #photo-list img {
+      max-width: 100px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    #qrcode {
+      margin-top: 10px;
+    }
+    @media (max-width: 600px) {
+      .container {
+        padding: 10px;
+      }
+      input, button {
+        width: 100%;
+        box-sizing: border-box;
+      }
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>欢迎，<span id="username"></span></h1>
+    <div class="section">
+      <h3>剩余使用次数</h3>
+      <p id="remaining-uses">加载中...</p>
+    </div>
+    <div class="section">
+      <h3>绑定打印机</h3>
+      <input type="text" id="printer-id" placeholder="输入打印机ID">
+      <button onclick="bindPrinter()">绑定</button>
+      <p>打印机状态：<span id="printer-status">未绑定</span></p>
+    </div>
+    <div class="section">
+      <h3>上传的照片</h3>
+      <div id="photo-list"></div>
+    </div>
+    <div class="section">
+      <h3>生成二维码</h3>
+      <button onclick="generateQRCode()">生成</button>
+      <div id="qrcode"></div>
+    </div>
+    <button onclick="logout()">退出登录</button>
+  </div>
+
+  <script>
+    const username = localStorage.getItem('user');
+    if (!username) {
+      window.location.href = '/index.html';
+    }
+    document.getElementById('username').textContent = username;
+
+    async function fetchUserData() {
+      try {
+        const response = await fetch('/.netlify/functions/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        });
+        const data = await response.json();
+        if (data.success) {
+          document.getElementById('remaining-uses').textContent = data.remainingUses || 0;
+          const printerId = data.printerId;
+          if (printerId) {
+            document.getElementById('printer-id').value = printerId;
+            document.getElementById('printer-status').textContent = '在线（模拟）';
+          }
+          updatePhotoList(data.photos || []);
+        }
+      } catch (error) {
+        alert('获取数据失败，请稍后再试！');
+      }
+    }
+
+    async function bindPrinter() {
+      const printerId = document.getElementById('printer-id').value;
+      if (!printerId) {
+        alert('请输入打印机ID！');
+        return;
+      }
+      try {
+        const response = await fetch('/.netlify/functions/auth/bind-printer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, printerId })
+        });
+        const data = await response.json();
+        if (data.success) {
+          document.getElementById('printer-status').textContent = '在线（模拟）';
+          alert('绑定成功！');
+        } else {
+          alert('绑定失败，请重试！');
+        }
+      } catch (error) {
+        alert('网络错误，请稍后再试！');
+      }
+    }
+
+    function updatePhotoList(photos) {
+      const photoList = document.getElementById('photo-list');
+      photoList.innerHTML = '';
+      photos.forEach(photo => {
+        const img = document.createElement('img');
+        img.src = photo.url; // 临时URL，实际由后端提供
+        photoList.appendChild(img);
+      });
+    }
+
+    function generateQRCode() {
+      const qrcodeDiv = document.getElementById('qrcode');
+      qrcodeDiv.innerHTML = '';
+      const url = `${window.location.origin}/upload.html?franchisee_id=${username}`;
+      new QRCode(qrcodeDiv, {
+        text: url,
+        width: 128,
+        height: 128
+      });
+    }
+
+    function logout() {
+      localStorage.removeItem('user');
+      window.location.href = '/index.html';
+    }
+
+    // 初始化加载用户数据
+    fetchUserData();
+  </script>
+</body>
+</html>

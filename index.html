@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登录/注册 - 照片打印服务</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+    }
+    h2 {
+      text-align: center;
+      color: #333;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .toggle {
+      text-align: center;
+      margin-top: 10px;
+      color: #007bff;
+      cursor: pointer;
+    }
+    @media (max-width: 600px) {
+      .container {
+        margin: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2 id="title">登录</h2>
+    <input type="text" id="username" placeholder="用户名">
+    <input type="password" id="password" placeholder="密码">
+    <button onclick="submitForm()">提交</button>
+    <div class="toggle" onclick="toggleForm()">切换到注册</div>
+  </div>
+
+  <script>
+    let isLogin = true;
+
+    function toggleForm() {
+      isLogin = !isLogin;
+      document.getElementById('title').textContent = isLogin ? '登录' : '注册';
+      document.querySelector('.toggle').textContent = isLogin ? '切换到注册' : '切换到登录';
+    }
+
+    async function submitForm() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      if (!username || !password) {
+        alert('请填写完整信息！');
+        return;
+      }
+
+      const endpoint = isLogin ? '/.netlify/functions/auth' : '/.netlify/functions/auth/register';
+      const body = JSON.stringify({ username, password });
+
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body
+        });
+        const data = await response.json();
+
+        if (isLogin) {
+          if (data.success) {
+            if (data.approved) {
+              localStorage.setItem('user', username);
+              window.location.href = '/dashboard.html';
+            } else {
+              alert('您的账户还在等待审核，请耐心等候！');
+            }
+          } else {
+            alert('登录失败，请检查用户名或密码！');
+          }
+        } else {
+          if (data.success) {
+            alert('注册成功，请等待管理员审核！');
+            toggleForm();
+          } else {
+            alert('注册失败，用户名可能已存在！');
+          }
+        }
+      } catch (error) {
+        alert('网络错误，请稍后再试！');
+      }
+    }
+  </script>
+</body>
+</html>

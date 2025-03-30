@@ -1,0 +1,11 @@
+{
+  "name": "photo-print-app",
+  "version": "1.0.0",
+  "description": "A web app for photo printing using Netlify Functions and Supabase",
+  "author": "kent2004921",
+  "license": "MIT",
+  "keywords": ["photo", "printing", "netlify", "supabase"],
+  "dependencies": {
+    "@supabase/supabase-js": "^2.0.0"
+  }
+}
