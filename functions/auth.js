@@ -3,30 +3,47 @@ const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 exports.handler = async (event, context) => {
+  // 确保请求体存在且格式正确
+  if (!event.body) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ success: false, message: '请求体为空' })
+    };
+  }
+
   let body;
   try {
-    body = JSON.parse(event.body || '{}');
+    body = JSON.parse(event.body);
   } catch (error) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ success: false, message: '无效的请求体' })
+      body: JSON.stringify({ success: false, message: '无效的请求体格式' })
     };
   }
 
   const { action, username, password, printerId } = body;
 
-  // 调试日志：确认action值
+  // 验证action是否存在
+  if (!action) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ success: false, message: '缺少action参数' })
+    };
+  }
+
   console.log('Received action:', action);
+  console.log('Request body:', body);
 
   try {
     if (action === 'signup') {
+      // 使用maybeSingle()代替single()，避免未找到记录时抛出错误
       const { data: existingUser, error: checkError } = await supabase
         .from('franchisees')
         .select('username')
         .eq('username', username)
-        .single();
+        .maybeSingle();
 
-      if (checkError && checkError.code !== 'PGRST116') {
+      if (checkError) {
         console.error('Error checking username:', checkError);
         return {
           statusCode: 500,
@@ -80,9 +97,17 @@ exports.handler = async (event, context) => {
         .select('*')
         .eq('username', username)
         .eq('password', password)
-        .single();
+        .maybeSingle();
 
-      if (error || !user) {
+      if (error) {
+        console.error('Login query error:', error);
+        return {
+          statusCode: 500,
+          body: JSON.stringify({ success: false, message: '查询用户时出错', error: error.message })
+        };
+      }
+
+      if (!user) {
         return {
           statusCode: 401,
           body: JSON.stringify({ success: false, message: '用户名或密码错误' })
