@@ -6,6 +6,8 @@
   <title>上传照片打印</title>
   <!-- 引入Twemoji库 -->
   <script src="https://cdn.jsdelivr.net/npm/twemoji@latest/dist/twemoji.min.js"></script>
+  <!-- 引入emoji-picker-element -->
+  <script type="module" src="https://unpkg.com/emoji-picker-element@latest/dist/index.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -31,7 +33,7 @@
       max-width: 100%;
       margin: 10px 0;
     }
-    input, button, select {
+    input, button {
       width: 100%;
       padding: 10px;
       margin: 5px 0;
@@ -47,6 +49,12 @@
     }
     button:hover {
       background-color: #0056b3;
+    }
+    .remove-emoji-btn {
+      background-color: #ff4b4b;
+    }
+    .remove-emoji-btn:hover {
+      background-color: #cc3a3a;
     }
     .controls {
       display: flex;
@@ -64,6 +72,13 @@
     .emoji-picker {
       margin: 10px 0;
     }
+    emoji-picker {
+      width: 100%;
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body>
@@ -73,52 +88,11 @@
     <canvas id="photoCanvas"></canvas>
     <div class="emoji-picker">
       <label>选择表情</label>
-      <select id="emojiSelect" onchange="addEmojiToCanvas()">
-        <option value="">选择一个表情</option>
-        <option value="😊">😊 笑脸</option>
-        <option value="❤️">❤️ 红心</option>
-        <option value="🌟">🌟 星星</option>
-        <option value="🎉">🎉 庆祝</option>
-        <option value="🐾">🐾 爪印</option>
-        <option value="😂">😂 笑哭</option>
-        <option value="😍">😍 爱心眼</option>
-        <option value="😘">😘 飞吻</option>
-        <option value="😎">😎 酷</option>
-        <option value="😢">😢 哭泣</option>
-        <option value="😡">😡 生气</option>
-        <option value="🤩">🤩 崇拜</option>
-        <option value="🤗">🤗 拥抱</option>
-        <option value="🤔">🤔 思考</option>
-        <option value="🤡">🤡 小丑</option>
-        <option value="👻">👻 幽灵</option>
-        <option value="👽">👽 外星人</option>
-        <option value="👾">👾 怪物</option>
-        <option value="🤖">🤖 机器人</option>
-        <option value="🎃">🎃 南瓜</option>
-        <option value="🎄">🎄 圣诞树</option>
-        <option value="🎁">🎁 礼物</option>
-        <option value="🎂">🎂 蛋糕</option>
-        <option value="🍎">🍎 苹果</option>
-        <option value="🍌">🍌 香蕉</option>
-        <option value="🍒">🍒 樱桃</option>
-        <option value="🍓">🍓 草莓</option>
-        <option value="🍕">🍕 披萨</option>
-        <option value="🍔">🍔 汉堡</option>
-        <option value="🍟">🍟 薯条</option>
-        <option value="🍦">🍦 冰淇淋</option>
-        <option value="☕">☕ 咖啡</option>
-        <option value="🍷">🍷 红酒</option>
-        <option value="🌈">🌈 彩虹</option>
-        <option value="☀️">☀️ 太阳</option>
-        <option value="🌙">🌙 月亮</option>
-        <option value="⭐">⭐ 星星</option>
-        <option value="⚡">⚡ 闪电</option>
-        <option value="💧">💧 水滴</option>
-        <option value="🔥">🔥 火焰</option>
-      </select>
+      <emoji-picker></emoji-picker>
     </div>
     <div class="controls">
       <button onclick="printPhoto()">打印</button>
+      <button class="remove-emoji-btn" onclick="removeLastEmoji()">删除最后一个表情</button>
     </div>
     <div class="control-group">
       <label>亮度</label>
@@ -196,13 +170,11 @@
     }
 
     // 添加表情到Canvas
-    function addEmojiToCanvas() {
-      const emojiSelect = document.getElementById('emojiSelect');
-      const selectedEmoji = emojiSelect.value;
-      if (!selectedEmoji) return;
+    function addEmojiToCanvas(emojiUnicode) {
+      if (!emojiUnicode) return;
 
       // 使用Twemoji将emoji转换为图像URL
-      const emojiUrl = twemoji.parse(selectedEmoji, {
+      const emojiUrl = twemoji.parse(emojiUnicode, {
         folder: 'svg',
         ext: '.svg',
         base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/'
@@ -224,6 +196,22 @@
         alert('加载表情失败，请选择其他表情！');
       };
     }
+
+    // 删除最后一个表情
+    function removeLastEmoji() {
+      if (emojis.length > 0) {
+        emojis.pop();
+        drawImage();
+      } else {
+        alert('没有表情可以删除！');
+      }
+    }
+
+    // 监听emoji-picker的选择事件
+    document.querySelector('emoji-picker').addEventListener('emoji-click', (event) => {
+      const emojiUnicode = event.detail.unicode;
+      addEmojiToCanvas(emojiUnicode);
+    });
 
     // 检测是否点击了某个emoji
     function getEmojiAtPosition(x, y) {
