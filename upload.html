@@ -219,7 +219,14 @@
       }
 
       const dataUrl = canvas.toDataURL('image/jpeg');
-      console.log('Sending print request with username:', username);
+      console.log('Preparing to print:', { username, dataUrl: dataUrl ? 'Data URL present' : 'Data URL missing' });
+
+      if (!username || !dataUrl) {
+        console.error('Missing username or dataUrl:', { username, dataUrl });
+        alert('缺少用户名或照片数据，请刷新页面重试！');
+        return;
+      }
+
       try {
         const response = await fetch('/.netlify/functions/print', {
           method: 'POST',
