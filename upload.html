@@ -75,11 +75,49 @@
       <label>选择表情</label>
       <select id="emojiSelect" onchange="addEmojiToCanvas()">
         <option value="">选择一个表情</option>
+        <!-- 表情 -->
         <option value="😊">😊 笑脸</option>
-        <option value="❤️">❤️ 红心</option>
-        <option value="🌟">🌟 星星</option>
-        <option value="🎉">🎉 庆祝</option>
+        <option value="😂">😂 笑哭</option>
+        <option value="😍">😍 爱心眼</option>
+        <option value="😢">😢 哭泣</option>
+        <option value="😡">😡 生气</option>
+        <option value="😎">😎 酷</option>
+        <option value="🤓">🤓 书呆子</option>
+        <option value="😴">😴 睡觉</option>
+        <!-- 动物 -->
+        <option value="🐶">🐶 小狗</option>
+        <option value="🐱">🐱 小猫</option>
+        <option value="🐻">🐻 熊</option>
+        <option value="🦁">🦁 狮子</option>
+        <option value="🐼">🐼 熊猫</option>
         <option value="🐾">🐾 爪印</option>
+        <option value="🐦">🐦 小鸟</option>
+        <option value="🐳">🐳 鲸鱼</option>
+        <!-- 物体 -->
+        <option value="🌟">🌟 星星</option>
+        <option value="❤️">❤️ 红心</option>
+        <option value="🎉">🎉 庆祝</option>
+        <option value="🎁">🎁 礼物</option>
+        <option value="🎂">🎂 蛋糕</option>
+        <option value="🍎">🍎 苹果</option>
+        <option value="🍕">🍕 披萨</option>
+        <option value="☕">☕ 咖啡</option>
+        <!-- 自然 -->
+        <option value="🌈">🌈 彩虹</option>
+        <option value="☀️">☀️ 太阳</option>
+        <option value="🌙">🌙 月亮</option>
+        <option value="🌸">🌸 樱花</option>
+        <option value="🌴">🌴 棕榈树</option>
+        <option value="❄️">❄️ 雪花</option>
+        <!-- 符号 -->
+        <option value="✔️">✔️ 勾选</option>
+        <option value="✨">✨ 闪光</option>
+        <option value="💡">💡 灯泡</option>
+        <option value="🔥">🔥 火焰</option>
+        <option value="💬">💬 对话框</option>
+        <option value="🎶">🎶 音符</option>
+        <option value="✈️">✈️ 飞机</option>
+        <option value="🚀">🚀 火箭</option>
       </select>
     </div>
     <div class="controls">
@@ -114,7 +152,8 @@
     let rotation = 0;
     let posX = 0;
     let posY = 0;
-    let isDragging = false;
+    let isDraggingImage = false;
+    let isDraggingEmoji = false;
     let startX, startY;
     let lastDistance = 0;
     let lastAngle = 0;
@@ -124,6 +163,7 @@
     let emojiImage = null;
     let emojiX = 50; // Emoji的初始X位置
     let emojiY = 50; // Emoji的初始Y位置
+    const emojiSize = 40; // Emoji大小
 
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
@@ -154,7 +194,7 @@
 
       // 绘制表情图像
       if (emojiImage) {
-        ctx.drawImage(emojiImage, emojiX, emojiY, 40, 40); // 设置表情大小为40x40
+        ctx.drawImage(emojiImage, emojiX, emojiY, emojiSize, emojiSize);
       }
     }
 
@@ -187,16 +227,38 @@
       };
     }
 
-    // 单指拖动
+    // 判断点击是否在emoji区域内
+    function isClickOnEmoji(clientX, clientY) {
+      if (!emojiImage) return false;
+      const rect = canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      return (
+        x >= emojiX &&
+        x <= emojiX + emojiSize &&
+        y >= emojiY &&
+        y <= emojiY + emojiSize
+      );
+    }
+
+    // 触摸开始（支持拖动照片和emoji）
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
+      const touch = e.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+
       if (e.touches.length === 1) {
-        isDragging = true;
-        const touch = e.touches[0];
-        startX = touch.clientX;
-        startY = touch.clientY;
+        if (isClickOnEmoji(startX, startY)) {
+          isDraggingEmoji = true;
+          isDraggingImage = false;
+        } else {
+          isDraggingImage = true;
+          isDraggingEmoji = false;
+        }
       } else if (e.touches.length === 2) {
-        isDragging = false;
+        isDraggingImage = false;
+        isDraggingEmoji = false;
         const touch1 = e.touches[0];
         const touch2 = e.touches[1];
         lastDistance = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
@@ -204,14 +266,20 @@
       }
     });
 
+    // 触摸移动（支持拖动照片和emoji）
     canvas.addEventListener('touchmove', (e) => {
       e.preventDefault();
-      if (e.touches.length === 1 && isDragging) {
+      if (e.touches.length === 1) {
         const touch = e.touches[0];
         const dx = touch.clientX - startX;
         const dy = touch.clientY - startY;
-        posX += dx;
-        posY += dy;
+        if (isDraggingImage) {
+          posX += dx;
+          posY += dy;
+        } else if (isDraggingEmoji) {
+          emojiX += dx;
+          emojiY += dy;
+        }
         startX = touch.clientX;
         startY = touch.clientY;
         drawImage();
@@ -229,31 +297,47 @@
       }
     });
 
+    // 触摸结束
     canvas.addEventListener('touchend', () => {
-      isDragging = false;
+      isDraggingImage = false;
+      isDraggingEmoji = false;
     });
 
-    // 鼠标拖动（电脑端支持）
+    // 鼠标按下（支持拖动照片和emoji）
     canvas.addEventListener('mousedown', (e) => {
-      isDragging = true;
       startX = e.clientX;
       startY = e.clientY;
+      if (isClickOnEmoji(startX, startY)) {
+        isDraggingEmoji = true;
+        isDraggingImage = false;
+      } else {
+        isDraggingImage = true;
+        isDraggingEmoji = false;
+      }
     });
 
+    // 鼠标移动（支持拖动照片和emoji）
     canvas.addEventListener('mousemove', (e) => {
-      if (isDragging) {
+      if (isDraggingImage || isDraggingEmoji) {
         const dx = e.clientX - startX;
         const dy = e.clientY - startY;
-        posX += dx;
-        posY += dy;
+        if (isDraggingImage) {
+          posX += dx;
+          posY += dy;
+        } else if (isDraggingEmoji) {
+          emojiX += dx;
+          emojiY += dy;
+        }
         startX = e.clientX;
         startY = e.clientY;
         drawImage();
       }
     });
 
+    // 鼠标松开
     canvas.addEventListener('mouseup', () => {
-      isDragging = false;
+      isDraggingImage = false;
+      isDraggingEmoji = false;
     });
 
     // 色彩调整
