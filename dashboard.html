@@ -35,10 +35,16 @@
       height: 5px;
       background: linear-gradient(to right, #ff6b6b, #feca57);
     }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
     h2 {
       color: #333;
       font-size: 24px;
-      margin-bottom: 10px;
+      margin: 0;
     }
     p {
       color: #666;
@@ -94,9 +100,6 @@
       justify-content: center;
     }
     .language-btn {
-      position: fixed;
-      top: 15px;
-      right: 15px;
       background: linear-gradient(to right, #28a745, #34d058);
       color: white;
       width: 40px;
@@ -117,9 +120,11 @@
   </style>
 </head>
 <body>
-  <button class="language-btn" onclick="toggleLanguage()">🌐</button>
   <div class="container">
-    <h2 data-i18n="welcome">欢迎，<span id="username"></span></h2>
+    <div class="header">
+      <h2 data-i18n="welcome">欢迎，<span id="username"></span></h2>
+      <button class="language-btn" onclick="toggleLanguage()">🌐</button>
+    </div>
     <p data-i18n="remaining_prints">剩余打印次数：<span id="remainingUses">0</span></p>
     <h3 data-i18n="bind_printer">绑定打印机</h3>
     <input type="text" id="printerId" placeholder="请输入打印机ID" data-i18n-placeholder="printer_id_placeholder">
@@ -204,6 +209,7 @@
         const password = localStorage.getItem('password');
         if (!password) {
           console.error('No password found in localStorage');
+          document.getElementById('remainingUses').textContent = 0;
           return;
         }
         const response = await fetch('/.netlify/functions/auth', {
@@ -211,9 +217,12 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'login', username, password })
         });
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
         const data = await response.json();
         if (data.success) {
-          document.getElementById('remainingUses').textContent = data.remainingUses || 0;
+          document.getElementById('remainingUses').textContent = data.remainingUses !== undefined ? data.remainingUses : 0;
           if (data.printerId) {
             document.getElementById('printerId').value = data.printerId;
           }
@@ -244,7 +253,7 @@
         const data = await response.json();
         if (data.success) {
           alert(translations[currentLang].bind_success);
-          fetchUserData(username); // 重新获取用户数据以更新打印次数
+          fetchUserData(username);
         } else {
           alert(data.message || translations[currentLang].bind_failed);
         }
@@ -256,7 +265,7 @@
 
     function generateQR() {
       const qrcodeDiv = document.getElementById('qrcode');
-      qrcodeDiv.innerHTML = ''; // 清空之前的二维码
+      qrcodeDiv.innerHTML = '';
       const username = localStorage.getItem('user');
       if (!username) {
         console.error('No username found for QR code generation');
@@ -284,7 +293,7 @@
         window.location.href = '/index.html';
       } catch (error) {
         console.error('Logout error:', error);
-        window.location.href = '/index.html'; // 即使出错也强制跳转
+        window.location.href = '/index.html';
       }
     }
   </script>
