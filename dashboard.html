@@ -201,10 +201,14 @@
     const username = urlParams.get('username');
     const remainingUses = urlParams.get('remainingUses');
 
+    console.log('URL Parameters:', { username, remainingUses });
+
     if (!username || remainingUses === null) {
+      console.error('Missing username or remainingUses in URL parameters');
       alert(translations[currentLang].invalid_access);
       window.location.href = '/index.html';
     } else {
+      console.log('Setting username and remainingUses on page:', { username, remainingUses });
       document.getElementById('username').textContent = username || 'Unknown User';
       document.getElementById('remainingUses').textContent = remainingUses || 0;
     }
