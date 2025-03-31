@@ -66,7 +66,6 @@
     <input type="password" id="password" placeholder="密码">
     <button onclick="submitForm()">提交</button>
     <div class="toggle" onclick="toggleForm()">切换到注册</div>
-    <button onclick="testSupabase()">测试Supabase</button>
   </div>
 
   <script>
@@ -76,22 +75,6 @@
       isLogin = !isLogin;
       document.getElementById('title').textContent = isLogin ? '登录' : '注册';
       document.querySelector('.toggle').textContent = isLogin ? '切换到注册' : '切换到登录';
-    }
-
-    async function testSupabase() {
-      try {
-        const response = await fetch('/.netlify/functions/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'test' })
-        });
-        const data = await response.json();
-        console.log('Test Supabase response:', data);
-        alert(JSON.stringify(data));
-      } catch (error) {
-        console.error('Test Supabase error:', error);
-        alert('测试Supabase失败：' + error.message);
-      }
     }
 
     async function submitForm() {
@@ -129,6 +112,7 @@
           if (data.success) {
             if (data.approved) {
               localStorage.setItem('user', username);
+              localStorage.setItem('password', password);
               window.location.href = '/dashboard.html';
             } else {
               alert('您的账户还在等待审核，请耐心等候！');
