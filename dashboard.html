@@ -78,6 +78,8 @@
     }
     #qrcode {
       margin: 20px 0;
+      display: flex;
+      justify-content: center; /* 居中显示 */
     }
     .logout-btn {
       background: linear-gradient(to right, #ff4b4b, #ff7878);
@@ -161,8 +163,8 @@
       const url = `${window.location.origin}/upload.html?username=${username}`;
       new QRCode(qrcodeDiv, {
         text: url,
-        width: 128,
-        height: 128
+        width: 200, /* 增大二维码尺寸 */
+        height: 200 /* 增大二维码尺寸 */
       });
     }
 
