@@ -389,9 +389,20 @@
     }
 
     function updateLanguage() {
+      // 更新所有带有 data-i18n 属性的元素
       document.querySelectorAll('[data-i18n]').forEach(element => {
         const key = element.getAttribute('data-i18n');
         element.textContent = translations[currentLang][key];
+      });
+      // 更新后备选项（emoji select）的文本
+      document.querySelectorAll('#emojiSelect option').forEach(option => {
+        const key = option.getAttribute('data-i18n');
+        if (key) {
+          const span = option.querySelector('span');
+          if (span) {
+            span.textContent = translations[currentLang][key];
+          }
+        }
       });
       document.title = translations[currentLang].upload_title;
     }
