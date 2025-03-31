@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>登录/注册 - 照片打印服务</title>
+  <title data-i18n="login_title">照片打印服务 - 登录</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -12,26 +12,27 @@
       align-items: center;
       height: 100vh;
       margin: 0;
-      background-color: #f0f0f0;
+      background: linear-gradient(135deg, #74ebd5, #acb6e5);
     }
     .container {
       background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      width: 100%;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.2);
+      width: 90%;
       max-width: 400px;
+      text-align: center;
     }
     h2 {
-      text-align: center;
       color: #333;
+      margin-bottom: 20px;
     }
     input {
       width: 100%;
       padding: 10px;
       margin: 10px 0;
       border: 1px solid #ddd;
-      border-radius: 4px;
+      border-radius: 5px;
       box-sizing: border-box;
     }
     button {
@@ -40,98 +41,107 @@
       background-color: #007bff;
       color: white;
       border: none;
-      border-radius: 4px;
+      border-radius: 5px;
       cursor: pointer;
     }
     button:hover {
       background-color: #0056b3;
     }
-    .toggle {
-      text-align: center;
-      margin-top: 10px;
-      color: #007bff;
+    .language-btn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background-color: #28a745;
+      color: white;
+      padding: 8px;
+      border-radius: 4px;
       cursor: pointer;
     }
-    @media (max-width: 600px) {
-      .container {
-        margin: 10px;
-      }
+    .language-btn:hover {
+      background-color: #218838;
     }
   </style>
 </head>
 <body>
+  <button class="language-btn" onclick="toggleLanguage()">English</button>
   <div class="container">
-    <h2 id="title">登录</h2>
-    <input type="text" id="username" placeholder="用户名">
-    <input type="password" id="password" placeholder="密码">
-    <button onclick="submitForm()">提交</button>
-    <div class="toggle" onclick="toggleForm()">切换到注册</div>
+    <h2 data-i18n="login_title">照片打印服务 - 登录</h2>
+    <input type="text" id="username" placeholder="用户名" data-i18n-placeholder="username_placeholder">
+    <input type="password" id="password" placeholder="密码" data-i18n-placeholder="password_placeholder">
+    <button onclick="login()" data-i18n="login">登录</button>
   </div>
 
   <script>
-    let isLogin = true;
+    const translations = {
+      zh: {
+        login_title: "照片打印服务 - 登录",
+        username_placeholder: "用户名",
+        password_placeholder: "密码",
+        login: "登录",
+        login_failed: "登录失败，请检查用户名和密码！",
+        network_error: "网络错误，请稍后再试！",
+        language_btn: "English"
+      },
+      en: {
+        login_title: "Photo Print Service - Login",
+        username_placeholder: "Username",
+        password_placeholder: "Password",
+        login: "Login",
+        login_failed: "Login failed, please check your username and password!",
+        network_error: "Network error, please try again later!",
+        language_btn: "中文"
+      }
+    };
 
-    function toggleForm() {
-      isLogin = !isLogin;
-      document.getElementById('title').textContent = isLogin ? '登录' : '注册';
-      document.querySelector('.toggle').textContent = isLogin ? '切换到注册' : '切换到登录';
+    let currentLang = localStorage.getItem('language') || 'zh';
+    updateLanguage();
+
+    function toggleLanguage() {
+      currentLang = currentLang === 'zh' ? 'en' : 'zh';
+      localStorage.setItem('language', currentLang);
+      updateLanguage();
     }
 
-    async function submitForm() {
+    function updateLanguage() {
+      document.querySelectorAll('[data-i18n]').forEach(element => {
+        const key = element.getAttribute('data-i18n');
+        element.textContent = translations[currentLang][key];
+      });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+        const key = element.getAttribute('data-i18n-placeholder');
+        element.placeholder = translations[currentLang][key];
+      });
+      document.querySelector('.language-btn').textContent = translations[currentLang].language_btn;
+      document.title = translations[currentLang].login_title;
+    }
+
+    async function login() {
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value.trim();
+
       if (!username || !password) {
-        alert('请填写完整信息！');
+        alert(translations[currentLang].login_failed);
         return;
       }
 
-      const endpoint = '/.netlify/functions/auth';
-      const requestBody = {
-        action: isLogin ? 'login' : 'signup',
-        username,
-        password
-      };
-      const body = JSON.stringify(requestBody);
-
-      console.log('Sending auth request:', { endpoint, body });
-
       try {
-        const response = await fetch(endpoint, {
+        const response = await fetch('/.netlify/functions/auth', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: body
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'login', username, password })
         });
-
-        console.log('Auth response status:', response.status);
         const data = await response.json();
-        console.log('Auth response:', data);
 
-        if (isLogin) {
-          if (data.success) {
-            if (data.approved) {
-              localStorage.setItem('user', username);
-              localStorage.setItem('password', password);
-              window.location.href = '/dashboard.html';
-            } else {
-              alert('您的账户还在等待审核，请耐心等候！');
-            }
-          } else {
-            alert(data.message || '登录失败，请检查用户名或密码！');
-          }
+        if (data.success) {
+          localStorage.setItem('user', username);
+          localStorage.setItem('password', password);
+          window.location.href = '/dashboard.html';
         } else {
-          if (data.success) {
-            alert('注册成功，请等待管理员审核！');
-            toggleForm();
-          } else {
-            alert(data.message || '注册失败，用户名可能已存在！');
-          }
+          alert(data.message || translations[currentLang].login_failed);
         }
       } catch (error) {
-        console.error('Auth fetch error:', error);
-        alert('网络错误，请稍后再试！');
+        console.error('Login error:', error);
+        alert(translations[currentLang].network_error);
       }
     }
   </script>
