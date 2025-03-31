@@ -3,40 +3,34 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>加盟商仪表板</title>
+  <title>仪表板 - 照片打印服务</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
       margin: 0;
-      padding: 20px;
       background-color: #f0f0f0;
     }
     .container {
-      max-width: 800px;
-      margin: 0 auto;
       background: white;
       padding: 20px;
       border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-    h1 {
+      width: 90%;
+      max-width: 500px;
       text-align: center;
-      color: #333;
-    }
-    .section {
-      margin: 20px 0;
-    }
-    .section h3 {
-      color: #007bff;
     }
     input, button {
+      width: 100%;
       padding: 10px;
-      margin: 5px 0;
-      border-radius: 4px;
-    }
-    input {
+      margin: 10px 0;
       border: 1px solid #ddd;
-      width: calc(100% - 22px);
+      border-radius: 4px;
+      box-sizing: border-box;
     }
     button {
       background-color: #007bff;
@@ -47,53 +41,25 @@
     button:hover {
       background-color: #0056b3;
     }
-    #photo-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    #photo-list img {
+    img {
       max-width: 100px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-    }
-    #qrcode {
-      margin-top: 10px;
-    }
-    @media (max-width: 600px) {
-      .container {
-        padding: 10px;
-      }
-      input, button {
-        width: 100%;
-        box-sizing: border-box;
-      }
+      margin: 5px;
     }
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
   <div class="container">
-    <h1>欢迎，<span id="username"></span></h1>
-    <div class="section">
-      <h3>剩余使用次数</h3>
-      <p id="remaining-uses">加载中...</p>
-    </div>
-    <div class="section">
-      <h3>绑定打印机</h3>
-      <input type="text" id="printer-id" placeholder="输入打印机ID">
-      <button onclick="bindPrinter()">绑定</button>
-      <p>打印机状态：<span id="printer-status">未绑定</span></p>
-    </div>
-    <div class="section">
-      <h3>上传的照片</h3>
-      <div id="photo-list"></div>
-    </div>
-    <div class="section">
-      <h3>生成二维码</h3>
-      <button onclick="generateQRCode()">生成</button>
-      <div id="qrcode"></div>
-    </div>
+    <h2>欢迎，<span id="username"></span></h2>
+    <p>剩余打印次数：<span id="remainingUses">未知</span></p>
+    <h3>绑定打印机</h3>
+    <input type="text" id="printerId" placeholder="请输入打印机ID">
+    <button onclick="bindPrinter()">绑定</button>
+    <h3>上传照片</h3>
+    <input type="file" id="photoInput" accept="image/*">
+    <button onclick="uploadPhoto()">上传</button>
+    <div id="photoList"></div>
+    <h3>生成二维码</h3>
+    <div id="qrcode"></div>
     <button onclick="logout()">退出登录</button>
   </div>
 
@@ -101,69 +67,94 @@
     const username = localStorage.getItem('user');
     if (!username) {
       window.location.href = '/index.html';
+    } else {
+      document.getElementById('username').textContent = username;
+      fetchUserData(username);
     }
-    document.getElementById('username').textContent = username;
 
-    async function fetchUserData() {
+    async function fetchUserData(username) {
       try {
         const response = await fetch('/.netlify/functions/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username })
+          body: JSON.stringify({ action: 'login', username, password: localStorage.getItem('password') })
         });
         const data = await response.json();
         if (data.success) {
-          document.getElementById('remaining-uses').textContent = data.remainingUses || 0;
-          const printerId = data.printerId;
-          if (printerId) {
-            document.getElementById('printer-id').value = printerId;
-            document.getElementById('printer-status').textContent = '在线（模拟）';
+          document.getElementById('remainingUses').textContent = data.remainingUses || 0;
+          if (data.printerId) {
+            document.getElementById('printerId').value = data.printerId;
           }
-          updatePhotoList(data.photos || []);
+          if (data.photos && data.photos.length > 0) {
+            document.getElementById('photoList').innerHTML = data.photos.map(url => `<img src="${url}" alt="Photo">`).join('');
+          }
         }
       } catch (error) {
-        alert('获取数据失败，请稍后再试！');
+        console.error('Fetch user data error:', error);
       }
     }
 
     async function bindPrinter() {
-      const printerId = document.getElementById('printer-id').value;
+      const printerId = document.getElementById('printerId').value.trim();
+      const username = localStorage.getItem('user');
       if (!printerId) {
         alert('请输入打印机ID！');
         return;
       }
+
       try {
-        const response = await fetch('/.netlify/functions/auth/bind-printer', {
+        const response = await fetch('/.netlify/functions/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, printerId })
+          body: JSON.stringify({ action: 'bind-printer', username, printerId })
         });
         const data = await response.json();
         if (data.success) {
-          document.getElementById('printer-status').textContent = '在线（模拟）';
-          alert('绑定成功！');
+          alert('绑定打印机成功！');
         } else {
-          alert('绑定失败，请重试！');
+          alert(data.message || '绑定打印机失败！');
         }
       } catch (error) {
+        console.error('Bind printer error:', error);
         alert('网络错误，请稍后再试！');
       }
     }
 
-    function updatePhotoList(photos) {
-      const photoList = document.getElementById('photo-list');
-      photoList.innerHTML = '';
-      photos.forEach(photo => {
-        const img = document.createElement('img');
-        img.src = photo.url; // 临时URL，实际由后端提供
-        photoList.appendChild(img);
-      });
+    async function uploadPhoto() {
+      const fileInput = document.getElementById('photoInput');
+      const file = fileInput.files[0];
+      const username = localStorage.getItem('user');
+      if (!file) {
+        alert('请选择一张照片！');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('username', username);
+
+      try {
+        const response = await fetch('/.netlify/functions/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await response.json();
+        if (data.success) {
+          alert('照片上传成功！');
+          fetchUserData(username);
+          generateQRCode(data.url);
+        } else {
+          alert(data.message || '照片上传失败！');
+        }
+      } catch (error) {
+        console.error('Upload photo error:', error);
+        alert('网络错误，请稍后再试！');
+      }
     }
 
-    function generateQRCode() {
+    function generateQRCode(url) {
       const qrcodeDiv = document.getElementById('qrcode');
       qrcodeDiv.innerHTML = '';
-      const url = `${window.location.origin}/upload.html?franchisee_id=${username}`;
       new QRCode(qrcodeDiv, {
         text: url,
         width: 128,
@@ -173,11 +164,9 @@
 
     function logout() {
       localStorage.removeItem('user');
+      localStorage.removeItem('password');
       window.location.href = '/index.html';
     }
-
-    // 初始化加载用户数据
-    fetchUserData();
   </script>
 </body>
 </html>
