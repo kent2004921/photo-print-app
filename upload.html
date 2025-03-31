@@ -10,106 +10,166 @@
   <script type="module" src="https://unpkg.com/emoji-picker-element@latest/dist/index.js"></script>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', Arial, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
       min-height: 100vh;
       margin: 0;
-      background-color: #f0f0f0;
+      background: linear-gradient(135deg, #74ebd5, #acb6e5);
     }
     .container {
       background: white;
-      padding: 20px;
-      border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      text-align: center;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
       width: 90%;
       max-width: 500px;
       margin: 20px 0;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 5px;
+      background: linear-gradient(to right, #ff6b6b, #feca57);
+    }
+    h2 {
+      color: #333;
+      font-size: 24px;
+      margin-bottom: 20px;
     }
     canvas {
       border: 1px solid #ddd;
+      border-radius: 8px;
       max-width: 100%;
       margin: 10px 0;
     }
-    input, button, select {
+    input[type="file"] {
       width: 100%;
-      padding: 10px;
-      margin: 5px 0;
+      padding: 12px;
+      margin: 10px 0;
       border: 1px solid #ddd;
-      border-radius: 4px;
+      border-radius: 8px;
       box-sizing: border-box;
+      font-size: 16px;
+      background-color: #f9f9f9;
     }
     button {
-      background-color: #007bff;
-      color: white;
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
       border: none;
+      border-radius: 8px;
       cursor: pointer;
+      font-size: 16px;
+      transition: transform 0.1s, background 0.3s;
     }
     button:hover {
-      background-color: #0056b3;
+      transform: scale(1.02);
+    }
+    .print-btn {
+      background: linear-gradient(to right, #007bff, #00c4ff);
+      color: white;
+    }
+    .print-btn:hover {
+      background: linear-gradient(to right, #0056b3, #0099cc);
     }
     .remove-emoji-btn {
-      background-color: #ff4b4b;
+      background: linear-gradient(to right, #ff4b4b, #ff7878);
+      color: white;
     }
     .remove-emoji-btn:hover {
-      background-color: #cc3a3a;
+      background: linear-gradient(to right, #cc3a3a, #cc6060);
     }
     .delete-selected-btn {
-      background-color: #ff7878;
+      background: linear-gradient(to right, #ff7878, #ff9999);
+      color: white;
       display: none;
     }
     .delete-selected-btn:hover {
-      background-color: #cc6060;
+      background: linear-gradient(to right, #cc6060, #cc7a7a);
     }
     .clear-all-btn {
-      background-color: #ff9999;
+      background: linear-gradient(to right, #ff9999, #ffbaba);
+      color: white;
     }
     .clear-all-btn:hover {
-      background-color: #cc7a7a;
+      background: linear-gradient(to right, #cc7a7a, #cc9999);
     }
     .language-btn {
       position: fixed;
-      top: 10px;
-      right: 10px;
-      background-color: #28a745;
+      top: 15px;
+      right: 15px;
+      background: linear-gradient(to right, #28a745, #34d058);
       color: white;
-      padding: 8px;
-      border-radius: 4px;
+      padding: 10px 20px;
+      border-radius: 20px;
       cursor: pointer;
+      font-size: 14px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      transition: transform 0.1s, background 0.3s;
     }
     .language-btn:hover {
-      background-color: #218838;
+      background: linear-gradient(to right, #218838, #28a745);
+      transform: scale(1.05);
     }
     .controls {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 15px;
       justify-content: center;
     }
     .control-group {
-      margin: 10px 0;
+      margin: 15px 0;
+      padding: 10px;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     .control-group label {
       display: block;
-      margin-bottom: 5px;
+      margin-bottom: 8px;
+      color: #444;
+      font-size: 16px;
+    }
+    .control-group input[type="range"] {
+      width: 100%;
+      cursor: pointer;
     }
     .emoji-picker {
-      margin: 10px 0;
+      margin: 15px 0;
       position: relative;
       z-index: 10;
+    }
+    .emoji-picker label {
+      display: block;
+      margin-bottom: 8px;
+      color: #444;
+      font-size: 16px;
     }
     emoji-picker {
       width: 100%;
       max-height: 200px;
       overflow-y: auto;
       border: 1px solid #ddd;
-      border-radius: 4px;
-      display: block;
+      border-radius: 8px;
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     .fallback-select {
       display: none;
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
   </style>
 </head>
@@ -123,51 +183,51 @@
       <label data-i18n="select_emoji">选择表情</label>
       <emoji-picker id="emojiPicker"></emoji-picker>
       <select id="emojiSelect" class="fallback-select" onchange="addEmojiToCanvas(this.value)">
-        <option value="">选择一个表情</option>
-        <option value="😊">😊 笑脸</option>
-        <option value="❤️">❤️ 红心</option>
-        <option value="🌟">🌟 星星</option>
-        <option value="🎉">🎉 庆祝</option>
-        <option value="🐾">🐾 爪印</option>
-        <option value="😂">😂 笑哭</option>
-        <option value="😍">😍 爱心眼</option>
-        <option value="😘">😘 飞吻</option>
-        <option value="😎">😎 酷</option>
-        <option value="😢">😢 哭泣</option>
-        <option value="😡">😡 生气</option>
-        <option value="🤩">🤩 崇拜</option>
-        <option value="🤗">🤗 拥抱</option>
-        <option value="🤔">🤔 思考</option>
-        <option value="🤡">🤡 小丑</option>
-        <option value="👻">👻 幽灵</option>
-        <option value="👽">👽 外星人</option>
-        <option value="👾">👾 怪物</option>
-        <option value="🤖">🤖 机器人</option>
-        <option value="🎃">🎃 南瓜</option>
-        <option value="🎄">🎄 圣诞树</option>
-        <option value="🎁">🎁 礼物</option>
-        <option value="🎂">🎂 蛋糕</option>
-        <option value="🍎">🍎 苹果</option>
-        <option value="🍌">🍌 香蕉</option>
-        <option value="🍒">🍒 樱桃</option>
-        <option value="🍓">🍓 草莓</option>
-        <option value="🍕">🍕 披萨</option>
-        <option value="🍔">🍔 汉堡</option>
-        <option value="🍟">🍟 薯条</option>
-        <option value="🍦">🍦 冰淇淋</option>
-        <option value="☕">☕ 咖啡</option>
-        <option value="🍷">🍷 红酒</option>
-        <option value="🌈">🌈 彩虹</option>
-        <option value="☀️">☀️ 太阳</option>
-        <option value="🌙">🌙 月亮</option>
-        <option value="⭐">⭐ 星星</option>
-        <option value="⚡">⚡ 闪电</option>
-        <option value="💧">💧 水滴</option>
-        <option value="🔥">🔥 火焰</option>
+        <option value="" data-i18n="select_emoji_option">选择一个表情</option>
+        <option value="😊">😊 <span data-i18n="emoji_smile">笑脸</span></option>
+        <option value="❤️">❤️ <span data-i18n="emoji_heart">红心</span></option>
+        <option value="🌟">🌟 <span data-i18n="emoji_star">星星</span></option>
+        <option value="🎉">🎉 <span data-i18n="emoji_party">庆祝</span></option>
+        <option value="🐾">🐾 <span data-i18n="emoji_paw">爪印</span></option>
+        <option value="😂">😂 <span data-i18n="emoji_laugh">笑哭</span></option>
+        <option value="😍">😍 <span data-i18n="emoji_love_eyes">爱心眼</span></option>
+        <option value="😘">😘 <span data-i18n="emoji_kiss">飞吻</span></option>
+        <option value="😎">😎 <span data-i18n="emoji_cool">酷</span></option>
+        <option value="😢">😢 <span data-i18n="emoji_cry">哭泣</span></option>
+        <option value="😡">😡 <span data-i18n="emoji_angry">生气</span></option>
+        <option value="🤩">🤩 <span data-i18n="emoji_admire">崇拜</span></option>
+        <option value="🤗">🤗 <span data-i18n="emoji_hug">拥抱</span></option>
+        <option value="🤔">🤔 <span data-i18n="emoji_think">思考</span></option>
+        <option value="🤡">🤡 <span data-i18n="emoji_clown">小丑</span></option>
+        <option value="👻">👻 <span data-i18n="emoji_ghost">幽灵</span></option>
+        <option value="👽">👽 <span data-i18n="emoji_alien">外星人</span></option>
+        <option value="👾">👾 <span data-i18n="emoji_monster">怪物</span></option>
+        <option value="🤖">🤖 <span data-i18n="emoji_robot">机器人</span></option>
+        <option value="🎃">🎃 <span data-i18n="emoji_pumpkin">南瓜</span></option>
+        <option value="🎄">🎄 <span data-i18n="emoji_christmas_tree">圣诞树</span></option>
+        <option value="🎁">🎁 <span data-i18n="emoji_gift">礼物</span></option>
+        <option value="🎂">🎂 <span data-i18n="emoji_cake">蛋糕</span></option>
+        <option value="🍎">🍎 <span data-i18n="emoji_apple">苹果</span></option>
+        <option value="🍌">🍌 <span data-i18n="emoji_banana">香蕉</span></option>
+        <option value="🍒">🍒 <span data-i18n="emoji_cherry">樱桃</span></option>
+        <option value="🍓">🍓 <span data-i18n="emoji_strawberry">草莓</span></option>
+        <option value="🍕">🍕 <span data-i18n="emoji_pizza">披萨</span></option>
+        <option value="🍔">🍔 <span data-i18n="emoji_burger">汉堡</span></option>
+        <option value="🍟">🍟 <span data-i18n="emoji_fries">薯条</span></option>
+        <option value="🍦">🍦 <span data-i18n="emoji_ice_cream">冰淇淋</span></option>
+        <option value="☕">☕ <span data-i18n="emoji_coffee">咖啡</span></option>
+        <option value="🍷">🍷 <span data-i18n="emoji_wine">红酒</span></option>
+        <option value="🌈">🌈 <span data-i18n="emoji_rainbow">彩虹</span></option>
+        <option value="☀️">☀️ <span data-i18n="emoji_sun">太阳</span></option>
+        <option value="🌙">🌙 <span data-i18n="emoji_moon">月亮</span></option>
+        <option value="⭐">⭐ <span data-i18n="emoji_star2">星星</span></option>
+        <option value="⚡">⚡ <span data-i18n="emoji_lightning">闪电</span></option>
+        <option value="💧">💧 <span data-i18n="emoji_droplet">水滴</span></option>
+        <option value="🔥">🔥 <span data-i18n="emoji_fire">火焰</span></option>
       </select>
     </div>
     <div class="controls">
-      <button onclick="printPhoto()" data-i18n="print">打印</button>
+      <button class="print-btn" onclick="printPhoto()" data-i18n="print">打印</button>
       <button class="remove-emoji-btn" onclick="removeLastEmoji()" data-i18n="remove_last_emoji">删除最后一个表情</button>
       <button class="delete-selected-btn" id="deleteSelectedBtn" onclick="deleteSelectedEmoji()" data-i18n="delete_selected_emoji">删除选中表情</button>
       <button class="clear-all-btn" onclick="clearAllEmojis()" data-i18n="clear_all_emojis">清空所有表情</button>
@@ -192,6 +252,47 @@
       zh: {
         upload_title: "上传照片打印",
         select_emoji: "选择表情",
+        select_emoji_option: "选择一个表情",
+        emoji_smile: "笑脸",
+        emoji_heart: "红心",
+        emoji_star: "星星",
+        emoji_party: "庆祝",
+        emoji_paw: "爪印",
+        emoji_laugh: "笑哭",
+        emoji_love_eyes: "爱心眼",
+        emoji_kiss: "飞吻",
+        emoji_cool: "酷",
+        emoji_cry: "哭泣",
+        emoji_angry: "生气",
+        emoji_admire: "崇拜",
+        emoji_hug: "拥抱",
+        emoji_think: "思考",
+        emoji_clown: "小丑",
+        emoji_ghost: "幽灵",
+        emoji_alien: "外星人",
+        emoji_monster: "怪物",
+        emoji_robot: "机器人",
+        emoji_pumpkin: "南瓜",
+        emoji_christmas_tree: "圣诞树",
+        emoji_gift: "礼物",
+        emoji_cake: "蛋糕",
+        emoji_apple: "苹果",
+        emoji_banana: "香蕉",
+        emoji_cherry: "樱桃",
+        emoji_strawberry: "草莓",
+        emoji_pizza: "披萨",
+        emoji_burger: "汉堡",
+        emoji_fries: "薯条",
+        emoji_ice_cream: "冰淇淋",
+        emoji_coffee: "咖啡",
+        emoji_wine: "红酒",
+        emoji_rainbow: "彩虹",
+        emoji_sun: "太阳",
+        emoji_moon: "月亮",
+        emoji_star2: "星星",
+        emoji_lightning: "闪电",
+        emoji_droplet: "水滴",
+        emoji_fire: "火焰",
         print: "打印",
         remove_last_emoji: "删除最后一个表情",
         delete_selected_emoji: "删除选中表情",
@@ -212,6 +313,47 @@
       en: {
         upload_title: "Upload Photo to Print",
         select_emoji: "Select Emoji",
+        select_emoji_option: "Select an Emoji",
+        emoji_smile: "Smile",
+        emoji_heart: "Heart",
+        emoji_star: "Star",
+        emoji_party: "Party",
+        emoji_paw: "Paw",
+        emoji_laugh: "Laugh",
+        emoji_love_eyes: "Love Eyes",
+        emoji_kiss: "Kiss",
+        emoji_cool: "Cool",
+        emoji_cry: "Cry",
+        emoji_angry: "Angry",
+        emoji_admire: "Admire",
+        emoji_hug: "Hug",
+        emoji_think: "Think",
+        emoji_clown: "Clown",
+        emoji_ghost: "Ghost",
+        emoji_alien: "Alien",
+        emoji_monster: "Monster",
+        emoji_robot: "Robot",
+        emoji_pumpkin: "Pumpkin",
+        emoji_christmas_tree: "Christmas Tree",
+        emoji_gift: "Gift",
+        emoji_cake: "Cake",
+        emoji_apple: "Apple",
+        emoji_banana: "Banana",
+        emoji_cherry: "Cherry",
+        emoji_strawberry: "Strawberry",
+        emoji_pizza: "Pizza",
+        emoji_burger: "Burger",
+        emoji_fries: "Fries",
+        emoji_ice_cream: "Ice Cream",
+        emoji_coffee: "Coffee",
+        emoji_wine: "Wine",
+        emoji_rainbow: "Rainbow",
+        emoji_sun: "Sun",
+        emoji_moon: "Moon",
+        emoji_star2: "Star",
+        emoji_lightning: "Lightning",
+        emoji_droplet: "Droplet",
+        emoji_fire: "Fire",
         print: "Print",
         remove_last_emoji: "Remove Last Emoji",
         delete_selected_emoji: "Delete Selected Emoji",
@@ -231,18 +373,15 @@
       }
     };
 
-    // 初始化语言
     let currentLang = localStorage.getItem('language') || 'zh';
     updateLanguage();
 
-    // 切换语言
     function toggleLanguage() {
       currentLang = currentLang === 'zh' ? 'en' : 'zh';
       localStorage.setItem('language', currentLang);
       updateLanguage();
     }
 
-    // 更新页面语言
     function updateLanguage() {
       document.querySelectorAll('[data-i18n]').forEach(element => {
         const key = element.getAttribute('data-i18n');
@@ -292,7 +431,6 @@
 
     const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
 
-    // 检查emoji-picker是否加载成功
     const emojiPicker = document.getElementById('emojiPicker');
     const emojiSelect = document.getElementById('emojiSelect');
     if (!customElements.get('emoji-picker')) {
@@ -302,7 +440,6 @@
       emojiSelect.style.display = 'block';
     }
 
-    // 加载照片
     document.getElementById('photoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
@@ -313,7 +450,6 @@
       }
     });
 
-    // 绘制照片和所有表情
     function drawImage() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
@@ -324,7 +460,6 @@
       ctx.drawImage(image, -image.width / 2, -image.height / 2);
       ctx.restore();
 
-      // 绘制所有表情
       emojis.forEach((emoji, index) => {
         if (emoji.image) {
           ctx.save();
@@ -341,7 +476,6 @@
       });
     }
 
-    // 添加表情到Canvas
     function addEmojiToCanvas(emojiUnicode) {
       if (!emojiUnicode) return;
 
@@ -359,7 +493,7 @@
           x: 50 + emojis.length * 10,
           y: 50 + emojis.length * 10,
           size: 40,
-          rotation: 0 // 初始旋转角度
+          rotation: 0
         });
         drawImage();
       };
@@ -369,7 +503,6 @@
       };
     }
 
-    // 删除最后一个表情
     function removeLastEmoji() {
       if (emojis.length > 0) {
         emojis.pop();
@@ -381,7 +514,6 @@
       }
     }
 
-    // 删除选中的表情
     function deleteSelectedEmoji() {
       if (selectedEmojiIndex !== -1) {
         emojis.splice(selectedEmojiIndex, 1);
@@ -391,7 +523,6 @@
       }
     }
 
-    // 清空所有表情
     function clearAllEmojis() {
       emojis = [];
       selectedEmojiIndex = -1;
@@ -399,7 +530,6 @@
       drawImage();
     }
 
-    // 监听emoji-picker的选择事件
     if (!useFallback) {
       emojiPicker.addEventListener('emoji-click', (event) => {
         console.log('Emoji selected:', event.detail.unicode);
@@ -407,7 +537,6 @@
       });
     }
 
-    // 检测是否点击了某个emoji
     function getEmojiAtPosition(x, y) {
       for (let i = emojis.length - 1; i >= 0; i--) {
         const emoji = emojis[i];
@@ -423,7 +552,6 @@
       return -1;
     }
 
-    // 单指拖动（照片或表情）
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
       if (e.touches.length === 1) {
@@ -432,7 +560,6 @@
         const x = (touch.clientX - rect.left) * (canvas.width / dpr / rect.width);
         const y = (touch.clientY - rect.top) * (canvas.height / dpr / rect.height);
 
-        // 检查是否点击了某个表情
         draggedEmojiIndex = getEmojiAtPosition(x, y);
         if (draggedEmojiIndex !== -1) {
           isDraggingEmoji = true;
@@ -457,7 +584,6 @@
         const x2 = (touch2.clientX - rect.left) * (canvas.width / dpr / rect.width);
         const y2 = (touch2.clientY - rect.top) * (canvas.height / dpr / rect.height);
 
-        // 检查是否在某个表情上进行双指操作
         draggedEmojiIndex = getEmojiAtPosition((x1 + x2) / 2, (y1 + y2) / 2);
         if (draggedEmojiIndex !== -1) {
           isScalingEmoji = true;
@@ -530,7 +656,6 @@
       draggedEmojiIndex = -1;
     });
 
-    // 鼠标拖动（电脑端支持）
     canvas.addEventListener('mousedown', (e) => {
       const rect = canvas.getBoundingClientRect();
       const x = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
@@ -578,7 +703,6 @@
       draggedEmojiIndex = -1;
     });
 
-    // 鼠标滚轮缩放emoji
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
@@ -594,7 +718,6 @@
       }
     });
 
-    // 色彩调整
     function adjustColor() {
       brightness = document.getElementById('brightness').value;
       contrast = document.getElementById('contrast').value;
@@ -602,7 +725,6 @@
       drawImage();
     }
 
-    // 打印照片
     async function printPhoto() {
       if (!image.src) {
         alert(translations[currentLang].no_photo);
