@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="dashboard_title">仪表板 - 照片打印服务</title>
+  <title data-i18n="dashboard_title">Dashboard - Photo Print Service</title>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <style>
     body {
@@ -122,17 +122,17 @@
 <body>
   <div class="container">
     <div class="header">
-      <h2 data-i18n="welcome">欢迎，<span id="username"></span></h2>
+      <h2 data-i18n="welcome">Welcome, <span id="username"></span></h2>
       <button class="language-btn" onclick="toggleLanguage()">🌐</button>
     </div>
-    <p data-i18n="remaining_prints">剩余打印次数：<span id="remainingUses">加载中...</span></p>
-    <h3 data-i18n="bind_printer">绑定打印机</h3>
-    <input type="text" id="printerId" placeholder="请输入打印机ID" data-i18n-placeholder="printer_id_placeholder">
-    <button class="bind-btn" onclick="bindPrinter()" data-i18n="bind">绑定</button>
-    <h3 data-i18n="generate_qr">生成二维码</h3>
-    <button class="generate-btn" onclick="generateQR()" data-i18n="generate_qr_btn">生成二维码</button>
+    <p data-i18n="remaining_prints">Remaining Prints: <span id="remainingUses">Loading...</span></p>
+    <h3 data-i18n="bind_printer">Bind Printer</h3>
+    <input type="text" id="printerId" placeholder="Enter Printer ID" data-i18n-placeholder="printer_id_placeholder">
+    <button class="bind-btn" onclick="bindPrinter()" data-i18n="bind">Bind</button>
+    <h3 data-i18n="generate_qr">Generate QR Code</h3>
+    <button class="generate-btn" onclick="generateQR()" data-i18n="generate_qr_btn">Generate QR Code</button>
     <div id="qrcode"></div>
-    <button class="logout-btn" onclick="logout()" data-i18n="logout">退出登录</button>
+    <button class="logout-btn" onclick="logout()" data-i18n="logout">Logout</button>
   </div>
 
   <script>
@@ -173,7 +173,7 @@
       }
     };
 
-    let currentLang = localStorage.getItem('language') || 'zh';
+    let currentLang = localStorage.getItem('language') || 'en'; // Default to English as per screenshot
     updateLanguage();
 
     function toggleLanguage() {
@@ -200,20 +200,22 @@
 
     const username = localStorage.getItem('user');
     if (!username) {
+      console.log('No username found in localStorage, redirecting to login');
       window.location.href = '/index.html';
     } else {
-      document.getElementById('username').textContent = username || '未知用户';
+      console.log('Username from localStorage:', username);
+      document.getElementById('username').textContent = username || 'Unknown User';
       fetchUserData(username);
     }
 
     async function fetchUserData(username) {
       try {
         const password = localStorage.getItem('password');
-        console.log('Fetching user data with:', { username, password });
+        console.log('Fetching user data with credentials:', { username, password });
 
         if (!password) {
           console.error('No password found in localStorage');
-          document.getElementById('remainingUses').textContent = '未知';
+          document.getElementById('remainingUses').textContent = 'Unknown';
           alert(translations[currentLang].fetch_data_failed);
           return;
         }
@@ -239,18 +241,27 @@
           const remainingUses = data.remainingUses !== undefined ? data.remainingUses : 0;
           console.log('Remaining uses:', remainingUses);
           document.getElementById('remainingUses').textContent = remainingUses;
+
+          // Temporary simulation to confirm display works
+          // Uncomment the following line to test if the display works
+          // document.getElementById('remainingUses').textContent = 93;
+
           if (data.printerId) {
             document.getElementById('printerId').value = data.printerId;
           }
         } else {
           console.error('Failed to fetch user data:', data.message);
-          document.getElementById('remainingUses').textContent = '未知';
+          document.getElementById('remainingUses').textContent = 'Unknown';
           alert(data.message || translations[currentLang].fetch_data_failed);
         }
       } catch (error) {
-        console.error('Fetch user data error:', error);
-        document.getElementById('remainingUses').textContent = '未知';
+        console.error('Fetch user data error:', error.message);
+        document.getElementById('remainingUses').textContent = 'Unknown';
         alert(translations[currentLang].network_error);
+
+        // Temporary simulation to confirm display works
+        // Uncomment the following line to test if the display works
+        // document.getElementById('remainingUses').textContent = 93;
       }
     }
 
