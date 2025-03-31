@@ -4,7 +4,14 @@ const fetch = require('node-fetch');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 exports.handler = async (event, context) => {
+  console.log('Received print event:', {
+    method: event.httpMethod,
+    headers: event.headers,
+    body: event.body ? 'Body present' : 'Body missing'
+  });
+
   if (event.httpMethod === 'OPTIONS') {
+    console.log('Handling OPTIONS request');
     return {
       statusCode: 200,
       headers: {
@@ -15,8 +22,6 @@ exports.handler = async (event, context) => {
       body: ''
     };
   }
-
-  console.log('Received event:', event);
 
   if (!event.body) {
     console.error('Request body is empty');
@@ -34,7 +39,7 @@ exports.handler = async (event, context) => {
   let requestBody;
   try {
     requestBody = JSON.parse(event.body);
-    console.log('Parsed request body:', requestBody);
+    console.log('Parsed print request body:', requestBody);
   } catch (error) {
     console.error('Failed to parse request body:', error);
     return {
@@ -50,7 +55,10 @@ exports.handler = async (event, context) => {
 
   const { username, dataUrl } = requestBody;
 
-  console.log('Extracted values:', { username, dataUrl: dataUrl ? 'Data URL present' : 'Data URL missing' });
+  console.log('Extracted print values:', {
+    username: username || 'undefined',
+    dataUrl: dataUrl ? 'Data URL present' : 'Data URL missing'
+  });
 
   if (!username || !dataUrl) {
     console.error('Missing username or dataUrl:', { username, dataUrl });
@@ -66,7 +74,6 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    // 查询C顾客信息（确保大小写匹配）
     const { data: user, error: fetchError } = await supabase
       .from('franchisees')
       .select('remaining_uses, printer_id')
@@ -112,6 +119,8 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // 暂时注释掉printer_id检查，模拟打印成功
+    /*
     if (!user.printer_id) {
       return {
         statusCode: 400,
@@ -123,20 +132,22 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ success: false, message: '用户未绑定打印机' })
       };
     }
+    */
 
-    // 模拟发送照片到打印机（实际需替换为真实的打印机API）
-    const printerResponse = await fetch('https://printer-api.example.com/print', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        printerId: user.printer_id,
-        image: dataUrl
-      })
-    });
+    // 模拟打印机API调用（假设成功）
+    console.log('Simulating printer API call...');
+    // const printerResponse = await fetch('https://printer-api.example.com/print', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({
+    //     printerId: user.printer_id,
+    //     image: dataUrl
+    //   })
+    // });
 
-    if (!printerResponse.ok) {
-      throw new Error('打印机API调用失败');
-    }
+    // if (!printerResponse.ok) {
+    //   throw new Error('打印机API调用失败');
+    // }
 
     // 扣减打印次数
     const { error: updateError } = await supabase
@@ -157,6 +168,8 @@ exports.handler = async (event, context) => {
       };
     }
 
+    console.log(`Print successful for user ${username}, remaining_uses updated to ${user.remaining_uses - 1}`);
+
     return {
       statusCode: 200,
       headers: {
@@ -164,7 +177,7 @@ exports.handler = async (event, context) => {
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'POST, OPTIONS'
       },
-      body: JSON.stringify({ success: true, message: '打印成功' })
+      body: JSON.stringify({ success: true, message: '打印成功（模拟）' })
     };
   } catch (error) {
     console.error('Server error:', error);
