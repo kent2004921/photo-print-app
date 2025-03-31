@@ -43,7 +43,7 @@
     p {
       color: #666;
       font-size: 16px;
-      margin: 5px 0;
+      margin: 10px 0;
     }
     h3 {
       color: #444;
@@ -59,13 +59,12 @@
       border-radius: 8px;
       box-sizing: border-box;
       font-size: 16px;
+      background-color: #f9f9f9;
     }
     button {
       width: 100%;
       padding: 12px;
       margin: 10px 0;
-      background: linear-gradient(to right, #007bff, #00c4ff);
-      color: white;
       border: none;
       border-radius: 8px;
       cursor: pointer;
@@ -73,32 +72,43 @@
       transition: transform 0.1s, background 0.3s;
     }
     button:hover {
-      background: linear-gradient(to right, #0056b3, #0099cc);
       transform: scale(1.02);
+    }
+    .bind-btn, .generate-btn {
+      background: linear-gradient(to right, #007bff, #00c4ff);
+      color: white;
+    }
+    .bind-btn:hover, .generate-btn:hover {
+      background: linear-gradient(to right, #0056b3, #0099cc);
+    }
+    .logout-btn {
+      background: linear-gradient(to right, #ff4b4b, #ff7878);
+      color: white;
+    }
+    .logout-btn:hover {
+      background: linear-gradient(to right, #cc3a3a, #cc6060);
     }
     #qrcode {
       margin: 20px 0;
       display: flex;
       justify-content: center;
     }
-    .logout-btn {
-      background: linear-gradient(to right, #ff4b4b, #ff7878);
-    }
-    .logout-btn:hover {
-      background: linear-gradient(to right, #cc3a3a, #cc6060);
-    }
     .language-btn {
       position: fixed;
-      top: 10px;
-      right: 10px;
-      background-color: #28a745;
+      top: 15px;
+      right: 15px;
+      background: linear-gradient(to right, #28a745, #34d058);
       color: white;
-      padding: 8px;
-      border-radius: 4px;
+      padding: 10px 20px;
+      border-radius: 20px;
       cursor: pointer;
+      font-size: 14px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      transition: transform 0.1s, background 0.3s;
     }
     .language-btn:hover {
-      background-color: #218838;
+      background: linear-gradient(to right, #218838, #28a745);
+      transform: scale(1.05);
     }
   </style>
 </head>
@@ -109,9 +119,9 @@
     <p data-i18n="remaining_prints">剩余打印次数：<span id="remainingUses">未知</span></p>
     <h3 data-i18n="bind_printer">绑定打印机</h3>
     <input type="text" id="printerId" placeholder="请输入打印机ID" data-i18n-placeholder="printer_id_placeholder">
-    <button onclick="bindPrinter()" data-i18n="bind">绑定</button>
+    <button class="bind-btn" onclick="bindPrinter()" data-i18n="bind">绑定</button>
     <h3 data-i18n="generate_qr">生成二维码</h3>
-    <button onclick="generateQR()" data-i18n="generate_qr_btn">生成二维码</button>
+    <button class="generate-btn" onclick="generateQR()" data-i18n="generate_qr_btn">生成二维码</button>
     <div id="qrcode"></div>
     <button class="logout-btn" onclick="logout()" data-i18n="logout">退出登录</button>
   </div>
@@ -165,89 +175,4 @@
       document.querySelectorAll('[data-i18n]').forEach(element => {
         const key = element.getAttribute('data-i18n');
         if (element.id === 'welcome' || element.id === 'remaining_prints') {
-          element.innerHTML = translations[currentLang][key] + element.querySelector('span').outerHTML;
-        } else {
-          element.textContent = translations[currentLang][key];
-        }
-      });
-      document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
-        const key = element.getAttribute('data-i18n-placeholder');
-        element.placeholder = translations[currentLang][key];
-      });
-      document.querySelector('.language-btn').textContent = translations[currentLang].language_btn;
-      document.title = translations[currentLang].dashboard_title;
-    }
-
-    const username = localStorage.getItem('user');
-    if (!username) {
-      window.location.href = '/index.html';
-    } else {
-      document.getElementById('username').textContent = username;
-      fetchUserData(username);
-    }
-
-    async function fetchUserData(username) {
-      try {
-        const password = localStorage.getItem('password');
-        const response = await fetch('/.netlify/functions/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'login', username, password })
-        });
-        const data = await response.json();
-        if (data.success) {
-          document.getElementById('remainingUses').textContent = data.remainingUses || 0;
-          if (data.printerId) {
-            document.getElementById('printerId').value = data.printerId;
-          }
-        }
-      } catch (error) {
-        console.error('Fetch user data error:', error);
-      }
-    }
-
-    async function bindPrinter() {
-      const printerId = document.getElementById('printerId').value.trim();
-      const username = localStorage.getItem('user');
-      if (!printerId) {
-        alert(translations[currentLang].no_printer_id);
-        return;
-      }
-
-      try {
-        const response = await fetch('/.netlify/functions/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'bind-printer', username, printerId })
-        });
-        const data = await response.json();
-        if (data.success) {
-          alert(translations[currentLang].bind_success);
-        } else {
-          alert(data.message || translations[currentLang].bind_failed);
-        }
-      } catch (error) {
-        console.error('Bind printer error:', error);
-        alert(translations[currentLang].network_error);
-      }
-    }
-
-    function generateQR() {
-      const qrcodeDiv = document.getElementById('qrcode');
-      qrcodeDiv.innerHTML = '';
-      const url = `${window.location.origin}/upload.html?username=${username}`;
-      new QRCode(qrcodeDiv, {
-        text: url,
-        width: 200,
-        height: 200
-      });
-    }
-
-    function logout() {
-      localStorage.removeItem('user');
-      localStorage.removeItem('password');
-      window.location.href = '/index.html';
-    }
-  </script>
-</body>
-</html>
+          elemen
