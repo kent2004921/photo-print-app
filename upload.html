@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>上传照片打印</title>
+  <!-- 引入Twemoji库 -->
+  <script src="https://cdn.jsdelivr.net/npm/twemoji@latest/dist/twemoji.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -29,7 +31,7 @@
       max-width: 100%;
       margin: 10px 0;
     }
-    input, button {
+    input, button, select {
       width: 100%;
       padding: 10px;
       margin: 5px 0;
@@ -59,6 +61,9 @@
       display: block;
       margin-bottom: 5px;
     }
+    .emoji-picker {
+      margin: 10px 0;
+    }
   </style>
 </head>
 <body>
@@ -66,6 +71,17 @@
     <h2>上传照片打印</h2>
     <input type="file" id="photoInput" accept="image/*">
     <canvas id="photoCanvas"></canvas>
+    <div class="emoji-picker">
+      <label>选择表情</label>
+      <select id="emojiSelect" onchange="addEmojiToCanvas()">
+        <option value="">选择一个表情</option>
+        <option value="😊">😊 笑脸</option>
+        <option value="❤️">❤️ 红心</option>
+        <option value="🌟">🌟 星星</option>
+        <option value="🎉">🎉 庆祝</option>
+        <option value="🐾">🐾 爪印</option>
+      </select>
+    </div>
     <div class="controls">
       <button onclick="printPhoto()">打印</button>
     </div>
@@ -105,6 +121,9 @@
     let brightness = 1;
     let contrast = 1;
     let saturation = 1;
+    let emojiImage = null;
+    let emojiX = 50; // Emoji的初始X位置
+    let emojiY = 50; // Emoji的初始Y位置
 
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
@@ -122,7 +141,7 @@
       }
     });
 
-    // 绘制照片
+    // 绘制照片和表情
     function drawImage() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
@@ -132,6 +151,40 @@
       ctx.scale(scale, scale);
       ctx.drawImage(image, -image.width / 2, -image.height / 2);
       ctx.restore();
+
+      // 绘制表情图像
+      if (emojiImage) {
+        ctx.drawImage(emojiImage, emojiX, emojiY, 40, 40); // 设置表情大小为40x40
+      }
+    }
+
+    // 添加表情到Canvas
+    function addEmojiToCanvas() {
+      const emojiSelect = document.getElementById('emojiSelect');
+      const selectedEmoji = emojiSelect.value;
+      if (!selectedEmoji) {
+        emojiImage = null;
+        drawImage();
+        return;
+      }
+
+      // 使用Twemoji将emoji转换为图像URL
+      const emojiUrl = twemoji.parse(selectedEmoji, {
+        folder: 'svg',
+        ext: '.svg',
+        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/'
+      });
+      const img = new Image();
+      img.crossOrigin = 'anonymous'; // 解决跨域问题
+      img.src = emojiUrl.match(/src="([^"]+)"/)[1]; // 提取图像URL
+      img.onload = () => {
+        emojiImage = img;
+        drawImage();
+      };
+      img.onerror = () => {
+        console.error('Failed to load emoji image:', img.src);
+        alert('加载表情失败，请选择其他表情！');
+      };
     }
 
     // 单指拖动
@@ -219,7 +272,10 @@
       }
 
       const dataUrl = canvas.toDataURL('image/jpeg');
-      console.log('Preparing to print:', { username, dataUrl: dataUrl ? 'Data URL present' : 'Data URL missing' });
+      console.log('Preparing to print:', {
+        username: username || 'undefined',
+        dataUrl: dataUrl ? 'Data URL present' : 'Data URL missing'
+      });
 
       if (!username || !dataUrl) {
         console.error('Missing username or dataUrl:', { username, dataUrl });
@@ -227,14 +283,23 @@
         return;
       }
 
+      const requestBody = { username, dataUrl };
+      console.log('Sending request to /print:', requestBody);
+
       try {
         const response = await fetch('/.netlify/functions/print', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, dataUrl })
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(requestBody)
         });
+
+        console.log('Fetch response status:', response.status);
         const data = await response.json();
         console.log('Print response:', data);
+
         if (data.success) {
           alert('打印成功！');
         } else {
