@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>上传照片打印</title>
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -56,10 +55,7 @@
       <button onclick="zoomIn()">放大</button>
       <button onclick="zoomOut()">缩小</button>
       <button onclick="rotate()">旋转</button>
-      <button onclick="generateQR()">生成二维码</button>
     </div>
-    <h3>打印二维码</h3>
-    <div id="qrcode"></div>
     <button onclick="printPhoto()">打印</button>
   </div>
 
@@ -172,35 +168,23 @@
       drawImage();
     }
 
-    // 生成二维码
-    function generateQR() {
-      const dataUrl = canvas.toDataURL('image/jpeg');
-      const qrcodeDiv = document.getElementById('qrcode');
-      qrcodeDiv.innerHTML = '';
-      new QRCode(qrcodeDiv, {
-        text: dataUrl,
-        width: 128,
-        height: 128
-      });
-    }
-
-    // 打印并扣减次数
+    // 打印照片
     async function printPhoto() {
       if (!image.src) {
         alert('请先上传照片！');
         return;
       }
 
+      const dataUrl = canvas.toDataURL('image/jpeg');
       try {
-        const response = await fetch('/.netlify/functions/auth', {
+        const response = await fetch('/.netlify/functions/print', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'print', username })
+          body: JSON.stringify({ username, dataUrl })
         });
         const data = await response.json();
         if (data.success) {
           alert('打印成功！');
-          // 打印机应扫描二维码并打印照片
         } else {
           alert(data.message || '打印失败！');
         }
