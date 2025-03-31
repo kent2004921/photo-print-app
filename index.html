@@ -93,7 +93,7 @@
       };
       const body = JSON.stringify(requestBody);
 
-      console.log('Sending request:', { endpoint, body });
+      console.log('Sending auth request:', { endpoint, body });
 
       try {
         const response = await fetch(endpoint, {
@@ -105,8 +105,9 @@
           body: body
         });
 
+        console.log('Auth response status:', response.status);
         const data = await response.json();
-        console.log('Response:', data);
+        console.log('Auth response:', data);
 
         if (isLogin) {
           if (data.success) {
@@ -129,7 +130,7 @@
           }
         }
       } catch (error) {
-        console.error('Fetch error:', error);
+        console.error('Auth fetch error:', error);
         alert('网络错误，请稍后再试！');
       }
     }
