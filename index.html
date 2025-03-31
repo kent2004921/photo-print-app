@@ -92,16 +92,19 @@
         password
       });
 
+      // 调试：打印发送的请求数据
+      console.log('Sending request:', { endpoint, body });
+
       try {
-        // 调试日志：确认action值
-        console.log('Sending request with action:', isLogin ? 'login' : 'signup');
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body
         });
         const data = await response.json();
-        console.log('Response data:', data); // 调试日志：查看返回数据
+
+        // 调试：打印响应数据
+        console.log('Response:', data);
 
         if (isLogin) {
           if (data.success) {
@@ -123,7 +126,7 @@
           }
         }
       } catch (error) {
-        console.error('Fetch error:', error); // 调试日志：捕获网络错误
+        console.error('Fetch error:', error);
         alert('网络错误，请稍后再试！');
       }
     }
