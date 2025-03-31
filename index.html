@@ -3,93 +3,126 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="login_title">照片打印服务 - 登录</title>
+  <title data-i18n="login_title">登录 - 照片打印服务</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', Arial, sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      min-height: 100vh;
       margin: 0;
       background: linear-gradient(135deg, #74ebd5, #acb6e5);
     }
     .container {
       background: white;
       padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.2);
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
       width: 90%;
       max-width: 400px;
       text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 5px;
+      background: linear-gradient(to right, #ff6b6b, #feca57);
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
     }
     h2 {
       color: #333;
-      margin-bottom: 20px;
+      font-size: 24px;
+      margin: 0;
     }
     input {
       width: 100%;
-      padding: 10px;
+      padding: 12px;
       margin: 10px 0;
       border: 1px solid #ddd;
-      border-radius: 5px;
+      border-radius: 8px;
       box-sizing: border-box;
+      font-size: 16px;
+      background-color: #f9f9f9;
     }
     button {
       width: 100%;
-      padding: 10px;
-      background-color: #007bff;
-      color: white;
+      padding: 12px;
+      margin: 10px 0;
       border: none;
-      border-radius: 5px;
+      border-radius: 8px;
       cursor: pointer;
+      font-size: 16px;
+      transition: transform 0.1s, background 0.3s;
     }
     button:hover {
-      background-color: #0056b3;
+      transform: scale(1.02);
+    }
+    .login-btn {
+      background: linear-gradient(to right, #007bff, #00c4ff);
+      color: white;
+    }
+    .login-btn:hover {
+      background: linear-gradient(to right, #0056b3, #0099cc);
     }
     .language-btn {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      background-color: #28a745;
+      background: linear-gradient(to right, #28a745, #34d058);
       color: white;
-      padding: 8px;
-      border-radius: 4px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
+      font-size: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      transition: transform 0.1s, background 0.3s;
     }
     .language-btn:hover {
-      background-color: #218838;
+      background: linear-gradient(to right, #218838, #28a745);
+      transform: scale(1.1);
     }
   </style>
 </head>
 <body>
-  <button class="language-btn" onclick="toggleLanguage()">English</button>
   <div class="container">
-    <h2 data-i18n="login_title">照片打印服务 - 登录</h2>
+    <div class="header">
+      <h2 data-i18n="login_title">登录 - 照片打印服务</h2>
+      <button class="language-btn" onclick="toggleLanguage()">🌐</button>
+    </div>
     <input type="text" id="username" placeholder="用户名" data-i18n-placeholder="username_placeholder">
     <input type="password" id="password" placeholder="密码" data-i18n-placeholder="password_placeholder">
-    <button onclick="login()" data-i18n="login">登录</button>
+    <button class="login-btn" onclick="login()" data-i18n="login">登录</button>
   </div>
 
   <script>
     const translations = {
       zh: {
-        login_title: "照片打印服务 - 登录",
+        login_title: "登录 - 照片打印服务",
         username_placeholder: "用户名",
         password_placeholder: "密码",
         login: "登录",
         login_failed: "登录失败，请检查用户名和密码！",
-        network_error: "网络错误，请稍后再试！",
-        language_btn: "English"
+        network_error: "网络错误，请稍后再试！"
       },
       en: {
-        login_title: "Photo Print Service - Login",
+        login_title: "Login - Photo Print Service",
         username_placeholder: "Username",
         password_placeholder: "Password",
         login: "Login",
         login_failed: "Login failed, please check your username and password!",
-        network_error: "Network error, please try again later!",
-        language_btn: "中文"
+        network_error: "Network error, please try again later!"
       }
     };
 
@@ -111,7 +144,6 @@
         const key = element.getAttribute('data-i18n-placeholder');
         element.placeholder = translations[currentLang][key];
       });
-      document.querySelector('.language-btn').textContent = translations[currentLang].language_btn;
       document.title = translations[currentLang].login_title;
     }
 
@@ -131,7 +163,6 @@
           body: JSON.stringify({ action: 'login', username, password })
         });
         const data = await response.json();
-
         if (data.success) {
           localStorage.setItem('user', username);
           localStorage.setItem('password', password);
