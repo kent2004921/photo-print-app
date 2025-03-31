@@ -1,10 +1,16 @@
 const { createClient } = require('@supabase/supabase-js');
-const fetch = require('node-fetch');
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 exports.handler = async (event, context) => {
+  console.log('Received auth event:', {
+    method: event.httpMethod,
+    headers: event.headers,
+    body: event.body ? 'Body present' : 'Body missing'
+  });
+
   if (event.httpMethod === 'OPTIONS') {
+    console.log('Handling OPTIONS request');
     return {
       statusCode: 200,
       headers: {
@@ -17,6 +23,7 @@ exports.handler = async (event, context) => {
   }
 
   if (!event.body) {
+    console.error('Request body is empty');
     return {
       statusCode: 400,
       headers: {
@@ -31,7 +38,9 @@ exports.handler = async (event, context) => {
   let requestBody;
   try {
     requestBody = JSON.parse(event.body);
+    console.log('Parsed auth request body:', requestBody);
   } catch (error) {
+    console.error('Failed to parse request body:', error);
     return {
       statusCode: 400,
       headers: {
@@ -43,11 +52,12 @@ exports.handler = async (event, context) => {
     };
   }
 
-  const { username, dataUrl } = requestBody;
+  const { action, username, password, printerId } = requestBody;
 
-  console.log('Received print request:', { username, dataUrl: dataUrl ? 'Data URL present' : 'Data URL missing' });
+  console.log('Extracted auth values:', { action, username, password, printerId });
 
-  if (!username || !dataUrl) {
+  if (!action || !username || !password) {
+    console.error('Missing required fields:', { action, username, password });
     return {
       statusCode: 400,
       headers: {
@@ -55,110 +65,158 @@ exports.handler = async (event, context) => {
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'POST, OPTIONS'
       },
-      body: JSON.stringify({ success: false, message: '缺少用户名或照片数据' })
+      body: JSON.stringify({ success: false, message: '缺少必要字段（action, username, password）' })
     };
   }
 
   try {
-    // 查询C顾客信息（确保大小写匹配）
-    const { data: user, error: fetchError } = await supabase
-      .from('franchisees')
-      .select('remaining_uses, printer_id')
-      .eq('username', username)
-      .single();
+    if (action === 'signup') {
+      const { data: existingUser, error: checkError } = await supabase
+        .from('franchisees')
+        .select('username')
+        .eq('username', username)
+        .maybeSingle();
 
-    console.log('Supabase query result:', { user, fetchError });
+      if (checkError) {
+        console.error('Check error:', checkError);
+        return {
+          statusCode: 500,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS'
+          },
+          body: JSON.stringify({ success: false, message: '检查用户名时出错', error: checkError.message })
+        };
+      }
 
-    if (fetchError) {
-      console.error('Fetch user error:', fetchError);
+      if (existingUser) {
+        return {
+          statusCode: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS'
+          },
+          body: JSON.stringify({ success: false, message: '用户名已存在' })
+        };
+      }
+
+      const { error } = await supabase
+        .from('franchisees')
+        .insert({
+          username,
+          password,
+          remaining_uses: 0,
+          approved: false,
+          printer_id: null,
+          photos: []
+        });
+
+      if (error) {
+        console.error('Insert error:', error);
+        throw error;
+      }
+
       return {
-        statusCode: 500,
+        statusCode: 200,
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Headers': 'Content-Type',
           'Access-Control-Allow-Methods': 'POST, OPTIONS'
         },
-        body: JSON.stringify({ success: false, message: '查询用户失败', error: fetchError.message })
+        body: JSON.stringify({ success: true, message: '注册成功' })
       };
-    }
+    } else if (action === 'bind-printer') {
+      if (!printerId) {
+        return {
+          statusCode: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS'
+          },
+          body: JSON.stringify({ success: false, message: '缺少打印机ID' })
+        };
+      }
 
-    if (!user) {
+      const { error } = await supabase
+        .from('franchisees')
+        .update({ printer_id: printerId })
+        .eq('username', username);
+
+      if (error) {
+        console.error('Update error:', error);
+        throw error;
+      }
+
       return {
-        statusCode: 404,
+        statusCode: 200,
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Headers': 'Content-Type',
           'Access-Control-Allow-Methods': 'POST, OPTIONS'
         },
-        body: JSON.stringify({ success: false, message: '加盟商不存在' })
+        body: JSON.stringify({ success: true, message: '绑定打印机成功' })
       };
-    }
+    } else if (action === 'login') {
+      const { data: user, error } = await supabase
+        .from('franchisees')
+        .select('*')
+        .eq('username', username)
+        .eq('password', password)
+        .maybeSingle();
 
-    if (user.remaining_uses <= 0) {
+      if (error) {
+        console.error('Login error:', error);
+        return {
+          statusCode: 500,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS'
+          },
+          body: JSON.stringify({ success: false, message: '登录查询出错', error: error.message })
+        };
+      }
+
+      if (!user) {
+        return {
+          statusCode: 401,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS'
+          },
+          body: JSON.stringify({ success: false, message: '用户名或密码错误' })
+        };
+      }
+
       return {
-        statusCode: 400,
+        statusCode: 200,
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Headers': 'Content-Type',
           'Access-Control-Allow-Methods': 'POST, OPTIONS'
         },
-        body: JSON.stringify({ success: false, message: '剩余打印次数不足' })
-      };
-    }
-
-    if (!user.printer_id) {
-      return {
-        statusCode: 400,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Content-Type',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS'
-        },
-        body: JSON.stringify({ success: false, message: '用户未绑定打印机' })
-      };
-    }
-
-    // 模拟发送照片到打印机（实际需替换为真实的打印机API）
-    const printerResponse = await fetch('https://printer-api.example.com/print', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        printerId: user.printer_id,
-        image: dataUrl
-      })
-    });
-
-    if (!printerResponse.ok) {
-      throw new Error('打印机API调用失败');
-    }
-
-    // 扣减打印次数
-    const { error: updateError } = await supabase
-      .from('franchisees')
-      .update({ remaining_uses: user.remaining_uses - 1 })
-      .eq('username', username);
-
-    if (updateError) {
-      console.error('Update remaining uses error:', updateError);
-      return {
-        statusCode: 500,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Content-Type',
-          'Access-Control-Allow-Methods': 'POST, OPTIONS'
-        },
-        body: JSON.stringify({ success: false, message: '更新打印次数失败', error: updateError.message })
+        body: JSON.stringify({
+          success: true,
+          approved: user.approved,
+          remainingUses: user.remaining_uses,
+          printerId: user.printer_id,
+          photos: user.photos || []
+        })
       };
     }
 
     return {
-      statusCode: 200,
+      statusCode: 400,
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'POST, OPTIONS'
       },
-      body: JSON.stringify({ success: true, message: '打印成功' })
+      body: JSON.stringify({ success: false, message: '无效请求' })
     };
   } catch (error) {
     console.error('Server error:', error);
