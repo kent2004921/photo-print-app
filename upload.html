@@ -3,183 +3,141 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>上传照片</title>
+  <title>上传照片打印</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-      background-color: #f0f0f0;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
-      min-height: 100vh;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
     }
     .container {
       background: white;
       padding: 20px;
       border-radius: 8px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      width: 100%;
+      text-align: center;
+      width: 90%;
       max-width: 500px;
     }
-    h1 {
-      text-align: center;
-      color: #333;
-    }
-    input[type="file"] {
-      display: block;
-      margin: 10px auto;
-    }
-    #preview {
-      position: relative;
-      width: 300px;
-      height: 300px;
-      border: 2px dashed #ddd;
-      margin: 20px auto;
-      overflow: hidden;
-    }
-    #photo {
-      position: absolute;
+    #photoPreview {
       max-width: 100%;
-      max-height: 100%;
+      position: relative;
+      left: 0;
+      top: 0;
       cursor: move;
-    }
-    .controls {
-      text-align: center;
-      margin: 10px 0;
-    }
-    button {
-      padding: 10px 20px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      margin: 5px;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-    @media (max-width: 600px) {
-      .container {
-        padding: 10px;
-      }
-      #preview {
-        width: 100%;
-        height: auto;
-        aspect-ratio: 1 / 1;
-      }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>上传并打印照片</h1>
-    <input type="file" id="file-input" accept="image/*" onchange="loadImage()">
-    <div id="preview">
-      <img id="photo" style="display: none;">
-    </div>
-    <div class="controls">
-      <button onclick="moveImage('up')">上</button>
-      <button onclick="moveImage('down')">下</button>
-      <button onclick="moveImage('left')">左</button>
-      <button onclick="moveImage('right')">右</button>
-    </div>
-    <div class="controls">
-      <button onclick="printImage()">打印</button>
-    </div>
+    <h2>上传照片打印</h2>
+    <input type="file" id="photoInput" accept="image/*">
+    <button onclick="previewPhoto()">选择文件</button>
+    <p>选择文件：<span id="fileName">未选择</span></p>
+    <img id="photoPreview" src="" alt="预览" style="display: none;">
+    <button onclick="printPhoto()">打印</button>
   </div>
 
   <script>
-    const urlParams = new URLSearchParams(window.location.search);
-    const franchiseeId = urlParams.get('franchisee_id');
-    if (!franchiseeId) {
-      alert('无效的二维码，请重新扫描！');
-      window.location.href = '/index.html';
-    }
+    let isDragging = false;
+    let startX, startY, initialLeft, initialTop;
 
-    let imgX = 0, imgY = 0, imgElement;
+    const photoPreview = document.getElementById('photoPreview');
 
-    function loadImage() {
-      const fileInput = document.getElementById('file-input');
+    function previewPhoto() {
+      const fileInput = document.getElementById('photoInput');
       const file = fileInput.files[0];
-      if (!file) return;
-
-      if (file.size > 20 * 1024 * 1024) {
-        alert('文件大小超过20MB，请选择较小的照片！');
+      if (!file) {
+        alert('请选择一张照片！');
         return;
       }
 
+      document.getElementById('fileName').textContent = file.name;
       const reader = new FileReader();
       reader.onload = function(e) {
-        const img = new Image();
-        img.onload = function() {
-          // 压缩图片至10MB以下
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          const maxSize = 10 * 1024 * 1024;
-          let scale = 1;
-          if (file.size > maxSize) {
-            scale = Math.sqrt(maxSize / file.size);
-          }
-          canvas.width = img.width * scale;
-          canvas.height = img.height * scale;
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
-
-          imgElement = document.getElementById('photo');
-          imgElement.src = compressedDataUrl;
-          imgElement.style.display = 'block';
-          imgX = 0;
-          imgY = 0;
-          updateImagePosition();
-        };
-        img.src = e.target.result;
+        photoPreview.src = e.target.result;
+        photoPreview.style.display = 'block';
       };
       reader.readAsDataURL(file);
     }
 
-    function moveImage(direction) {
-      if (!imgElement) return;
-      const step = 10;
-      switch (direction) {
-        case 'up': imgY -= step; break;
-        case 'down': imgY += step; break;
-        case 'left': imgX -= step; break;
-        case 'right': imgX += step; break;
+    // 鼠标拖动
+    photoPreview.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      initialLeft = parseInt(window.getComputedStyle(photoPreview).left) || 0;
+      initialTop = parseInt(window.getComputedStyle(photoPreview).top) || 0;
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        photoPreview.style.left = (initialLeft + dx) + 'px';
+        photoPreview.style.top = (initialTop + dy) + 'px';
       }
-      updateImagePosition();
-    }
+    });
 
-    function updateImagePosition() {
-      imgElement.style.left = `${imgX}px`;
-      imgElement.style.top = `${imgY}px`;
-    }
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
 
-    async function printImage() {
-      if (!imgElement) {
-        alert('请先上传照片！');
+    // 触屏拖动
+    photoPreview.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      const touch = e.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      initialLeft = parseInt(window.getComputedStyle(photoPreview).left) || 0;
+      initialTop = parseInt(window.getComputedStyle(photoPreview).top) || 0;
+    });
+
+    photoPreview.addEventListener('touchmove', (e) => {
+      if (isDragging) {
+        const touch = e.touches[0];
+        const dx = touch.clientX - startX;
+        const dy = touch.clientY - startY;
+        photoPreview.style.left = (initialLeft + dx) + 'px';
+        photoPreview.style.top = (initialTop + dy) + 'px';
+      }
+    });
+
+    photoPreview.addEventListener('touchend', () => {
+      isDragging = false;
+    });
+
+    async function printPhoto() {
+      const fileInput = document.getElementById('photoInput');
+      const file = fileInput.files[0];
+      const username = localStorage.getItem('user');
+      if (!file) {
+        alert('请选择一张照片！');
         return;
       }
 
-      const photoData = imgElement.src;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('username', username);
+
       try {
-        const response = await fetch('/.netlify/functions/print', {
+        const response = await fetch('/.netlify/functions/upload', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ franchiseeId, photo: photoData })
+          body: formData
         });
         const data = await response.json();
         if (data.success) {
-          alert('打印成功！');
-          imgElement.style.display = 'none';
-          document.getElementById('file-input').value = '';
-          imgElement.src = '';
+          alert('照片已上传并准备打印！');
+          // 这里可以添加打印逻辑，例如通知打印机
         } else {
-          alert('打印失败，请重试！');
+          alert(data.message || '照片上传失败！');
         }
       } catch (error) {
+        console.error('Print photo error:', error);
         alert('网络错误，请稍后再试！');
       }
     }
