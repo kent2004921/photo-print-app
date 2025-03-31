@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="dashboard_title">仪表板 - 照片打印服务</title>
+  <title data-i18n="dashboard_title">Dashboard - Photo Print Service</title>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <style>
     body {
@@ -122,17 +122,17 @@
 <body>
   <div class="container">
     <div class="header">
-      <h2 data-i18n="welcome">欢迎，<span id="username"></span></h2>
+      <h2 data-i18n="welcome">Welcome, <span id="username"></span></h2>
       <button class="language-btn" onclick="toggleLanguage()">🌐</button>
     </div>
-    <p data-i18n="remaining_prints">剩余打印次数：<span id="remainingUses">0</span></p>
-    <h3 data-i18n="bind_printer">绑定打印机</h3>
-    <input type="text" id="printerId" placeholder="请输入打印机ID" data-i18n-placeholder="printer_id_placeholder">
-    <button class="bind-btn" onclick="bindPrinter()" data-i18n="bind">绑定</button>
-    <h3 data-i18n="generate_qr">生成二维码</h3>
-    <button class="generate-btn" onclick="generateQR()" data-i18n="generate_qr_btn">生成二维码</button>
+    <p data-i18n="remaining_prints">Remaining Prints: <span id="remainingUses">0</span></p>
+    <h3 data-i18n="bind_printer">Bind Printer</h3>
+    <input type="text" id="printerId" placeholder="Enter Printer ID" data-i18n-placeholder="printer_id_placeholder">
+    <button class="bind-btn" onclick="bindPrinter()" data-i18n="bind">Bind</button>
+    <h3 data-i18n="generate_qr">Generate QR Code</h3>
+    <button class="generate-btn" onclick="generateQR()" data-i18n="generate_qr_btn">Generate QR Code</button>
     <div id="qrcode"></div>
-    <button class="logout-btn" onclick="logout()" data-i18n="logout">退出登录</button>
+    <button class="logout-btn" onclick="logout()" data-i18n="logout">Logout</button>
   </div>
 
   <script>
@@ -151,7 +151,7 @@
         bind_success: "绑定打印机成功！",
         bind_failed: "绑定打印机失败！",
         network_error: "网络错误，请稍后再试！",
-        language_btn: "English"
+        invalid_access: "无效访问，请重新登录！"
       },
       en: {
         dashboard_title: "Dashboard - Photo Print Service",
@@ -167,11 +167,11 @@
         bind_success: "Printer binding successful!",
         bind_failed: "Printer binding failed!",
         network_error: "Network error, please try again later!",
-        language_btn: "中文"
+        invalid_access: "Invalid access, please login again!"
       }
     };
 
-    let currentLang = localStorage.getItem('language') || 'zh';
+    let currentLang = localStorage.getItem('language') || 'en';
     updateLanguage();
 
     function toggleLanguage() {
@@ -196,49 +196,21 @@
       document.title = translations[currentLang].dashboard_title;
     }
 
-    const username = localStorage.getItem('user');
-    if (!username) {
+    // 从URL参数中获取username和remainingUses
+    const urlParams = new URLSearchParams(window.location.search);
+    const username = urlParams.get('username');
+    const remainingUses = urlParams.get('remainingUses');
+
+    if (!username || remainingUses === null) {
+      alert(translations[currentLang].invalid_access);
       window.location.href = '/index.html';
     } else {
-      document.getElementById('username').textContent = username || '未知用户';
-      fetchUserData(username);
-    }
-
-    async function fetchUserData(username) {
-      try {
-        const password = localStorage.getItem('password');
-        if (!password) {
-          console.error('No password found in localStorage');
-          document.getElementById('remainingUses').textContent = 0;
-          return;
-        }
-        const response = await fetch('/.netlify/functions/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'login', username, password })
-        });
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        const data = await response.json();
-        if (data.success) {
-          document.getElementById('remainingUses').textContent = data.remainingUses !== undefined ? data.remainingUses : 0;
-          if (data.printerId) {
-            document.getElementById('printerId').value = data.printerId;
-          }
-        } else {
-          console.error('Failed to fetch user data:', data.message);
-          document.getElementById('remainingUses').textContent = 0;
-        }
-      } catch (error) {
-        console.error('Fetch user data error:', error);
-        document.getElementById('remainingUses').textContent = 0;
-      }
+      document.getElementById('username').textContent = username || 'Unknown User';
+      document.getElementById('remainingUses').textContent = remainingUses || 0;
     }
 
     async function bindPrinter() {
       const printerId = document.getElementById('printerId').value.trim();
-      const username = localStorage.getItem('user');
       if (!printerId) {
         alert(translations[currentLang].no_printer_id);
         return;
@@ -253,7 +225,8 @@
         const data = await response.json();
         if (data.success) {
           alert(translations[currentLang].bind_success);
-          fetchUserData(username);
+          // 重新获取remainingUses（如果绑定打印机会影响次数）
+          window.location.href = `/dashboard.html?username=${encodeURIComponent(username)}&remainingUses=${data.remainingUses || remainingUses}`;
         } else {
           alert(data.message || translations[currentLang].bind_failed);
         }
@@ -266,7 +239,6 @@
     function generateQR() {
       const qrcodeDiv = document.getElementById('qrcode');
       qrcodeDiv.innerHTML = '';
-      const username = localStorage.getItem('user');
       if (!username) {
         console.error('No username found for QR code generation');
         return;
@@ -287,14 +259,7 @@
     }
 
     function logout() {
-      try {
-        localStorage.removeItem('user');
-        localStorage.removeItem('password');
-        window.location.href = '/index.html';
-      } catch (error) {
-        console.error('Logout error:', error);
-        window.location.href = '/index.html';
-      }
+      window.location.href = '/index.html';
     }
   </script>
 </body>
