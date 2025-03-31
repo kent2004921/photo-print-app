@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="upload_title">上传照片打印</title>
-  <!-- 引入Twemoji库 -->
   <script src="https://cdn.jsdelivr.net/npm/twemoji@latest/dist/twemoji.min.js"></script>
-  <!-- 引入emoji-picker-element -->
   <script type="module" src="https://unpkg.com/emoji-picker-element@latest/dist/index.js"></script>
   <style>
     body {
@@ -39,10 +37,16 @@
       height: 5px;
       background: linear-gradient(to right, #ff6b6b, #feca57);
     }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
     h2 {
       color: #333;
       font-size: 24px;
-      margin-bottom: 20px;
+      margin: 0;
     }
     canvas {
       border: 1px solid #ddd;
@@ -103,21 +107,22 @@
       background: linear-gradient(to right, #cc7a7a, #cc9999);
     }
     .language-btn {
-      position: fixed;
-      top: 15px;
-      right: 15px;
       background: linear-gradient(to right, #28a745, #34d058);
       color: white;
-      padding: 10px 20px;
-      border-radius: 20px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 20px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
       transition: transform 0.1s, background 0.3s;
     }
     .language-btn:hover {
       background: linear-gradient(to right, #218838, #28a745);
-      transform: scale(1.05);
+      transform: scale(1.1);
     }
     .controls {
       display: flex;
@@ -174,9 +179,11 @@
   </style>
 </head>
 <body>
-  <button class="language-btn" onclick="toggleLanguage()">English</button>
   <div class="container">
-    <h2 data-i18n="upload_title">上传照片打印</h2>
+    <div class="header">
+      <h2 data-i18n="upload_title">上传照片打印</h2>
+      <button class="language-btn" onclick="toggleLanguage()">🌐</button>
+    </div>
     <input type="file" id="photoInput" accept="image/*">
     <canvas id="photoCanvas"></canvas>
     <div class="emoji-picker">
@@ -247,7 +254,6 @@
   </div>
 
   <script>
-    // 语言翻译对象
     const translations = {
       zh: {
         upload_title: "上传照片打印",
@@ -387,7 +393,6 @@
         const key = element.getAttribute('data-i18n');
         element.textContent = translations[currentLang][key];
       });
-      document.querySelector('.language-btn').textContent = translations[currentLang].language_btn;
       document.title = translations[currentLang].upload_title;
     }
 
