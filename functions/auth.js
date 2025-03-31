@@ -50,15 +50,17 @@ exports.handler = async (event, context) => {
 
   try {
     if (action === 'signup') {
+      // 使用 .maybeSingle() 替代 .single()，避免空表时的错误
       const { data: existingUser, error: checkError } = await supabase
         .from('franchisees')
         .select('username')
         .eq('username', username)
-        .single();
+        .maybeSingle();
 
       console.log('Check existing user:', { existingUser, checkError });
 
-      if (checkError && checkError.code !== 'PGRST116') {
+      if (checkError) {
+        console.error('Check error details:', checkError);
         return {
           statusCode: 500,
           headers: {
@@ -133,11 +135,24 @@ exports.handler = async (event, context) => {
         .select('*')
         .eq('username', username)
         .eq('password', password)
-        .single();
+        .maybeSingle();
 
       console.log('Login query result:', { user, error });
 
-      if (error || !user) {
+      if (error) {
+        console.error('Login error:', error);
+        return {
+          statusCode: 500,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS'
+          },
+          body: JSON.stringify({ success: false, message: '登录查询出错', error: error.message })
+        };
+      }
+
+      if (!user) {
         return {
           statusCode: 401,
           headers: {
