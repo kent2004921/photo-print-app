@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>上传照片打印</title>
+  <title data-i18n="upload_title">上传照片打印</title>
   <!-- 引入Twemoji库 -->
   <script src="https://cdn.jsdelivr.net/npm/twemoji@latest/dist/twemoji.min.js"></script>
   <!-- 引入emoji-picker-element -->
@@ -58,10 +58,29 @@
     }
     .delete-selected-btn {
       background-color: #ff7878;
-      display: none; /* 默认隐藏 */
+      display: none;
     }
     .delete-selected-btn:hover {
       background-color: #cc6060;
+    }
+    .clear-all-btn {
+      background-color: #ff9999;
+    }
+    .clear-all-btn:hover {
+      background-color: #cc7a7a;
+    }
+    .language-btn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background-color: #28a745;
+      color: white;
+      padding: 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .language-btn:hover {
+      background-color: #218838;
     }
     .controls {
       display: flex;
@@ -95,14 +114,14 @@
   </style>
 </head>
 <body>
+  <button class="language-btn" onclick="toggleLanguage()">English</button>
   <div class="container">
-    <h2>上传照片打印</h2>
+    <h2 data-i18n="upload_title">上传照片打印</h2>
     <input type="file" id="photoInput" accept="image/*">
     <canvas id="photoCanvas"></canvas>
     <div class="emoji-picker">
-      <label>选择表情</label>
+      <label data-i18n="select_emoji">选择表情</label>
       <emoji-picker id="emojiPicker"></emoji-picker>
-      <!-- 回退方案：使用<select> -->
       <select id="emojiSelect" class="fallback-select" onchange="addEmojiToCanvas(this.value)">
         <option value="">选择一个表情</option>
         <option value="😊">😊 笑脸</option>
@@ -148,29 +167,95 @@
       </select>
     </div>
     <div class="controls">
-      <button onclick="printPhoto()">打印</button>
-      <button class="remove-emoji-btn" onclick="removeLastEmoji()">删除最后一个表情</button>
-      <button class="delete-selected-btn" id="deleteSelectedBtn" onclick="deleteSelectedEmoji()">删除选中表情</button>
+      <button onclick="printPhoto()" data-i18n="print">打印</button>
+      <button class="remove-emoji-btn" onclick="removeLastEmoji()" data-i18n="remove_last_emoji">删除最后一个表情</button>
+      <button class="delete-selected-btn" id="deleteSelectedBtn" onclick="deleteSelectedEmoji()" data-i18n="delete_selected_emoji">删除选中表情</button>
+      <button class="clear-all-btn" onclick="clearAllEmojis()" data-i18n="clear_all_emojis">清空所有表情</button>
     </div>
     <div class="control-group">
-      <label>亮度</label>
+      <label data-i18n="brightness">亮度</label>
       <input type="range" id="brightness" min="0" max="2" step="0.1" value="1" oninput="adjustColor()">
     </div>
     <div class="control-group">
-      <label>对比度</label>
+      <label data-i18n="contrast">对比度</label>
       <input type="range" id="contrast" min="0" max="2" step="0.1" value="1" oninput="adjustColor()">
     </div>
     <div class="control-group">
-      <label>饱和度</label>
+      <label data-i18n="saturation">饱和度</label>
       <input type="range" id="saturation" min="0" max="2" step="0.1" value="1" oninput="adjustColor()">
     </div>
   </div>
 
   <script>
+    // 语言翻译对象
+    const translations = {
+      zh: {
+        upload_title: "上传照片打印",
+        select_emoji: "选择表情",
+        print: "打印",
+        remove_last_emoji: "删除最后一个表情",
+        delete_selected_emoji: "删除选中表情",
+        clear_all_emojis: "清空所有表情",
+        brightness: "亮度",
+        contrast: "对比度",
+        saturation: "饱和度",
+        invalid_qr: "无效的二维码，请重新扫描！",
+        no_photo: "请先上传照片！",
+        missing_data: "缺少用户名或照片数据，请刷新页面重试！",
+        print_success: "打印成功！",
+        print_failed: "打印失败！",
+        network_error: "网络错误，请稍后再试！",
+        no_emoji_to_remove: "没有表情可以删除！",
+        emoji_load_failed: "加载表情失败，请选择其他表情！",
+        language_btn: "English"
+      },
+      en: {
+        upload_title: "Upload Photo to Print",
+        select_emoji: "Select Emoji",
+        print: "Print",
+        remove_last_emoji: "Remove Last Emoji",
+        delete_selected_emoji: "Delete Selected Emoji",
+        clear_all_emojis: "Clear All Emojis",
+        brightness: "Brightness",
+        contrast: "Contrast",
+        saturation: "Saturation",
+        invalid_qr: "Invalid QR code, please scan again!",
+        no_photo: "Please upload a photo first!",
+        missing_data: "Missing username or photo data, please refresh and try again!",
+        print_success: "Print successful!",
+        print_failed: "Print failed!",
+        network_error: "Network error, please try again later!",
+        no_emoji_to_remove: "No emojis to remove!",
+        emoji_load_failed: "Failed to load emoji, please select another one!",
+        language_btn: "中文"
+      }
+    };
+
+    // 初始化语言
+    let currentLang = localStorage.getItem('language') || 'zh';
+    updateLanguage();
+
+    // 切换语言
+    function toggleLanguage() {
+      currentLang = currentLang === 'zh' ? 'en' : 'zh';
+      localStorage.setItem('language', currentLang);
+      updateLanguage();
+    }
+
+    // 更新页面语言
+    function updateLanguage() {
+      document.querySelectorAll('[data-i18n]').forEach(element => {
+        const key = element.getAttribute('data-i18n');
+        element.textContent = translations[currentLang][key];
+      });
+      document.querySelector('.language-btn').textContent = translations[currentLang].language_btn;
+      document.title = translations[currentLang].upload_title;
+    }
+
     const urlParams = new URLSearchParams(window.location.search);
     const username = urlParams.get('username');
     if (!username) {
-      alert('无效的二维码，请重新扫描！');
+      alert(translations[currentLang].invalid_qr);
       window.location.href = '/index.html';
     } else {
       console.log('Username from URL:', username);
@@ -184,20 +269,20 @@
     let isDraggingImage = false;
     let isDraggingEmoji = false;
     let isScalingEmoji = false;
+    let isRotatingEmoji = false;
     let draggedEmojiIndex = -1;
-    let selectedEmojiIndex = -1; // 选中的emoji
+    let selectedEmojiIndex = -1;
     let startX, startY;
     let lastDistance = 0;
     let lastAngle = 0;
     let brightness = 1;
     let contrast = 1;
     let saturation = 1;
-    let emojis = []; // 存储所有emoji的数组
+    let emojis = [];
     let useFallback = false;
 
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
-    // 适配高分辨率屏幕
     const dpr = window.devicePixelRatio || 1;
     canvas.width = 300 * dpr;
     canvas.height = 300 * dpr;
@@ -242,13 +327,16 @@
       // 绘制所有表情
       emojis.forEach((emoji, index) => {
         if (emoji.image) {
-          // 如果是选中状态，绘制高亮边框
+          ctx.save();
+          ctx.translate(emoji.x + emoji.size / 2, emoji.y + emoji.size / 2);
+          ctx.rotate((emoji.rotation * Math.PI) / 180);
           if (index === selectedEmojiIndex) {
             ctx.strokeStyle = 'red';
             ctx.lineWidth = 2;
-            ctx.strokeRect(emoji.x - 2, emoji.y - 2, emoji.size + 4, emoji.size + 4);
+            ctx.strokeRect(-emoji.size / 2 - 2, -emoji.size / 2 - 2, emoji.size + 4, emoji.size + 4);
           }
-          ctx.drawImage(emoji.image, emoji.x, emoji.y, emoji.size, emoji.size);
+          ctx.drawImage(emoji.image, -emoji.size / 2, -emoji.size / 2, emoji.size, emoji.size);
+          ctx.restore();
         }
       });
     }
@@ -257,7 +345,6 @@
     function addEmojiToCanvas(emojiUnicode) {
       if (!emojiUnicode) return;
 
-      // 使用Twemoji将emoji转换为图像URL（使用PNG格式以提升解析度）
       const emojiUrl = twemoji.parse(emojiUnicode, {
         folder: '72x72',
         ext: '.png',
@@ -271,13 +358,14 @@
           image: img,
           x: 50 + emojis.length * 10,
           y: 50 + emojis.length * 10,
-          size: 40 // 初始大小
+          size: 40,
+          rotation: 0 // 初始旋转角度
         });
         drawImage();
       };
       img.onerror = () => {
         console.error('Failed to load emoji image:', img.src);
-        alert('加载表情失败，请选择其他表情！');
+        alert(translations[currentLang].emoji_load_failed);
       };
     }
 
@@ -289,7 +377,7 @@
         deleteSelectedBtn.style.display = 'none';
         drawImage();
       } else {
-        alert('没有表情可以删除！');
+        alert(translations[currentLang].no_emoji_to_remove);
       }
     }
 
@@ -301,6 +389,14 @@
         deleteSelectedBtn.style.display = 'none';
         drawImage();
       }
+    }
+
+    // 清空所有表情
+    function clearAllEmojis() {
+      emojis = [];
+      selectedEmojiIndex = -1;
+      deleteSelectedBtn.style.display = 'none';
+      drawImage();
     }
 
     // 监听emoji-picker的选择事件
@@ -315,12 +411,12 @@
     function getEmojiAtPosition(x, y) {
       for (let i = emojis.length - 1; i >= 0; i--) {
         const emoji = emojis[i];
-        if (
-          x >= emoji.x &&
-          x <= emoji.x + emoji.size &&
-          y >= emoji.y &&
-          y <= emoji.y + emoji.size
-        ) {
+        const centerX = emoji.x + emoji.size / 2;
+        const centerY = emoji.y + emoji.size / 2;
+        const dx = x - centerX;
+        const dy = y - centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance <= emoji.size / 2) {
           return i;
         }
       }
@@ -344,7 +440,7 @@
           selectedEmojiIndex = draggedEmojiIndex;
           deleteSelectedBtn.style.display = 'block';
         } else {
-          isDraggingImage = true | true;
+          isDraggingImage = true;
           isDraggingEmoji = false;
           selectedEmojiIndex = -1;
           deleteSelectedBtn.style.display = 'none';
@@ -361,16 +457,18 @@
         const x2 = (touch2.clientX - rect.left) * (canvas.width / dpr / rect.width);
         const y2 = (touch2.clientY - rect.top) * (canvas.height / dpr / rect.height);
 
-        // 检查是否在某个表情上进行双指缩放
+        // 检查是否在某个表情上进行双指操作
         draggedEmojiIndex = getEmojiAtPosition((x1 + x2) / 2, (y1 + y2) / 2);
         if (draggedEmojiIndex !== -1) {
           isScalingEmoji = true;
+          isRotatingEmoji = true;
           isDraggingImage = false;
           isDraggingEmoji = false;
           selectedEmojiIndex = draggedEmojiIndex;
           deleteSelectedBtn.style.display = 'block';
         } else {
           isScalingEmoji = false;
+          isRotatingEmoji = false;
           isDraggingImage = false;
           isDraggingEmoji = false;
         }
@@ -407,7 +505,11 @@
         if (isScalingEmoji && draggedEmojiIndex !== -1) {
           const scaleFactor = distance / lastDistance;
           emojis[draggedEmojiIndex].size *= scaleFactor;
-          emojis[draggedEmojiIndex].size = Math.max(20, Math.min(100, emojis[draggedEmojiIndex].size)); // 限制大小范围
+          emojis[draggedEmojiIndex].size = Math.max(20, Math.min(100, emojis[draggedEmojiIndex].size));
+        }
+        if (isRotatingEmoji && draggedEmojiIndex !== -1) {
+          const angleDiff = (angle - lastAngle) * (180 / Math.PI);
+          emojis[draggedEmojiIndex].rotation += angleDiff;
         } else {
           scale *= distance / lastDistance;
           scale = Math.max(0.1, scale);
@@ -424,6 +526,7 @@
       isDraggingImage = false;
       isDraggingEmoji = false;
       isScalingEmoji = false;
+      isRotatingEmoji = false;
       draggedEmojiIndex = -1;
     });
 
@@ -433,7 +536,6 @@
       const x = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
       const y = (e.clientY - rect.top) * (canvas.height / dpr / rect.height);
 
-      // 检查是否点击了某个表情
       draggedEmojiIndex = getEmojiAtPosition(x, y);
       if (draggedEmojiIndex !== -1) {
         isDraggingEmoji = true;
@@ -485,7 +587,7 @@
 
       const emojiIndex = getEmojiAtPosition(x, y);
       if (emojiIndex !== -1) {
-        const delta = e.deltaY > 0 ? 0.9 : 1.1; // 向下滚动缩小，向上滚动放大
+        const delta = e.deltaY > 0 ? 0.9 : 1.1;
         emojis[emojiIndex].size *= delta;
         emojis[emojiIndex].size = Math.max(20, Math.min(100, emojis[emojiIndex].size));
         drawImage();
@@ -503,7 +605,7 @@
     // 打印照片
     async function printPhoto() {
       if (!image.src) {
-        alert('请先上传照片！');
+        alert(translations[currentLang].no_photo);
         return;
       }
 
@@ -515,7 +617,7 @@
 
       if (!username || !dataUrl) {
         console.error('Missing username or dataUrl:', { username, dataUrl });
-        alert('缺少用户名或照片数据，请刷新页面重试！');
+        alert(translations[currentLang].missing_data);
         return;
       }
 
@@ -537,13 +639,13 @@
         console.log('Print response:', data);
 
         if (data.success) {
-          alert('打印成功！');
+          alert(translations[currentLang].print_success);
         } else {
-          alert(data.message || '打印失败！');
+          alert(data.message || translations[currentLang].print_failed);
         }
       } catch (error) {
         console.error('Print photo error:', error);
-        alert('网络错误，请稍后再试！');
+        alert(translations[currentLang].network_error);
       }
     }
   </script>
