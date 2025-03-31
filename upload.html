@@ -56,6 +56,13 @@
     .remove-emoji-btn:hover {
       background-color: #cc3a3a;
     }
+    .delete-selected-btn {
+      background-color: #ff7878;
+      display: none; /* 默认隐藏 */
+    }
+    .delete-selected-btn:hover {
+      background-color: #cc6060;
+    }
     .controls {
       display: flex;
       flex-wrap: wrap;
@@ -72,7 +79,7 @@
     .emoji-picker {
       margin: 10px 0;
       position: relative;
-      z-index: 10; /* 确保emoji-picker在最上层 */
+      z-index: 10;
     }
     emoji-picker {
       width: 100%;
@@ -80,10 +87,10 @@
       overflow-y: auto;
       border: 1px solid #ddd;
       border-radius: 4px;
-      display: block; /* 确保元素可见 */
+      display: block;
     }
     .fallback-select {
-      display: none; /* 默认隐藏回退方案 */
+      display: none;
     }
   </style>
 </head>
@@ -143,6 +150,7 @@
     <div class="controls">
       <button onclick="printPhoto()">打印</button>
       <button class="remove-emoji-btn" onclick="removeLastEmoji()">删除最后一个表情</button>
+      <button class="delete-selected-btn" id="deleteSelectedBtn" onclick="deleteSelectedEmoji()">删除选中表情</button>
     </div>
     <div class="control-group">
       <label>亮度</label>
@@ -175,7 +183,9 @@
     let posY = 0;
     let isDraggingImage = false;
     let isDraggingEmoji = false;
+    let isScalingEmoji = false;
     let draggedEmojiIndex = -1;
+    let selectedEmojiIndex = -1; // 选中的emoji
     let startX, startY;
     let lastDistance = 0;
     let lastAngle = 0;
@@ -183,12 +193,19 @@
     let contrast = 1;
     let saturation = 1;
     let emojis = []; // 存储所有emoji的数组
-    let useFallback = false; // 是否使用回退方案
+    let useFallback = false;
 
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
-    canvas.width = 300;
-    canvas.height = 300;
+    // 适配高分辨率屏幕
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = 300 * dpr;
+    canvas.height = 300 * dpr;
+    canvas.style.width = '300px';
+    canvas.style.height = '300px';
+    ctx.scale(dpr, dpr);
+
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
 
     // 检查emoji-picker是否加载成功
     const emojiPicker = document.getElementById('emojiPicker');
@@ -216,16 +233,22 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
       ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-      ctx.translate(canvas.width / 2 + posX, canvas.height / 2 + posY);
+      ctx.translate((canvas.width / dpr) / 2 + posX, (canvas.height / dpr) / 2 + posY);
       ctx.rotate((rotation * Math.PI) / 180);
       ctx.scale(scale, scale);
       ctx.drawImage(image, -image.width / 2, -image.height / 2);
       ctx.restore();
 
       // 绘制所有表情
-      emojis.forEach(emoji => {
+      emojis.forEach((emoji, index) => {
         if (emoji.image) {
-          ctx.drawImage(emoji.image, emoji.x, emoji.y, 40, 40); // 设置表情大小为40x40
+          // 如果是选中状态，绘制高亮边框
+          if (index === selectedEmojiIndex) {
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(emoji.x - 2, emoji.y - 2, emoji.size + 4, emoji.size + 4);
+          }
+          ctx.drawImage(emoji.image, emoji.x, emoji.y, emoji.size, emoji.size);
         }
       });
     }
@@ -234,21 +257,21 @@
     function addEmojiToCanvas(emojiUnicode) {
       if (!emojiUnicode) return;
 
-      // 使用Twemoji将emoji转换为图像URL
+      // 使用Twemoji将emoji转换为图像URL（使用PNG格式以提升解析度）
       const emojiUrl = twemoji.parse(emojiUnicode, {
-        folder: 'svg',
-        ext: '.svg',
+        folder: '72x72',
+        ext: '.png',
         base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/'
       });
       const img = new Image();
-      img.crossOrigin = 'anonymous'; // 解决跨域问题
-      img.src = emojiUrl.match(/src="([^"]+)"/)[1]; // 提取图像URL
+      img.crossOrigin = 'anonymous';
+      img.src = emojiUrl.match(/src="([^"]+)"/)[1];
       img.onload = () => {
-        // 将新表情添加到数组
         emojis.push({
           image: img,
-          x: 50 + emojis.length * 10, // 稍微偏移，避免完全重叠
-          y: 50 + emojis.length * 10
+          x: 50 + emojis.length * 10,
+          y: 50 + emojis.length * 10,
+          size: 40 // 初始大小
         });
         drawImage();
       };
@@ -262,9 +285,21 @@
     function removeLastEmoji() {
       if (emojis.length > 0) {
         emojis.pop();
+        selectedEmojiIndex = -1;
+        deleteSelectedBtn.style.display = 'none';
         drawImage();
       } else {
         alert('没有表情可以删除！');
+      }
+    }
+
+    // 删除选中的表情
+    function deleteSelectedEmoji() {
+      if (selectedEmojiIndex !== -1) {
+        emojis.splice(selectedEmojiIndex, 1);
+        selectedEmojiIndex = -1;
+        deleteSelectedBtn.style.display = 'none';
+        drawImage();
       }
     }
 
@@ -282,9 +317,9 @@
         const emoji = emojis[i];
         if (
           x >= emoji.x &&
-          x <= emoji.x + 40 &&
+          x <= emoji.x + emoji.size &&
           y >= emoji.y &&
-          y <= emoji.y + 40
+          y <= emoji.y + emoji.size
         ) {
           return i;
         }
@@ -298,26 +333,48 @@
       if (e.touches.length === 1) {
         const touch = e.touches[0];
         const rect = canvas.getBoundingClientRect();
-        const x = touch.clientX - rect.left;
-        const y = touch.clientY - rect.top;
+        const x = (touch.clientX - rect.left) * (canvas.width / dpr / rect.width);
+        const y = (touch.clientY - rect.top) * (canvas.height / dpr / rect.height);
 
         // 检查是否点击了某个表情
         draggedEmojiIndex = getEmojiAtPosition(x, y);
         if (draggedEmojiIndex !== -1) {
           isDraggingEmoji = true;
           isDraggingImage = false;
+          selectedEmojiIndex = draggedEmojiIndex;
+          deleteSelectedBtn.style.display = 'block';
         } else {
-          isDraggingImage = true;
+          isDraggingImage = true | true;
           isDraggingEmoji = false;
+          selectedEmojiIndex = -1;
+          deleteSelectedBtn.style.display = 'none';
         }
 
         startX = touch.clientX;
         startY = touch.clientY;
       } else if (e.touches.length === 2) {
-        isDraggingImage = false;
-        isDraggingEmoji = false;
         const touch1 = e.touches[0];
         const touch2 = e.touches[1];
+        const rect = canvas.getBoundingClientRect();
+        const x1 = (touch1.clientX - rect.left) * (canvas.width / dpr / rect.width);
+        const y1 = (touch1.clientY - rect.top) * (canvas.height / dpr / rect.height);
+        const x2 = (touch2.clientX - rect.left) * (canvas.width / dpr / rect.width);
+        const y2 = (touch2.clientY - rect.top) * (canvas.height / dpr / rect.height);
+
+        // 检查是否在某个表情上进行双指缩放
+        draggedEmojiIndex = getEmojiAtPosition((x1 + x2) / 2, (y1 + y2) / 2);
+        if (draggedEmojiIndex !== -1) {
+          isScalingEmoji = true;
+          isDraggingImage = false;
+          isDraggingEmoji = false;
+          selectedEmojiIndex = draggedEmojiIndex;
+          deleteSelectedBtn.style.display = 'block';
+        } else {
+          isScalingEmoji = false;
+          isDraggingImage = false;
+          isDraggingEmoji = false;
+        }
+
         lastDistance = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
         lastAngle = Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX);
       }
@@ -327,8 +384,8 @@
       e.preventDefault();
       if (e.touches.length === 1) {
         const touch = e.touches[0];
-        const dx = touch.clientX - startX;
-        const dy = touch.clientY - startY;
+        const dx = (touch.clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
+        const dy = (touch.clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
 
         if (isDraggingImage) {
           posX += dx;
@@ -346,9 +403,17 @@
         const touch2 = e.touches[1];
         const distance = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
         const angle = Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX);
-        scale *= distance / lastDistance;
-        scale = Math.max(0.1, scale);
-        rotation += (angle - lastAngle) * (180 / Math.PI);
+
+        if (isScalingEmoji && draggedEmojiIndex !== -1) {
+          const scaleFactor = distance / lastDistance;
+          emojis[draggedEmojiIndex].size *= scaleFactor;
+          emojis[draggedEmojiIndex].size = Math.max(20, Math.min(100, emojis[draggedEmojiIndex].size)); // 限制大小范围
+        } else {
+          scale *= distance / lastDistance;
+          scale = Math.max(0.1, scale);
+          rotation += (angle - lastAngle) * (180 / Math.PI);
+        }
+
         lastDistance = distance;
         lastAngle = angle;
         drawImage();
@@ -358,23 +423,28 @@
     canvas.addEventListener('touchend', () => {
       isDraggingImage = false;
       isDraggingEmoji = false;
+      isScalingEmoji = false;
       draggedEmojiIndex = -1;
     });
 
     // 鼠标拖动（电脑端支持）
     canvas.addEventListener('mousedown', (e) => {
       const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      const x = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
+      const y = (e.clientY - rect.top) * (canvas.height / dpr / rect.height);
 
       // 检查是否点击了某个表情
       draggedEmojiIndex = getEmojiAtPosition(x, y);
       if (draggedEmojiIndex !== -1) {
         isDraggingEmoji = true;
         isDraggingImage = false;
+        selectedEmojiIndex = draggedEmojiIndex;
+        deleteSelectedBtn.style.display = 'block';
       } else {
         isDraggingImage = true;
         isDraggingEmoji = false;
+        selectedEmojiIndex = -1;
+        deleteSelectedBtn.style.display = 'none';
       }
 
       startX = e.clientX;
@@ -383,8 +453,8 @@
 
     canvas.addEventListener('mousemove', (e) => {
       if (isDraggingImage || isDraggingEmoji) {
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
+        const dx = (e.clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
+        const dy = (e.clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
 
         if (isDraggingImage) {
           posX += dx;
@@ -404,6 +474,22 @@
       isDraggingImage = false;
       isDraggingEmoji = false;
       draggedEmojiIndex = -1;
+    });
+
+    // 鼠标滚轮缩放emoji
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
+      const y = (e.clientY - rect.top) * (canvas.height / dpr / rect.height);
+
+      const emojiIndex = getEmojiAtPosition(x, y);
+      if (emojiIndex !== -1) {
+        const delta = e.deltaY > 0 ? 0.9 : 1.1; // 向下滚动缩小，向上滚动放大
+        emojis[emojiIndex].size *= delta;
+        emojis[emojiIndex].size = Math.max(20, Math.min(100, emojis[emojiIndex].size));
+        drawImage();
+      }
     });
 
     // 色彩调整
