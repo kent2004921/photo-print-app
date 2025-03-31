@@ -78,32 +78,34 @@
     }
 
     async function submitForm() {
-      const username = document.getElementById('username').value;
-      const password = document.getElementById('password').value;
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
       if (!username || !password) {
         alert('请填写完整信息！');
         return;
       }
 
       const endpoint = '/.netlify/functions/auth';
-      const body = JSON.stringify({
+      const requestBody = {
         action: isLogin ? 'login' : 'signup',
         username,
         password
-      });
+      };
+      const body = JSON.stringify(requestBody);
 
-      // 调试：打印发送的请求数据
       console.log('Sending request:', { endpoint, body });
 
       try {
         const response = await fetch(endpoint, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: body
         });
-        const data = await response.json();
 
-        // 调试：打印响应数据
+        const data = await response.json();
         console.log('Response:', data);
 
         if (isLogin) {
