@@ -99,24 +99,28 @@
       right: 15px;
       background: linear-gradient(to right, #28a745, #34d058);
       color: white;
-      padding: 10px 20px;
-      border-radius: 20px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 20px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
       transition: transform 0.1s, background 0.3s;
     }
     .language-btn:hover {
       background: linear-gradient(to right, #218838, #28a745);
-      transform: scale(1.05);
+      transform: scale(1.1);
     }
   </style>
 </head>
 <body>
-  <button class="language-btn" onclick="toggleLanguage()">English</button>
+  <button class="language-btn" onclick="toggleLanguage()">🌐</button>
   <div class="container">
     <h2 data-i18n="welcome">欢迎，<span id="username"></span></h2>
-    <p data-i18n="remaining_prints">剩余打印次数：<span id="remainingUses">未知</span></p>
+    <p data-i18n="remaining_prints">剩余打印次数：<span id="remainingUses">0</span></p>
     <h3 data-i18n="bind_printer">绑定打印机</h3>
     <input type="text" id="printerId" placeholder="请输入打印机ID" data-i18n-placeholder="printer_id_placeholder">
     <button class="bind-btn" onclick="bindPrinter()" data-i18n="bind">绑定</button>
@@ -175,4 +179,114 @@
       document.querySelectorAll('[data-i18n]').forEach(element => {
         const key = element.getAttribute('data-i18n');
         if (element.id === 'welcome' || element.id === 'remaining_prints') {
-          elemen
+          element.innerHTML = translations[currentLang][key] + element.querySelector('span').outerHTML;
+        } else {
+          element.textContent = translations[currentLang][key];
+        }
+      });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+        const key = element.getAttribute('data-i18n-placeholder');
+        element.placeholder = translations[currentLang][key];
+      });
+      document.title = translations[currentLang].dashboard_title;
+    }
+
+    const username = localStorage.getItem('user');
+    if (!username) {
+      window.location.href = '/index.html';
+    } else {
+      document.getElementById('username').textContent = username || '未知用户';
+      fetchUserData(username);
+    }
+
+    async function fetchUserData(username) {
+      try {
+        const password = localStorage.getItem('password');
+        if (!password) {
+          console.error('No password found in localStorage');
+          return;
+        }
+        const response = await fetch('/.netlify/functions/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'login', username, password })
+        });
+        const data = await response.json();
+        if (data.success) {
+          document.getElementById('remainingUses').textContent = data.remainingUses || 0;
+          if (data.printerId) {
+            document.getElementById('printerId').value = data.printerId;
+          }
+        } else {
+          console.error('Failed to fetch user data:', data.message);
+          document.getElementById('remainingUses').textContent = 0;
+        }
+      } catch (error) {
+        console.error('Fetch user data error:', error);
+        document.getElementById('remainingUses').textContent = 0;
+      }
+    }
+
+    async function bindPrinter() {
+      const printerId = document.getElementById('printerId').value.trim();
+      const username = localStorage.getItem('user');
+      if (!printerId) {
+        alert(translations[currentLang].no_printer_id);
+        return;
+      }
+
+      try {
+        const response = await fetch('/.netlify/functions/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'bind-printer', username, printerId })
+        });
+        const data = await response.json();
+        if (data.success) {
+          alert(translations[currentLang].bind_success);
+          fetchUserData(username); // 重新获取用户数据以更新打印次数
+        } else {
+          alert(data.message || translations[currentLang].bind_failed);
+        }
+      } catch (error) {
+        console.error('Bind printer error:', error);
+        alert(translations[currentLang].network_error);
+      }
+    }
+
+    function generateQR() {
+      const qrcodeDiv = document.getElementById('qrcode');
+      qrcodeDiv.innerHTML = ''; // 清空之前的二维码
+      const username = localStorage.getItem('user');
+      if (!username) {
+        console.error('No username found for QR code generation');
+        return;
+      }
+      const url = `${window.location.origin}/upload.html?username=${username}`;
+      try {
+        new QRCode(qrcodeDiv, {
+          text: url,
+          width: 200,
+          height: 200,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.H
+        });
+      } catch (error) {
+        console.error('Failed to generate QR code:', error);
+      }
+    }
+
+    function logout() {
+      try {
+        localStorage.removeItem('user');
+        localStorage.removeItem('password');
+        window.location.href = '/index.html';
+      } catch (error) {
+        console.error('Logout error:', error);
+        window.location.href = '/index.html'; // 即使出错也强制跳转
+      }
+    }
+  </script>
+</body>
+</html>
