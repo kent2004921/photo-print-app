@@ -147,12 +147,12 @@
       width: 100%;
       cursor: pointer;
     }
-    .emoji-picker {
+    .emoji-picker, .sticker-picker {
       margin: 15px 0;
       position: relative;
       z-index: 10;
     }
-    .emoji-picker label {
+    .emoji-picker label, .sticker-picker label {
       display: block;
       margin-bottom: 8px;
       color: #444;
@@ -169,6 +169,14 @@
     }
     .fallback-select {
       display: none;
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .sticker-picker select {
       width: 100%;
       padding: 10px;
       border: 1px solid #ddd;
@@ -211,7 +219,7 @@
         <option value="👾">👾 <span data-i18n="emoji_monster">怪物</span></option>
         <option value="🤖">🤖 <span data-i18n="emoji_robot">机器人</span></option>
         <option value="🎃">🎃 <span data-i18n="emoji_pumpkin">南瓜</span></option>
-        <option value="🎄">🎄 <span data-i18n="emoji_christmas_tree">圣诞树</span></option>
+        <option value="� “‘">🎄 <span data-i18n="emoji_christmas_tree">圣诞树</span></option>
         <option value="🎁">🎁 <span data-i18n="emoji_gift">礼物</span></option>
         <option value="🎂">🎂 <span data-i18n="emoji_cake">蛋糕</span></option>
         <option value="🍎">🍎 <span data-i18n="emoji_apple">苹果</span></option>
@@ -233,11 +241,21 @@
         <option value="🔥">🔥 <span data-i18n="emoji_fire">火焰</span></option>
       </select>
     </div>
+    <div class="sticker-picker">
+      <label data-i18n="select_sticker">选择面部贴纸</label>
+      <select id="stickerSelect" onchange="addStickerToCanvas(this.value)">
+        <option value="" data-i18n="select_sticker_option">选择一个贴纸</option>
+        <option value="https://cdn.pixabay.com/photo/2017/01/31/23/42/animal-2028258_1280.png">🐶 <span data-i18n="sticker_dog">狗狗耳朵</span></option>
+        <option value="https://cdn.pixabay.com/photo/2012/04/13/20/37/glasses-33534_1280.png">👓 <span data-i18n="sticker_glasses">眼镜</span></option>
+        <option value="https://cdn.pixabay.com/photo/2012/04/13/20/37/hat-33535_1280.png">🎩 <span data-i18n="sticker_hat">帽子</span></option>
+        <option value="https://cdn.pixabay.com/photo/2012/04/13/20/37/mustache-33536_1280.png">👨 <span data-i18n="sticker_mustache">胡子</span></option>
+      </select>
+    </div>
     <div class="controls">
       <button class="print-btn" onclick="printPhoto()" data-i18n="print">打印</button>
-      <button class="remove-emoji-btn" onclick="removeLastEmoji()" data-i18n="remove_last_emoji">删除最后一个表情</button>
-      <button class="delete-selected-btn" id="deleteSelectedBtn" onclick="deleteSelectedEmoji()" data-i18n="delete_selected_emoji">删除选中表情</button>
-      <button class="clear-all-btn" onclick="clearAllEmojis()" data-i18n="clear_all_emojis">清空所有表情</button>
+      <button class="remove-emoji-btn" onclick="removeLastOverlay()" data-i18n="remove_last_overlay">删除最后一个贴纸/表情</button>
+      <button class="delete-selected-btn" id="deleteSelectedBtn" onclick="deleteSelectedOverlay()" data-i18n="delete_selected_overlay">删除选中贴纸/表情</button>
+      <button class="clear-all-btn" onclick="clearAllOverlays()" data-i18n="clear_all_overlays">清空所有贴纸/表情</button>
     </div>
     <div class="control-group">
       <label data-i18n="brightness">亮度</label>
@@ -299,10 +317,19 @@
         emoji_lightning: "闪电",
         emoji_droplet: "水滴",
         emoji_fire: "火焰",
+        select_sticker: "选择面部贴纸",
+        select_sticker_option: "选择一个贴纸",
+        sticker_dog: "狗狗耳朵",
+        sticker_glasses: "眼镜",
+        sticker_hat: "帽子",
+        sticker_mustache: "胡子",
         print: "打印",
         remove_last_emoji: "删除最后一个表情",
         delete_selected_emoji: "删除选中表情",
         clear_all_emojis: "清空所有表情",
+        remove_last_overlay: "删除最后一个贴纸/表情",
+        delete_selected_overlay: "删除选中贴纸/表情",
+        clear_all_overlays: "清空所有贴纸/表情",
         brightness: "亮度",
         contrast: "对比度",
         saturation: "饱和度",
@@ -312,8 +339,8 @@
         print_success: "打印成功！",
         print_failed: "打印失败！",
         network_error: "网络错误，请稍后再试！",
-        no_emoji_to_remove: "没有表情可以删除！",
-        emoji_load_failed: "加载表情失败，请选择其他表情！",
+        no_emoji_to_remove: "没有贴纸或表情可以删除！",
+        emoji_load_failed: "加载贴纸或表情失败，请选择其他选项！",
         language_btn: "English"
       },
       en: {
@@ -360,10 +387,19 @@
         emoji_lightning: "Lightning",
         emoji_droplet: "Droplet",
         emoji_fire: "Fire",
+        select_sticker: "Select Face Sticker",
+        select_sticker_option: "Select a Sticker",
+        sticker_dog: "Dog Ears",
+        sticker_glasses: "Glasses",
+        sticker_hat: "Hat",
+        sticker_mustache: "Mustache",
         print: "Print",
         remove_last_emoji: "Remove Last Emoji",
         delete_selected_emoji: "Delete Selected Emoji",
         clear_all_emojis: "Clear All Emojis",
+        remove_last_overlay: "Remove Last Sticker/Emoji",
+        delete_selected_overlay: "Delete Selected Sticker/Emoji",
+        clear_all_overlays: "Clear All Stickers/Emojis",
         brightness: "Brightness",
         contrast: "Contrast",
         saturation: "Saturation",
@@ -373,8 +409,8 @@
         print_success: "Print successful!",
         print_failed: "Print failed!",
         network_error: "Network error, please try again later!",
-        no_emoji_to_remove: "No emojis to remove!",
-        emoji_load_failed: "Failed to load emoji, please select another one!",
+        no_emoji_to_remove: "No stickers or emojis to remove!",
+        emoji_load_failed: "Failed to load sticker or emoji, please select another one!",
         language_btn: "中文"
       }
     };
@@ -389,13 +425,11 @@
     }
 
     function updateLanguage() {
-      // 更新所有带有 data-i18n 属性的元素
       document.querySelectorAll('[data-i18n]').forEach(element => {
         const key = element.getAttribute('data-i18n');
         element.textContent = translations[currentLang][key];
       });
-      // 更新后备选项（emoji select）的文本
-      document.querySelectorAll('#emojiSelect option').forEach(option => {
+      document.querySelectorAll('#emojiSelect option, #stickerSelect option').forEach(option => {
         const key = option.getAttribute('data-i18n');
         if (key) {
           const span = option.querySelector('span');
@@ -422,18 +456,18 @@
     let posX = 0;
     let posY = 0;
     let isDraggingImage = false;
-    let isDraggingEmoji = false;
-    let isScalingEmoji = false;
-    let isRotatingEmoji = false;
-    let draggedEmojiIndex = -1;
-    let selectedEmojiIndex = -1;
+    let isDraggingOverlay = false;
+    let isScalingOverlay = false;
+    let isRotatingOverlay = false;
+    let draggedOverlayIndex = -1;
+    let selectedOverlayIndex = -1;
     let startX, startY;
     let lastDistance = 0;
     let lastAngle = 0;
     let brightness = 1;
     let contrast = 1;
     let saturation = 1;
-    let emojis = [];
+    let overlays = []; // 统一存储表情和贴纸
     let useFallback = false;
 
     const canvas = document.getElementById('photoCanvas');
@@ -476,17 +510,17 @@
       ctx.drawImage(image, -image.width / 2, -image.height / 2);
       ctx.restore();
 
-      emojis.forEach((emoji, index) => {
-        if (emoji.image) {
+      overlays.forEach((overlay, index) => {
+        if (overlay.image) {
           ctx.save();
-          ctx.translate(emoji.x + emoji.size / 2, emoji.y + emoji.size / 2);
-          ctx.rotate((emoji.rotation * Math.PI) / 180);
-          if (index === selectedEmojiIndex) {
+          ctx.translate(overlay.x + overlay.size / 2, overlay.y + overlay.size / 2);
+          ctx.rotate((overlay.rotation * Math.PI) / 180);
+          if (index === selectedOverlayIndex) {
             ctx.strokeStyle = 'red';
             ctx.lineWidth = 2;
-            ctx.strokeRect(-emoji.size / 2 - 2, -emoji.size / 2 - 2, emoji.size + 4, emoji.size + 4);
+            ctx.strokeRect(-overlay.size / 2 - 2, -overlay.size / 2 - 2, overlay.size + 4, overlay.size + 4);
           }
-          ctx.drawImage(emoji.image, -emoji.size / 2, -emoji.size / 2, emoji.size, emoji.size);
+          ctx.drawImage(overlay.image, -overlay.size / 2, -overlay.size / 2, overlay.size, overlay.size);
           ctx.restore();
         }
       });
@@ -504,12 +538,13 @@
       img.crossOrigin = 'anonymous';
       img.src = emojiUrl.match(/src="([^"]+)"/)[1];
       img.onload = () => {
-        emojis.push({
+        overlays.push({
           image: img,
-          x: 50 + emojis.length * 10,
-          y: 50 + emojis.length * 10,
+          x: 50 + overlays.length * 10,
+          y: 50 + overlays.length * 10,
           size: 40,
-          rotation: 0
+          rotation: 0,
+          type: 'emoji'
         });
         drawImage();
       };
@@ -519,10 +554,33 @@
       };
     }
 
-    function removeLastEmoji() {
-      if (emojis.length > 0) {
-        emojis.pop();
-        selectedEmojiIndex = -1;
+    function addStickerToCanvas(stickerUrl) {
+      if (!stickerUrl) return;
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = stickerUrl;
+      img.onload = () => {
+        overlays.push({
+          image: img,
+          x: 50 + overlays.length * 10,
+          y: 50 + overlays.length * 10,
+          size: 40,
+          rotation: 0,
+          type: 'sticker'
+        });
+        drawImage();
+      };
+      img.onerror = () => {
+        console.error('Failed to load sticker image:', img.src);
+        alert(translations[currentLang].emoji_load_failed);
+      };
+    }
+
+    function removeLastOverlay() {
+      if (overlays.length > 0) {
+        overlays.pop();
+        selectedOverlayIndex = -1;
         deleteSelectedBtn.style.display = 'none';
         drawImage();
       } else {
@@ -530,18 +588,18 @@
       }
     }
 
-    function deleteSelectedEmoji() {
-      if (selectedEmojiIndex !== -1) {
-        emojis.splice(selectedEmojiIndex, 1);
-        selectedEmojiIndex = -1;
+    function deleteSelectedOverlay() {
+      if (selectedOverlayIndex !== -1) {
+        overlays.splice(selectedOverlayIndex, 1);
+        selectedOverlayIndex = -1;
         deleteSelectedBtn.style.display = 'none';
         drawImage();
       }
     }
 
-    function clearAllEmojis() {
-      emojis = [];
-      selectedEmojiIndex = -1;
+    function clearAllOverlays() {
+      overlays = [];
+      selectedOverlayIndex = -1;
       deleteSelectedBtn.style.display = 'none';
       drawImage();
     }
@@ -553,15 +611,15 @@
       });
     }
 
-    function getEmojiAtPosition(x, y) {
-      for (let i = emojis.length - 1; i >= 0; i--) {
-        const emoji = emojis[i];
-        const centerX = emoji.x + emoji.size / 2;
-        const centerY = emoji.y + emoji.size / 2;
+    function getOverlayAtPosition(x, y) {
+      for (let i = overlays.length - 1; i >= 0; i--) {
+        const overlay = overlays[i];
+        const centerX = overlay.x + overlay.size / 2;
+        const centerY = overlay.y + overlay.size / 2;
         const dx = x - centerX;
         const dy = y - centerY;
         const distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance <= emoji.size / 2) {
+        if (distance <= overlay.size / 2) {
           return i;
         }
       }
@@ -576,16 +634,16 @@
         const x = (touch.clientX - rect.left) * (canvas.width / dpr / rect.width);
         const y = (touch.clientY - rect.top) * (canvas.height / dpr / rect.height);
 
-        draggedEmojiIndex = getEmojiAtPosition(x, y);
-        if (draggedEmojiIndex !== -1) {
-          isDraggingEmoji = true;
+        draggedOverlayIndex = getOverlayAtPosition(x, y);
+        if (draggedOverlayIndex !== -1) {
+          isDraggingOverlay = true;
           isDraggingImage = false;
-          selectedEmojiIndex = draggedEmojiIndex;
+          selectedOverlayIndex = draggedOverlayIndex;
           deleteSelectedBtn.style.display = 'block';
         } else {
           isDraggingImage = true;
-          isDraggingEmoji = false;
-          selectedEmojiIndex = -1;
+          isDraggingOverlay = false;
+          selectedOverlayIndex = -1;
           deleteSelectedBtn.style.display = 'none';
         }
 
@@ -600,19 +658,19 @@
         const x2 = (touch2.clientX - rect.left) * (canvas.width / dpr / rect.width);
         const y2 = (touch2.clientY - rect.top) * (canvas.height / dpr / rect.height);
 
-        draggedEmojiIndex = getEmojiAtPosition((x1 + x2) / 2, (y1 + y2) / 2);
-        if (draggedEmojiIndex !== -1) {
-          isScalingEmoji = true;
-          isRotatingEmoji = true;
+        draggedOverlayIndex = getOverlayAtPosition((x1 + x2) / 2, (y1 + y2) / 2);
+        if (draggedOverlayIndex !== -1) {
+          isScalingOverlay = true;
+          isRotatingOverlay = true;
           isDraggingImage = false;
-          isDraggingEmoji = false;
-          selectedEmojiIndex = draggedEmojiIndex;
+          isDraggingOverlay = false;
+          selectedOverlayIndex = draggedOverlayIndex;
           deleteSelectedBtn.style.display = 'block';
         } else {
-          isScalingEmoji = false;
-          isRotatingEmoji = false;
+          isScalingOverlay = false;
+          isRotatingOverlay = false;
           isDraggingImage = false;
-          isDraggingEmoji = false;
+          isDraggingOverlay = false;
         }
 
         lastDistance = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
@@ -630,9 +688,9 @@
         if (isDraggingImage) {
           posX += dx;
           posY += dy;
-        } else if (isDraggingEmoji && draggedEmojiIndex !== -1) {
-          emojis[draggedEmojiIndex].x += dx;
-          emojis[draggedEmojiIndex].y += dy;
+        } else if (isDraggingOverlay && draggedOverlayIndex !== -1) {
+          overlays[draggedOverlayIndex].x += dx;
+          overlays[draggedOverlayIndex].y += dy;
         }
 
         startX = touch.clientX;
@@ -644,14 +702,14 @@
         const distance = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
         const angle = Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX);
 
-        if (isScalingEmoji && draggedEmojiIndex !== -1) {
+        if (isScalingOverlay && draggedOverlayIndex !== -1) {
           const scaleFactor = distance / lastDistance;
-          emojis[draggedEmojiIndex].size *= scaleFactor;
-          emojis[draggedEmojiIndex].size = Math.max(20, Math.min(100, emojis[draggedEmojiIndex].size));
+          overlays[draggedOverlayIndex].size *= scaleFactor;
+          overlays[draggedOverlayIndex].size = Math.max(20, Math.min(100, overlays[draggedOverlayIndex].size));
         }
-        if (isRotatingEmoji && draggedEmojiIndex !== -1) {
+        if (isRotatingOverlay && draggedOverlayIndex !== -1) {
           const angleDiff = (angle - lastAngle) * (180 / Math.PI);
-          emojis[draggedEmojiIndex].rotation += angleDiff;
+          overlays[draggedOverlayIndex].rotation += angleDiff;
         } else {
           scale *= distance / lastDistance;
           scale = Math.max(0.1, scale);
@@ -666,10 +724,10 @@
 
     canvas.addEventListener('touchend', () => {
       isDraggingImage = false;
-      isDraggingEmoji = false;
-      isScalingEmoji = false;
-      isRotatingEmoji = false;
-      draggedEmojiIndex = -1;
+      isDraggingOverlay = false;
+      isScalingOverlay = false;
+      isRotatingOverlay = false;
+      draggedOverlayIndex = -1;
     });
 
     canvas.addEventListener('mousedown', (e) => {
@@ -677,16 +735,16 @@
       const x = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
       const y = (e.clientY - rect.top) * (canvas.height / dpr / rect.height);
 
-      draggedEmojiIndex = getEmojiAtPosition(x, y);
-      if (draggedEmojiIndex !== -1) {
-        isDraggingEmoji = true;
+      draggedOverlayIndex = getOverlayAtPosition(x, y);
+      if (draggedOverlayIndex !== -1) {
+        isDraggingOverlay = true;
         isDraggingImage = false;
-        selectedEmojiIndex = draggedEmojiIndex;
+        selectedOverlayIndex = draggedOverlayIndex;
         deleteSelectedBtn.style.display = 'block';
       } else {
         isDraggingImage = true;
-        isDraggingEmoji = false;
-        selectedEmojiIndex = -1;
+        isDraggingOverlay = false;
+        selectedOverlayIndex = -1;
         deleteSelectedBtn.style.display = 'none';
       }
 
@@ -695,16 +753,16 @@
     });
 
     canvas.addEventListener('mousemove', (e) => {
-      if (isDraggingImage || isDraggingEmoji) {
+      if (isDraggingImage || isDraggingOverlay) {
         const dx = (e.clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
         const dy = (e.clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
 
         if (isDraggingImage) {
           posX += dx;
           posY += dy;
-        } else if (isDraggingEmoji && draggedEmojiIndex !== -1) {
-          emojis[draggedEmojiIndex].x += dx;
-          emojis[draggedEmojiIndex].y += dy;
+        } else if (isDraggingOverlay && draggedOverlayIndex !== -1) {
+          overlays[draggedOverlayIndex].x += dx;
+          overlays[draggedOverlayIndex].y += dy;
         }
 
         startX = e.clientX;
@@ -715,8 +773,8 @@
 
     canvas.addEventListener('mouseup', () => {
       isDraggingImage = false;
-      isDraggingEmoji = false;
-      draggedEmojiIndex = -1;
+      isDraggingOverlay = false;
+      draggedOverlayIndex = -1;
     });
 
     canvas.addEventListener('wheel', (e) => {
@@ -725,11 +783,11 @@
       const x = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
       const y = (e.clientY - rect.top) * (canvas.height / dpr / rect.height);
 
-      const emojiIndex = getEmojiAtPosition(x, y);
-      if (emojiIndex !== -1) {
+      const overlayIndex = getOverlayAtPosition(x, y);
+      if (overlayIndex !== -1) {
         const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        emojis[emojiIndex].size *= delta;
-        emojis[emojiIndex].size = Math.max(20, Math.min(100, emojis[emojiIndex].size));
+        overlays[overlayIndex].size *= delta;
+        overlays[overlayIndex].size = Math.max(20, Math.min(100, overlays[overlayIndex].size));
         drawImage();
       }
     });
