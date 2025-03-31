@@ -3,50 +3,69 @@ const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 exports.handler = async (event, context) => {
-  // 确保请求体存在且格式正确
+  // 处理CORS预检请求
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+      },
+      body: ''
+    };
+  }
+
+  // 确认请求体是否存在
   if (!event.body) {
     return {
       statusCode: 400,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+      },
       body: JSON.stringify({ success: false, message: '请求体为空' })
     };
   }
 
-  let body;
+  let requestBody;
   try {
-    body = JSON.parse(event.body);
+    requestBody = JSON.parse(event.body);
   } catch (error) {
     return {
       statusCode: 400,
-      body: JSON.stringify({ success: false, message: '无效的请求体格式' })
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+      },
+      body: JSON.stringify({ success: false, message: '请求体解析失败', error: error.message })
     };
   }
 
-  const { action, username, password, printerId } = body;
+  const { action, username, password, printerId } = requestBody;
 
-  // 验证action是否存在
-  if (!action) {
-    return {
-      statusCode: 400,
-      body: JSON.stringify({ success: false, message: '缺少action参数' })
-    };
-  }
-
-  console.log('Received action:', action);
-  console.log('Request body:', body);
+  console.log('Received request:', { action, username, password, printerId });
 
   try {
     if (action === 'signup') {
-      // 使用maybeSingle()代替single()，避免未找到记录时抛出错误
       const { data: existingUser, error: checkError } = await supabase
         .from('franchisees')
         .select('username')
         .eq('username', username)
-        .maybeSingle();
+        .single();
 
-      if (checkError) {
-        console.error('Error checking username:', checkError);
+      console.log('Check existing user:', { existingUser, checkError });
+
+      if (checkError && checkError.code !== 'PGRST116') {
         return {
           statusCode: 500,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS'
+          },
           body: JSON.stringify({ success: false, message: '检查用户名时出错', error: checkError.message })
         };
       }
@@ -54,6 +73,11 @@ exports.handler = async (event, context) => {
       if (existingUser) {
         return {
           statusCode: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS'
+          },
           body: JSON.stringify({ success: false, message: '用户名已存在' })
         };
       }
@@ -73,8 +97,14 @@ exports.handler = async (event, context) => {
         console.error('Insert error:', error);
         throw error;
       }
+
       return {
         statusCode: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS'
+        },
         body: JSON.stringify({ success: true, message: '注册成功' })
       };
     } else if (action === 'bind-printer') {
@@ -87,9 +117,15 @@ exports.handler = async (event, context) => {
         console.error('Update error:', error);
         throw error;
       }
+
       return {
         statusCode: 200,
-        body: JSON.stringify({ success: true, message: '打印机绑定成功' })
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS'
+        },
+        body: JSON.stringify({ success: true, message: '绑定打印机成功' })
       };
     } else if (action === 'login') {
       const { data: user, error } = await supabase
@@ -97,25 +133,29 @@ exports.handler = async (event, context) => {
         .select('*')
         .eq('username', username)
         .eq('password', password)
-        .maybeSingle();
+        .single();
 
-      if (error) {
-        console.error('Login query error:', error);
-        return {
-          statusCode: 500,
-          body: JSON.stringify({ success: false, message: '查询用户时出错', error: error.message })
-        };
-      }
+      console.log('Login query result:', { user, error });
 
-      if (!user) {
+      if (error || !user) {
         return {
           statusCode: 401,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS'
+          },
           body: JSON.stringify({ success: false, message: '用户名或密码错误' })
         };
       }
 
       return {
         statusCode: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS'
+        },
         body: JSON.stringify({
           success: true,
           approved: user.approved,
@@ -128,12 +168,22 @@ exports.handler = async (event, context) => {
 
     return {
       statusCode: 400,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+      },
       body: JSON.stringify({ success: false, message: '无效请求' })
     };
   } catch (error) {
     console.error('Server error:', error);
     return {
       statusCode: 500,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+      },
       body: JSON.stringify({ success: false, message: '服务器错误', error: error.message })
     };
   }
