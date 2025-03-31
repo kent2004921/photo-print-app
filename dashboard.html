@@ -125,7 +125,7 @@
       <h2 data-i18n="welcome">欢迎，<span id="username"></span></h2>
       <button class="language-btn" onclick="toggleLanguage()">🌐</button>
     </div>
-    <p data-i18n="remaining_prints">剩余打印次数：<span id="remainingUses">0</span></p>
+    <p data-i18n="remaining_prints">剩余打印次数：<span id="remainingUses">加载中...</span></p>
     <h3 data-i18n="bind_printer">绑定打印机</h3>
     <input type="text" id="printerId" placeholder="请输入打印机ID" data-i18n-placeholder="printer_id_placeholder">
     <button class="bind-btn" onclick="bindPrinter()" data-i18n="bind">绑定</button>
@@ -151,6 +151,7 @@
         bind_success: "绑定打印机成功！",
         bind_failed: "绑定打印机失败！",
         network_error: "网络错误，请稍后再试！",
+        fetch_data_failed: "无法获取用户数据，请检查登录状态！",
         language_btn: "English"
       },
       en: {
@@ -167,6 +168,7 @@
         bind_success: "Printer binding successful!",
         bind_failed: "Printer binding failed!",
         network_error: "Network error, please try again later!",
+        fetch_data_failed: "Failed to fetch user data, please check login status!",
         language_btn: "中文"
       }
     };
@@ -207,32 +209,48 @@
     async function fetchUserData(username) {
       try {
         const password = localStorage.getItem('password');
+        console.log('Fetching user data with:', { username, password });
+
         if (!password) {
           console.error('No password found in localStorage');
-          document.getElementById('remainingUses').textContent = 0;
+          document.getElementById('remainingUses').textContent = '未知';
+          alert(translations[currentLang].fetch_data_failed);
           return;
         }
+
+        const requestBody = { action: 'login', username, password };
+        console.log('Sending request to /auth:', requestBody);
+
         const response = await fetch('/.netlify/functions/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'login', username, password })
+          body: JSON.stringify(requestBody)
         });
+
+        console.log('Response status:', response.status);
         if (!response.ok) {
-          throw new Error('Network response was not ok');
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
+
         const data = await response.json();
+        console.log('Response data:', data);
+
         if (data.success) {
-          document.getElementById('remainingUses').textContent = data.remainingUses !== undefined ? data.remainingUses : 0;
+          const remainingUses = data.remainingUses !== undefined ? data.remainingUses : 0;
+          console.log('Remaining uses:', remainingUses);
+          document.getElementById('remainingUses').textContent = remainingUses;
           if (data.printerId) {
             document.getElementById('printerId').value = data.printerId;
           }
         } else {
           console.error('Failed to fetch user data:', data.message);
-          document.getElementById('remainingUses').textContent = 0;
+          document.getElementById('remainingUses').textContent = '未知';
+          alert(data.message || translations[currentLang].fetch_data_failed);
         }
       } catch (error) {
         console.error('Fetch user data error:', error);
-        document.getElementById('remainingUses').textContent = 0;
+        document.getElementById('remainingUses').textContent = '未知';
+        alert(translations[currentLang].network_error);
       }
     }
 
