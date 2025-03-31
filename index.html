@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="login_title">登录 - 照片打印服务</title>
+  <title data-i18n="login_title">Login - Photo Print Service</title>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -98,12 +98,12 @@
 <body>
   <div class="container">
     <div class="header">
-      <h2 data-i18n="login_title">登录 - 照片打印服务</h2>
+      <h2 data-i18n="login_title">Login - Photo Print Service</h2>
       <button class="language-btn" onclick="toggleLanguage()">🌐</button>
     </div>
-    <input type="text" id="username" placeholder="用户名" data-i18n-placeholder="username_placeholder">
-    <input type="password" id="password" placeholder="密码" data-i18n-placeholder="password_placeholder">
-    <button class="login-btn" onclick="login()" data-i18n="login">登录</button>
+    <input type="text" id="username" placeholder="Username" data-i18n-placeholder="username_placeholder">
+    <input type="password" id="password" placeholder="Password" data-i18n-placeholder="password_placeholder">
+    <button class="login-btn" onclick="login()" data-i18n="login">Login</button>
   </div>
 
   <script>
@@ -126,7 +126,7 @@
       }
     };
 
-    let currentLang = localStorage.getItem('language') || 'zh';
+    let currentLang = localStorage.getItem('language') || 'en';
     updateLanguage();
 
     function toggleLanguage() {
@@ -164,9 +164,9 @@
         });
         const data = await response.json();
         if (data.success) {
-          localStorage.setItem('user', username);
-          localStorage.setItem('password', password);
-          window.location.href = '/dashboard.html';
+          // 直接通过URL参数传递username和remainingUses
+          const remainingUses = data.remainingUses !== undefined ? data.remainingUses : 0;
+          window.location.href = `/dashboard.html?username=${encodeURIComponent(username)}&remainingUses=${remainingUses}`;
         } else {
           alert(data.message || translations[currentLang].login_failed);
         }
