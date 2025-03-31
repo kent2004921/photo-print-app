@@ -3,7 +3,6 @@ const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 exports.handler = async (event, context) => {
-  // 处理CORS预检请求
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
@@ -16,7 +15,6 @@ exports.handler = async (event, context) => {
     };
   }
 
-  // 确认请求体是否存在
   if (!event.body) {
     return {
       statusCode: 400,
@@ -50,7 +48,6 @@ exports.handler = async (event, context) => {
 
   try {
     if (action === 'signup') {
-      // 使用 .maybeSingle() 替代 .single()，避免空表时的错误
       const { data: existingUser, error: checkError } = await supabase
         .from('franchisees')
         .select('username')
@@ -178,6 +175,77 @@ exports.handler = async (event, context) => {
           printerId: user.printer_id,
           photos: user.photos || []
         })
+      };
+    } else if (action === 'print') {
+      const { data: user, error: fetchError } = await supabase
+        .from('franchisees')
+        .select('remaining_uses')
+        .eq('username', username)
+        .single();
+
+      if (fetchError) {
+        console.error('Fetch user error:', fetchError);
+        return {
+          statusCode: 500,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS'
+          },
+          body: JSON.stringify({ success: false, message: '查询用户失败', error: fetchError.message })
+        };
+      }
+
+      if (!user) {
+        return {
+          statusCode: 404,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS'
+          },
+          body: JSON.stringify({ success: false, message: '用户不存在' })
+        };
+      }
+
+      if (user.remaining_uses <= 0) {
+        return {
+          statusCode: 400,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS'
+          },
+          body: JSON.stringify({ success: false, message: '剩余打印次数不足' })
+        };
+      }
+
+      const { error: updateError } = await supabase
+        .from('franchisees')
+        .update({ remaining_uses: user.remaining_uses - 1 })
+        .eq('username', username);
+
+      if (updateError) {
+        console.error('Update remaining uses error:', updateError);
+        return {
+          statusCode: 500,
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'POST, OPTIONS'
+          },
+          body: JSON.stringify({ success: false, message: '更新打印次数失败', error: updateError.message })
+        };
+      }
+
+      return {
+        statusCode: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Methods': 'POST, OPTIONS'
+        },
+        body: JSON.stringify({ success: true, message: '打印成功' })
       };
     }
 
