@@ -158,10 +158,13 @@
 
       try {
         console.log('Attempting login with:', { username, password });
+        const requestBody = JSON.stringify({ action: 'login', username, password });
+        console.log('Request body:', requestBody);
+
         const response = await fetch('/.netlify/functions/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'login', username, password })
+          body: requestBody
         });
 
         console.log('Login response status:', response.status);
