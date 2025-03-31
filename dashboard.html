@@ -41,10 +41,6 @@
     button:hover {
       background-color: #0056b3;
     }
-    img {
-      max-width: 100px;
-      margin: 5px;
-    }
   </style>
 </head>
 <body>
@@ -54,11 +50,8 @@
     <h3>绑定打印机</h3>
     <input type="text" id="printerId" placeholder="请输入打印机ID">
     <button onclick="bindPrinter()">绑定</button>
-    <h3>上传照片</h3>
-    <input type="file" id="photoInput" accept="image/*">
-    <button onclick="uploadPhoto()">上传</button>
-    <div id="photoList"></div>
     <h3>生成二维码</h3>
+    <button onclick="generateQR()">生成二维码</button>
     <div id="qrcode"></div>
     <button onclick="logout()">退出登录</button>
   </div>
@@ -74,19 +67,17 @@
 
     async function fetchUserData(username) {
       try {
+        const password = localStorage.getItem('password');
         const response = await fetch('/.netlify/functions/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'login', username, password: localStorage.getItem('password') })
+          body: JSON.stringify({ action: 'login', username, password })
         });
         const data = await response.json();
         if (data.success) {
           document.getElementById('remainingUses').textContent = data.remainingUses || 0;
           if (data.printerId) {
             document.getElementById('printerId').value = data.printerId;
-          }
-          if (data.photos && data.photos.length > 0) {
-            document.getElementById('photoList').innerHTML = data.photos.map(url => `<img src="${url}" alt="Photo">`).join('');
           }
         }
       } catch (error) {
@@ -120,41 +111,10 @@
       }
     }
 
-    async function uploadPhoto() {
-      const fileInput = document.getElementById('photoInput');
-      const file = fileInput.files[0];
-      const username = localStorage.getItem('user');
-      if (!file) {
-        alert('请选择一张照片！');
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('username', username);
-
-      try {
-        const response = await fetch('/.netlify/functions/upload', {
-          method: 'POST',
-          body: formData
-        });
-        const data = await response.json();
-        if (data.success) {
-          alert('照片上传成功！');
-          fetchUserData(username);
-          generateQRCode(data.url);
-        } else {
-          alert(data.message || '照片上传失败！');
-        }
-      } catch (error) {
-        console.error('Upload photo error:', error);
-        alert('网络错误，请稍后再试！');
-      }
-    }
-
-    function generateQRCode(url) {
+    function generateQR() {
       const qrcodeDiv = document.getElementById('qrcode');
       qrcodeDiv.innerHTML = '';
+      const url = `${window.location.origin}/upload.html?username=${username}`;
       new QRCode(qrcodeDiv, {
         text: url,
         width: 128,
