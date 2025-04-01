@@ -4,8 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="upload_title">上传照片打印</title>
-  <script src="https://cdn.jsdelivr.net/npm/twemoji@latest/dist/twemoji.min.js"></script>
-  <script type="module" src="https://unpkg.com/emoji-picker-element@latest/dist/index.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -158,25 +156,7 @@
       color: #444;
       font-size: 16px;
     }
-    emoji-picker {
-      width: 100%;
-      max-height: 200px;
-      overflow-y: auto;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      background-color: #fff;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    .fallback-select {
-      display: none;
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      background-color: #fff;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    .sticker-picker select {
+    .emoji-select, .sticker-select {
       width: 100%;
       padding: 10px;
       border: 1px solid #ddd;
@@ -196,72 +176,25 @@
     <canvas id="photoCanvas"></canvas>
     <div class="emoji-picker">
       <label data-i18n="select_emoji">选择表情</label>
-      <emoji-picker id="emojiPicker"></emoji-picker>
-      <select id="emojiSelect" class="fallback-select" onchange="addEmojiToCanvas(this.value)">
+      <select id="emojiSelect" class="emoji-select" onchange="addEmojiToCanvas(this.value)">
         <option value="" data-i18n="select_emoji_option">选择一个表情</option>
         <option value="😊">😊 <span data-i18n="emoji_smile">笑脸</span></option>
         <option value="❤️">❤️ <span data-i18n="emoji_heart">红心</span></option>
         <option value="🌟">🌟 <span data-i18n="emoji_star">星星</span></option>
         <option value="🎉">🎉 <span data-i18n="emoji_party">庆祝</span></option>
         <option value="🐾">🐾 <span data-i18n="emoji_paw">爪印</span></option>
-        <option value="😂">😂 <span data-i18n="emoji_laugh">笑哭</span></option>
-        <option value="😍">😍 <span data-i18n="emoji_love_eyes">爱心眼</span></option>
-        <option value="😘">😘 <span data-i18n="emoji_kiss">飞吻</span></option>
-        <option value="😎">😎 <span data-i18n="emoji_cool">酷</span></option>
-        <option value="😢">😢 <span data-i18n="emoji_cry">哭泣</span></option>
-        <option value="😡">😡 <span data-i18n="emoji_angry">生气</span></option>
-        <option value="🤩">🤩 <span data-i18n="emoji_admire">崇拜</span></option>
-        <option value="🤗">🤗 <span data-i18n="emoji_hug">拥抱</span></option>
-        <option value="🤔">🤔 <span data-i18n="emoji_think">思考</span></option>
-        <option value="🤡">🤡 <span data-i18n="emoji_clown">小丑</span></option>
-        <option value="👻">👻 <span data-i18n="emoji_ghost">幽灵</span></option>
-        <option value="👽">👽 <span data-i18n="emoji_alien">外星人</span></option>
-        <option value="👾">👾 <span data-i18n="emoji_monster">怪物</span></option>
-        <option value="🤖">🤖 <span data-i18n="emoji_robot">机器人</span></option>
-        <option value="🎃">🎃 <span data-i18n="emoji_pumpkin">南瓜</span></option>
-        <option value="🎄">🎄 <span data-i18n="emoji_christmas_tree">圣诞树</span></option>
-        <option value="🎁">🎁 <span data-i18n="emoji_gift">礼物</span></option>
-        <option value="🎂">🎂 <span data-i18n="emoji_cake">蛋糕</span></option>
-        <option value="🍎">🍎 <span data-i18n="emoji_apple">苹果</span></option>
-        <option value="🍌">🍌 <span data-i18n="emoji_banana">香蕉</span></option>
-        <option value="🍒">🍒 <span data-i18n="emoji_cherry">樱桃</span></option>
-        <option value="🍓">🍓 <span data-i18n="emoji_strawberry">草莓</span></option>
-        <option value="🍕">🍕 <span data-i18n="emoji_pizza">披萨</span></option>
-        <option value="🍔">🍔 <span data-i18n="emoji_burger">汉堡</span></option>
-        <option value="🍟">🍟 <span data-i18n="emoji_fries">薯条</span></option>
-        <option value="🍦">🍦 <span data-i18n="emoji_ice_cream">冰淇淋</span></option>
-        <option value="☕">☕ <span data-i18n="emoji_coffee">咖啡</span></option>
-        <option value="🍷">🍷 <span data-i18n="emoji_wine">红酒</span></option>
-        <option value="🌈">🌈 <span data-i18n="emoji_rainbow">彩虹</span></option>
-        <option value="☀️">☀️ <span data-i18n="emoji_sun">太阳</span></option>
-        <option value="🌙">🌙 <span data-i18n="emoji_moon">月亮</span></option>
-        <option value="⭐">⭐ <span data-i18n="emoji_star2">星星</span></option>
-        <option value="⚡">⚡ <span data-i18n="emoji_lightning">闪电</span></option>
-        <option value="💧">💧 <span data-i18n="emoji_droplet">水滴</span></option>
-        <option value="🔥">🔥 <span data-i18n="emoji_fire">火焰</span></option>
       </select>
     </div>
     <div class="sticker-picker">
       <label data-i18n="select_sticker">选择面部贴纸</label>
-      <select id="stickerSelect" onchange="addStickerToCanvas(this.value)">
+      <select id="stickerSelect" class="sticker-select" onchange="addStickerToCanvas(this.value)">
         <option value="" data-i18n="select_sticker_option">选择一个贴纸</option>
-        <option value="https://www.pngall.com/wp-content/uploads/2016/04/Dog-PNG-Image.png">🐶 <span data-i18n="sticker_dog">狗狗耳朵</span></option>
-        <option value="https://www.pngall.com/wp-content/uploads/2016/05/Glasses-PNG-Clipart.png">👓 <span data-i18n="sticker_glasses">眼镜</span></option>
-        <option value="https://www.pngall.com/wp-content/uploads/2016/05/Hat-PNG-Clipart.png">🎩 <span data-i18n="sticker_hat">帽子</span></option>
-        <option value="https://www.pngall.com/wp-content/uploads/2016/05/Mustache-PNG-Clipart.png">👨 <span data-i18n="sticker_mustache">胡子</span></option>
-        <option value="https://www.pngall.com/wp-content/uploads/2016/05/Crown-PNG-Clipart.png">👑 <span data-i18n="sticker_crown">王冠</span></option>
-        <option value="https://www.pngall.com/wp-content/uploads/2016/05/Heart-PNG-Clipart.png">💖 <span data-i18n="sticker_heart">爱心</span></option>
-        <option value="https://www.pngall.com/wp-content/uploads/2016/05/Star-PNG-Clipart.png">⭐ <span data-i18n="sticker_star">星星</span></option>
-        <option value="https://www.pngall.com/wp-content/uploads/2016/05/Flower-PNG-Clipart.png">🌸 <span data-i18n="sticker_flower">花朵</span></option>
-        <option value="https://www.pngall.com/wp-content/uploads/2016/05/Sunglasses-PNG-Clipart.png">🕶️ <span data-i18n="sticker_sunglasses">太阳镜</span></option>
-        <option value="https://www.pngall.com/wp-content/uploads/2016/05/Bow-Tie-PNG-Clipart.png">🎀 <span data-i18n="sticker_bowtie">蝴蝶结</span></option>
+        <option value="dog_ears">🐶 <span data-i18n="sticker_dog">狗狗耳朵</span></option>
+        <option value="glasses">👓 <span data-i18n="sticker_glasses">眼镜</span></option>
+        <option value="hat">🎩 <span data-i18n="sticker_hat">帽子</span></option>
+        <option value="mustache">👨 <span data-i18n="sticker_mustache">胡子</span></option>
+        <option value="bunny_ears">🐰 <span data-i18n="sticker_bunny">兔子耳朵</span></option>
       </select>
-    </div>
-    <div class="control-group" id="overlayControls" style="display: none;">
-      <label data-i18n="overlay_size">贴纸/表情大小</label>
-      <input type="range" id="overlaySize" min="20" max="100" step="1" value="40" oninput="adjustOverlaySize()">
-      <label data-i18n="overlay_rotation">贴纸/表情角度</label>
-      <input type="range" id="overlayRotation" min="0" max="360" step="1" value="0" oninput="adjustOverlayRotation()">
     </div>
     <div class="controls">
       <button class="print-btn" onclick="printPhoto()" data-i18n="print">打印</button>
@@ -294,55 +227,13 @@
         emoji_star: "星星",
         emoji_party: "庆祝",
         emoji_paw: "爪印",
-        emoji_laugh: "笑哭",
-        emoji_love_eyes: "爱心眼",
-        emoji_kiss: "飞吻",
-        emoji_cool: "酷",
-        emoji_cry: "哭泣",
-        emoji_angry: "生气",
-        emoji_admire: "崇拜",
-        emoji_hug: "拥抱",
-        emoji_think: "思考",
-        emoji_clown: "小丑",
-        emoji_ghost: "幽灵",
-        emoji_alien: "外星人",
-        emoji_monster: "怪物",
-        emoji_robot: "机器人",
-        emoji_pumpkin: "南瓜",
-        emoji_christmas_tree: "圣诞树",
-        emoji_gift: "礼物",
-        emoji_cake: "蛋糕",
-        emoji_apple: "苹果",
-        emoji_banana: "香蕉",
-        emoji_cherry: "樱桃",
-        emoji_strawberry: "草莓",
-        emoji_pizza: "披萨",
-        emoji_burger: "汉堡",
-        emoji_fries: "薯条",
-        emoji_ice_cream: "冰淇淋",
-        emoji_coffee: "咖啡",
-        emoji_wine: "红酒",
-        emoji_rainbow: "彩虹",
-        emoji_sun: "太阳",
-        emoji_moon: "月亮",
-        emoji_star2: "星星",
-        emoji_lightning: "闪电",
-        emoji_droplet: "水滴",
-        emoji_fire: "火焰",
         select_sticker: "选择面部贴纸",
         select_sticker_option: "选择一个贴纸",
         sticker_dog: "狗狗耳朵",
         sticker_glasses: "眼镜",
         sticker_hat: "帽子",
         sticker_mustache: "胡子",
-        sticker_crown: "王冠",
-        sticker_heart: "爱心",
-        sticker_star: "星星",
-        sticker_flower: "花朵",
-        sticker_sunglasses: "太阳镜",
-        sticker_bowtie: "蝴蝶结",
-        overlay_size: "贴纸/表情大小",
-        overlay_rotation: "贴纸/表情角度",
+        sticker_bunny: "兔子耳朵",
         print: "打印",
         remove_last_overlay: "删除最后一个贴纸/表情",
         delete_selected_overlay: "删除选中贴纸/表情",
@@ -357,7 +248,6 @@
         print_failed: "打印失败！",
         network_error: "网络错误，请稍后再试！",
         no_emoji_to_remove: "没有贴纸或表情可以删除！",
-        overlay_load_failed: "加载贴纸或表情失败，请选择其他选项！",
         language_btn: "English"
       },
       en: {
@@ -369,55 +259,13 @@
         emoji_star: "Star",
         emoji_party: "Party",
         emoji_paw: "Paw",
-        emoji_laugh: "Laugh",
-        emoji_love_eyes: "Love Eyes",
-        emoji_kiss: "Kiss",
-        emoji_cool: "Cool",
-        emoji_cry: "Cry",
-        emoji_angry: "Angry",
-        emoji_admire: "Admire",
-        emoji_hug: "Hug",
-        emoji_think: "Think",
-        emoji_clown: "Clown",
-        emoji_ghost: "Ghost",
-        emoji_alien: "Alien",
-        emoji_monster: "Monster",
-        emoji_robot: "Robot",
-        emoji_pumpkin: "Pumpkin",
-        emoji_christmas_tree: "Christmas Tree",
-        emoji_gift: "Gift",
-        emoji_cake: "Cake",
-        emoji_apple: "Apple",
-        emoji_banana: "Banana",
-        emoji_cherry: "Cherry",
-        emoji_strawberry: "Strawberry",
-        emoji_pizza: "Pizza",
-        emoji_burger: "Burger",
-        emoji_fries: "Fries",
-        emoji_ice_cream: "Ice Cream",
-        emoji_coffee: "Coffee",
-        emoji_wine: "Wine",
-        emoji_rainbow: "Rainbow",
-        emoji_sun: "Sun",
-        emoji_moon: "Moon",
-        emoji_star2: "Star",
-        emoji_lightning: "Lightning",
-        emoji_droplet: "Droplet",
-        emoji_fire: "Fire",
         select_sticker: "Select Face Sticker",
         select_sticker_option: "Select a Sticker",
         sticker_dog: "Dog Ears",
         sticker_glasses: "Glasses",
         sticker_hat: "Hat",
         sticker_mustache: "Mustache",
-        sticker_crown: "Crown",
-        sticker_heart: "Heart",
-        sticker_star: "Star",
-        sticker_flower: "Flower",
-        sticker_sunglasses: "Sunglasses",
-        sticker_bowtie: "Bow Tie",
-        overlay_size: "Sticker/Emoji Size",
-        overlay_rotation: "Sticker/Emoji Rotation",
+        sticker_bunny: "Bunny Ears",
         print: "Print",
         remove_last_overlay: "Remove Last Sticker/Emoji",
         delete_selected_overlay: "Delete Selected Sticker/Emoji",
@@ -432,7 +280,6 @@
         print_failed: "Print failed!",
         network_error: "Network error, please try again later!",
         no_emoji_to_remove: "No stickers or emojis to remove!",
-        overlay_load_failed: "Failed to load sticker or emoji, please select another one!",
         language_btn: "中文"
       }
     };
@@ -474,23 +321,17 @@
 
     let image = new Image();
     let scale = 1;
-    let rotation = 0;
     let posX = 0;
     let posY = 0;
     let isDraggingImage = false;
     let isDraggingOverlay = false;
-    let isScalingOverlay = false;
-    let isRotatingOverlay = false;
     let draggedOverlayIndex = -1;
     let selectedOverlayIndex = -1;
     let startX, startY;
-    let lastDistance = 0;
-    let lastAngle = 0;
     let brightness = 1;
     let contrast = 1;
     let saturation = 1;
     let overlays = [];
-    let useFallback = false;
 
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
@@ -502,48 +343,226 @@
     ctx.scale(dpr, dpr);
 
     const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
-    const overlayControls = document.getElementById('overlayControls');
-    const overlaySizeSlider = document.getElementById('overlaySize');
-    const overlayRotationSlider = document.getElementById('overlayRotation');
-
-    const emojiPicker = document.getElementById('emojiPicker');
-    const emojiSelect = document.getElementById('emojiSelect');
-    if (!customElements.get('emoji-picker')) {
-      console.error('emoji-picker-element not supported, falling back to select');
-      useFallback = true;
-      emojiPicker.style.display = 'none';
-      emojiSelect.style.display = 'block';
-    }
 
     document.getElementById('photoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
+        console.log('Photo selected:', file.name);
         image.src = URL.createObjectURL(file);
         image.onload = () => {
+          console.log('Photo loaded successfully');
           drawImage();
+        };
+        image.onerror = () => {
+          console.error('Failed to load photo');
+          alert('Failed to load photo, please try another one!');
         };
       }
     });
 
     function drawImage() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.save();
-      ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-      ctx.translate((canvas.width / dpr) / 2 + posX, (canvas.height / dpr) / 2 + posY);
-      ctx.rotate((rotation * Math.PI) / 180);
-      ctx.scale(scale, scale);
-      ctx.drawImage(image, -image.width / 2, -image.height / 2);
-      ctx.restore();
+      if (image.src) {
+        ctx.save();
+        ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
+        ctx.translate((canvas.width / dpr) / 2 + posX, (canvas.height / dpr) / 2 + posY);
+        ctx.scale(scale, scale);
+        ctx.drawImage(image, -image.width / 2, -image.height / 2);
+        ctx.restore();
+      }
 
       overlays.forEach((overlay, index) => {
-        if (overlay.image) {
-          ctx.save();
-          ctx.translate(overlay.x + overlay.size / 2, overlay.y + overlay.size / 2);
-          ctx.rotate((overlay.rotation * Math.PI) / 180);
-          if (index === selectedOverlayIndex) {
-            ctx.strokeStyle = 'red';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(-overlay.size / 2 - 2, -overlay.size / 2 - 2, overlay.size + 4, overlay.size + 4);
-          }
-          ctx.drawImage(overlay.image, -overlay.size / 2, -overlay.size / 2, overlay.size, overlay.size);
-          ctx.restore
+        ctx.save();
+        ctx.translate(overlay.x + overlay.size / 2, overlay.y + overlay.size / 2);
+        if (index === selectedOverlayIndex) {
+          ctx.strokeStyle = 'red';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(-overlay.size / 2 - 2, -overlay.size / 2 - 2, overlay.size + 4, overlay.size + 4);
+        }
+        if (overlay.type === 'emoji') {
+          ctx.font = `${overlay.size}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(overlay.value, 0, 0);
+        } else if (overlay.type === 'sticker') {
+          ctx.fillStyle = overlay.color;
+          ctx.fillRect(-overlay.size / 2, -overlay.size / 2, overlay.size, overlay.size);
+          ctx.fillStyle = 'black';
+          ctx.font = `${overlay.size / 2}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(overlay.label, 0, 0);
+        }
+        ctx.restore();
+      });
+    }
+
+    function addEmojiToCanvas(emojiUnicode) {
+      if (!emojiUnicode) return;
+      console.log('Adding emoji:', emojiUnicode);
+      overlays.push({
+        value: emojiUnicode,
+        x: 50 + overlays.length * 10,
+        y: 50 + overlays.length * 10,
+        size: 40,
+        type: 'emoji'
+      });
+      drawImage();
+    }
+
+    function addStickerToCanvas(stickerType) {
+      if (!stickerType) return;
+      console.log('Adding sticker:', stickerType);
+      const stickerMap = {
+        'dog_ears': { label: 'Dog', color: '#FFD700' },
+        'glasses': { label: 'Glasses', color: '#00CED1' },
+        'hat': { label: 'Hat', color: '#FF4500' },
+        'mustache': { label: 'Mustache', color: '#8A2BE2' },
+        'bunny_ears': { label: 'Bunny', color: '#FF69B4' }
+      };
+      const sticker = stickerMap[stickerType];
+      if (sticker) {
+        overlays.push({
+          label: sticker.label,
+          color: sticker.color,
+          x: 50 + overlays.length * 10,
+          y: 50 + overlays.length * 10,
+          size: 40,
+          type: 'sticker'
+        });
+        drawImage();
+      }
+    }
+
+    function removeLastOverlay() {
+      if (overlays.length > 0) {
+        overlays.pop();
+        selectedOverlayIndex = -1;
+        deleteSelectedBtn.style.display = 'none';
+        drawImage();
+      } else {
+        alert(translations[currentLang].no_emoji_to_remove);
+      }
+    }
+
+    function deleteSelectedOverlay() {
+      if (selectedOverlayIndex !== -1) {
+        overlays.splice(selectedOverlayIndex, 1);
+        selectedOverlayIndex = -1;
+        deleteSelectedBtn.style.display = 'none';
+        drawImage();
+      }
+    }
+
+    function clearAllOverlays() {
+      overlays = [];
+      selectedOverlayIndex = -1;
+      deleteSelectedBtn.style.display = 'none';
+      drawImage();
+    }
+
+    function getOverlayAtPosition(x, y) {
+      for (let i = overlays.length - 1; i >= 0; i--) {
+        const overlay = overlays[i];
+        const centerX = overlay.x + overlay.size / 2;
+        const centerY = overlay.y + overlay.size / 2;
+        const dx = x - centerX;
+        const dy = y - centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance <= overlay.size / 2) {
+          return i;
+        }
+      }
+      return -1;
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
+      const y = (e.clientY - rect.top) * (canvas.height / dpr / rect.height);
+
+      draggedOverlayIndex = getOverlayAtPosition(x, y);
+      if (draggedOverlayIndex !== -1) {
+        isDraggingOverlay = true;
+        isDraggingImage = false;
+        selectedOverlayIndex = draggedOverlayIndex;
+        deleteSelectedBtn.style.display = 'block';
+      } else {
+        isDraggingImage = true;
+        isDraggingOverlay = false;
+        selectedOverlayIndex = -1;
+        deleteSelectedBtn.style.display = 'none';
+      }
+
+      startX = e.clientX;
+      startY = e.clientY;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isDraggingImage || isDraggingOverlay) {
+        const dx = (e.clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
+        const dy = (e.clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
+
+        if (isDraggingImage) {
+          posX += dx;
+          posY += dy;
+        } else if (isDraggingOverlay && draggedOverlayIndex !== -1) {
+          overlays[draggedOverlayIndex].x += dx;
+          overlays[draggedOverlayIndex].y += dy;
+        }
+
+        startX = e.clientX;
+        startY = e.clientY;
+        drawImage();
+      }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      isDraggingImage = false;
+      isDraggingOverlay = false;
+      draggedOverlayIndex = -1;
+    });
+
+    function adjustColor() {
+      brightness = document.getElementById('brightness').value;
+      contrast = document.getElementById('contrast').value;
+      saturation = document.getElementById('saturation').value;
+      drawImage();
+    }
+
+    async function printPhoto() {
+      if (!image.src) {
+        alert(translations[currentLang].no_photo);
+        return;
+      }
+
+      const dataUrl = canvas.toDataURL('image/jpeg');
+      if (!username || !dataUrl) {
+        alert(translations[currentLang].missing_data);
+        return;
+      }
+
+      try {
+        const response = await fetch('/.netlify/functions/print', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ username, dataUrl })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          alert(translations[currentLang].print_success);
+        } else {
+          alert(data.message || translations[currentLang].print_failed);
+        }
+      } catch (error) {
+        console.error('Print photo error:', error);
+        alert(translations[currentLang].network_error);
+      }
+    }
+  </script>
+</body>
+</html>
