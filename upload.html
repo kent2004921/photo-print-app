@@ -53,8 +53,8 @@
       border: 1px solid #ddd;
       border-radius: 8px;
       max-width: 100%;
-      margin: 10px 0;
-      touch-action: none; /* 防止触摸时触发默认行为 */
+      margin: 10pxK
+      touch-action: none;
     }
     input[type="file"] {
       width: 100%;
@@ -207,11 +207,11 @@
       <label data-i18n="select_sticker">选择面部贴纸</label>
       <select id="stickerSelect" class="sticker-select" onchange="addStickerToCanvas(this.value)">
         <option value="" data-i18n="select_sticker_option">选择一个贴纸</option>
-        <option value="https://picsum.photos/50?random=1">🐶 <span data-i18n="sticker_dog">狗狗耳朵</span></option>
-        <option value="https://picsum.photos/50?random=2">👓 <span data-i18n="sticker_glasses">眼镜</span></option>
-        <option value="https://picsum.photos/50?random=3">🎩 <span data-i18n="sticker_hat">帽子</span></option>
-        <option value="https://picsum.photos/50?random=4">👨 <span data-i18n="sticker_mustache">胡子</span></option>
-        <option value="https://picsum.photos/50?random=5">🐰 <span data-i18n="sticker_bunny">兔子耳朵</span></option>
+        <option value="https://via.placeholder.com/50/FF0000/FFFFFF?text=🐶" data-i18n="sticker_dog">🐶 狗狗耳朵</option>
+        <option value="https://via.placeholder.com/50/00FF00/FFFFFF?text=👓" data-i18n="sticker_glasses">👓 眼镜</option>
+        <option value="https://via.placeholder.com/50/0000FF/FFFFFF?text=🎩" data-i18n="sticker_hat">🎩 帽子</option>
+        <option value="https://via.placeholder.com/50/FFFF00/FFFFFF?text=👨" data-i18n="sticker_mustache">👨 胡子</option>
+        <option value="https://via.placeholder.com/50/FF00FF/FFFFFF?text=🐰" data-i18n="sticker_bunny">🐰 兔子耳朵</option>
       </select>
     </div>
     <div class="overlay-controls" id="overlayControls">
@@ -302,7 +302,7 @@
         network_error: "Network error, please try again later!",
         no_emoji_to_remove: "No stickers to remove!",
         sticker_load_failed: "Failed to load sticker, please select another one!",
-        loading_model: "Loading face detection model, please wait...",
+        loading植物: "Loading face detection model, please wait...",
         no_face_detected: "No face detected, sticker placed at default position!",
         language_btn: "中文"
       }
@@ -408,32 +408,65 @@
     // 初始化时加载模型
     loadFaceDetector();
 
-    document.getElementById('photoInput').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        console.log('Photo selected:', file.name);
-        image.src = URL.createObjectURL(file);
+    // 照片上传逻辑
+    const photoInput = document.getElementById('photoInput');
+    if (!photoInput) {
+      console.error('Photo input element not found!');
+    } else {
+      photoInput.addEventListener('change', (e) => {
+        console.log('Photo input change event triggered');
+        const file = e.target.files[0];
+        if (!file) {
+          console.error('No file selected');
+          alert('Please select a file!');
+          return;
+        }
+
+        console.log('File selected:', file.name, 'Size:', file.size, 'Type:', file.type);
+
+        // 检查文件大小（例如限制为 10MB）
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+          console.error('File too large:', file.size, 'bytes');
+          alert('File is too large! Please select a file smaller than 10MB.');
+          e.target.value = ''; // 清空输入
+          return;
+        }
+
+        try {
+          const objectURL = URL.createObjectURL(file);
+          console.log('Object URL created:', objectURL);
+          image.src = objectURL;
+        } catch (error) {
+          console.error('Failed to create object URL:', error);
+          alert('Failed to load photo: ' + error.message);
+          e.target.value = '';
+          return;
+        }
+
         image.onload = () => {
-          console.log('Photo loaded successfully');
-          // 动态计算初始缩放比例
+          console.log('Image loaded successfully. Width:', image.width, 'Height:', image.height);
           const canvasWidth = canvas.width / dpr;
           const canvasHeight = canvas.height / dpr;
           const scaleX = canvasWidth / image.width;
           const scaleY = canvasHeight / image.height;
-          photoScale = Math.min(scaleX, scaleY); // 确保照片适应画布
+          photoScale = Math.min(scaleX, scaleY);
           console.log('Initial photoScale:', photoScale);
           drawImage();
         };
+
         image.onerror = () => {
-          console.error('Failed to load photo');
-          alert('Failed to load photo, please try another one!');
+          console.error('Failed to load image');
+          alert(translations[currentLang].no_photo);
+          URL.revokeObjectURL(image.src);
+          e.target.value = '';
         };
-      }
-    });
+      });
+    }
 
     function drawImage() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (image.src) {
+      if (image.src && image.complete) {
         ctx.save();
         ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
         ctx.translate((canvas.width / dpr) / 2 + posX, (canvas.height / dpr) / 2 + posY);
@@ -443,7 +476,7 @@
         ctx.restore();
       }
 
-      overlays.forEach((overlay, index) => {
+      overlays.for-each((overlay, index) => {
         ctx.save();
         ctx.translate(overlay.x + overlay.size / 2, overlay.y + overlay.size / 2);
         ctx.rotate((overlay.rotation * Math.PI) / 180);
@@ -460,54 +493,55 @@
     }
 
     async function addStickerToCanvas(stickerUrl) {
-      if (!stickerUrl) return;
+      if (!stickerUrl) {
+        console.log('No sticker URL provided');
+        return;
+      }
       console.log('Adding sticker:', stickerUrl);
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.src = stickerUrl;
+
       img.onload = async () => {
         console.log('Sticker loaded successfully:', stickerUrl);
-        let x = 50 + overlays.length * 10;
-        let y = 50 + overlays.length * 10;
+        let x = (canvas.width / dpr) / 2 - img.width / 2;
+        let y = (canvas.height / dpr) / 2 - img.height / 2;
 
-        // 使用 Face-api.js 检测人脸并放置贴纸
-        if (isModelLoaded && image.src) {
-          // 将照片绘制到临时画布上，使用原始尺寸
-          tempCanvas.width = image.width;
-          tempCanvas.height = image.height;
-          tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-          tempCtx.drawImage(image, 0, 0, image.width, image.height);
+        if (isModelLoaded && image.src && image.complete) {
+          try {
+            tempCanvas.width = image.width;
+            tempCanvas.height = image.height;
+            tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+            tempCtx.drawImage(image, 0, 0, image.width, image.height);
 
-          const faces = await faceDetector.estimateFaces(tempCanvas, { flipHorizontal: false });
-          if (faces.length > 0) {
-            const face = faces[0];
-            const landmarks = face.landmarks;
-            // 使用额头位置（landmarks[10] 是额头中心）
-            const forehead = landmarks[10];
-
-            // 将临时画布的坐标转换为主画布的坐标
-            const tempScaleX = (canvas.width / dpr) / image.width;
-            const tempScaleY = (canvas.height / dpr) / image.height;
-            let faceX = forehead[0] * tempScaleX;
-            let faceY = forehead[1] * tempScaleY;
-
-            // 考虑照片的缩放比例、旋转和位置偏移
-            const centerX = (canvas.width / dpr) / 2 + posX;
-            const centerY = (canvas.height / dpr) / 2 + posY;
-            const rotatedX = faceX - (canvas.width / dpr) / 2;
-            const rotatedY = faceY - (canvas.height / dpr) / 2;
-            const angleRad = (photoRotation * Math.PI) / 180;
-            const adjustedX = rotatedX * Math.cos(angleRad) + rotatedY * Math.sin(angleRad);
-            const adjustedY = -rotatedX * Math.sin(angleRad) + rotatedY * Math.cos(angleRad);
-            x = centerX + adjustedX * photoScale - img.width / 2;
-            y = centerY + adjustedY * photoScale - img.height;
-          } else {
-            console.log('No face detected, placing sticker at default position');
-            alert(translations[currentLang].no_face_detected);
-            // 默认位置：画布中心
-            x = (canvas.width / dpr) / 2 - img.width / 2;
-            y = (canvas.height / dpr) / 2 - img.height / 2;
+            const faces = await faceDetector.estimateFaces(tempCanvas, { flipHorizontal: false });
+            if (faces.length > 0) {
+              const face = faces[0];
+              const landmarks = face.landmarks;
+              const forehead = landmarks[10];
+              const tempScaleX = (canvas.width / dpr) / image.width;
+              const tempScaleY = (canvas.height / dpr) / image.height;
+              let faceX = forehead[0] * tempScaleX;
+              let faceY = forehead[1] * tempScaleY;
+              const centerX = (canvas.width / dpr) / 2 + posX;
+              const centerY = (canvas.height / dpr) / 2 + posY;
+              const rotatedX = faceX - (canvas.width / dpr) / 2;
+              const rotatedY = faceY - (canvas.height / dpr) / 2;
+              const angleRad = (photoRotation * Math.PI) / 180;
+              const adjustedX = rotatedX * Math.cos(angleRad) + rotatedY * Math.sin(angleRad);
+              const adjustedY = -rotatedX * Math.sin(angleRad) + rotatedY * Math.cos(angleRad);
+              x = centerX + adjustedX * photoScale - img.width / 2;
+              y = centerY + adjustedY * photoScale - img.height;
+            } else {
+              console.log('No face detected, placing sticker at default position');
+              alert(translations[currentLang].no_face_detected);
+            }
+          } catch (error) {
+            console.error('Face detection failed:', error);
+            alert('Face detection failed: ' + error.message);
           }
+        } else {
+          console.log('Model not loaded or no image, placing sticker at default position');
         }
 
         overlays.push({
@@ -520,6 +554,7 @@
         });
         drawImage();
       };
+
       img.onerror = () => {
         console.error('Failed to load sticker:', stickerUrl);
         alert(translations[currentLang].sticker_load_failed);
@@ -584,4 +619,189 @@
         selectedOverlayIndex = draggedOverlayIndex;
         overlayControls.style.display = 'block';
         deleteSelectedBtn.style.display = 'block';
-        overlaySizeInput
+        overlaySizeInput.value = overlays[selectedOverlayIndex].size;
+        overlayRotationInput.value = overlays[selectedOverlayIndex].rotation;
+      } else {
+        isDraggingImage = true;
+        isDraggingOverlay = false;
+        selectedOverlayIndex = -1;
+        overlayControls.style.display = 'none';
+        deleteSelectedBtn.style.display = 'none';
+      }
+
+      startX = e.clientX;
+      startY = e.clientY;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isDraggingImage || isDraggingOverlay) {
+        const dx = (e.clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
+        const dy = (e.clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
+
+        if (isDraggingImage) {
+          posX += dx;
+          posY += dy;
+        } else if (isDraggingOverlay && draggedOverlayIndex !== -1) {
+          overlays[draggedOverlayIndex].x += dx;
+          overlays[draggedOverlayIndex].y += dy;
+        }
+
+        startX = e.clientX;
+        startY = e.clientY;
+        drawImage();
+      }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      isDraggingImage = false;
+      isDraggingOverlay = false;
+      draggedOverlayIndex = -1;
+    });
+
+    // 触摸事件：双指缩放和旋转照片
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const touches = e.touches;
+
+      if (touches.length === 1) {
+        const x = (touches[0].clientX - rect.left) * (canvas.width / dpr / rect.width);
+        const y = (touches[0].clientY - rect.top) * (canvas.height / dpr / rect.height);
+
+        draggedOverlayIndex = getOverlayAtPosition(x, y);
+        if (draggedOverlayIndex !== -1) {
+          isDraggingOverlay = true;
+          isDraggingImage = false;
+          selectedOverlayIndex = draggedOverlayIndex;
+          overlayControls.style.display = 'block';
+          deleteSelectedBtn.style.display = 'block';
+          overlaySizeInput.value = overlays[selectedOverlayIndex].size;
+          overlayRotationInput.value = overlays[selectedOverlayIndex].rotation;
+        } else {
+          isDraggingImage = true;
+          isDraggingOverlay = false;
+          selectedOverlayIndex = -1;
+          overlayControls.style.display = 'none';
+          deleteSelectedBtn.style.display = 'none';
+        }
+
+        startX = touches[0].clientX;
+        startY = touches[0].clientY;
+      } else if (touches.length === 2) {
+        isPinching = true;
+        isDraggingImage = false;
+        isDraggingOverlay = false;
+        selectedOverlayIndex = -1;
+        overlayControls.style.display = 'none';
+        deleteSelectedBtn.style.display = 'none';
+
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        initialDistance = Math.sqrt(dx * dx + dy * dy);
+        initialAngle = Math.atan2(dy, dx);
+        initialScale = photoScale;
+        initialRotation = photoRotation;
+      }
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const touches = e.touches;
+
+      if (touches.length === 1 && (isDraggingImage || isDraggingOverlay)) {
+        const dx = (touches[0].clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
+        const dy = (touches[0].clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
+
+        if (isDraggingImage) {
+          posX += dx;
+          posY += dy;
+        } else if (isDraggingOverlay && draggedOverlayIndex !== -1) {
+          overlays[draggedOverlayIndex].x += dx;
+          overlays[draggedOverlayIndex].y += dy;
+        }
+
+        startX = touches[0].clientX;
+        startY = touches[0].clientY;
+        drawImage();
+      } else if (touches.length === 2 && isPinching) {
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+
+        const scaleFactor = distance / initialDistance;
+        photoScale = initialScale * scaleFactor;
+        photoScale = Math.min(photoScale, 5);
+
+        const angleDiff = (angle - initialAngle) * (180 / Math.PI);
+        photoRotation = initialRotation + angleDiff;
+
+        drawImage();
+      }
+    });
+
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      isDraggingImage = false;
+      isDraggingOverlay = false;
+      isPinching = false;
+      draggedOverlayIndex = -1;
+    });
+
+    function adjustOverlaySize() {
+      if (selectedOverlayIndex !== -1) {
+        overlays[selectedOverlayIndex].size = parseInt(overlaySizeInput.value);
+        drawImage();
+      }
+    }
+
+    function adjustOverlayRotation() {
+      if (selectedOverlayIndex !== -1) {
+        overlays[selectedOverlayIndex].rotation = parseInt(overlayRotationInput.value);
+        drawImage();
+      }
+    }
+
+    function adjustColor() {
+      brightness = document.getElementById('brightness').value;
+      contrast = document.getElementById('contrast').value;
+      saturation = document.getElementById('saturation').value;
+      drawImage();
+    }
+
+    async function printPhoto() {
+      if (!image.src || !image.complete) {
+        alert(translations[currentLang].no_photo);
+        return;
+      }
+
+      const dataUrl = canvas.toDataURL('image/jpeg');
+      if (!username || !dataUrl) {
+        alert(translations[currentLang].missing_data);
+        return;
+      }
+
+      try {
+        const response = await fetch('/.netlify/functions/print', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ username, dataUrl })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          alert(translations[currentLang].print_success);
+        } else {
+          alert(data.message || translations[currentLang].print_failed);
+        }
+      } catch (error) {
+        console.error('Print photo error:', error);
+        alert(translations[currentLang].network_error);
+      }
+    }
+  </script>
+</body>
+</html>
