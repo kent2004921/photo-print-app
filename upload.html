@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="upload_title">上传照片打印</title>
-  <script src="https://cdn.jsdelivr.net/npm/twemoji@latest/dist/twemoji.min.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -165,6 +164,24 @@
       background-color: #fff;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
+    .overlay-controls {
+      display: none;
+      margin: 15px 0;
+      padding: 10px;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .overlay-controls label {
+      display: block;
+      margin-bottom: 8px;
+      color: #444;
+      font-size: 16px;
+    }
+    .overlay-controls input[type="range"] {
+      width: 100%;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -175,6 +192,14 @@
     </div>
     <input type="file" id="photoInput" accept="image/*">
     <canvas id="photoCanvas"></canvas>
+    <div class="control-group">
+      <label data-i18n="photo_size">照片大小</label>
+      <input type="range" id="photoSize" min="0.5" max="2" step="0.1" value="1" oninput="adjustPhotoSize()">
+    </div>
+    <div class="control-group">
+      <label data-i18n="photo_rotation">照片角度</label>
+      <input type="range" id="photoRotation" min="0" max="360" step="1" value="0" oninput="adjustPhotoRotation()">
+    </div>
     <div class="emoji-picker">
       <label data-i18n="select_emoji">选择表情</label>
       <select id="emojiSelect" class="emoji-select" onchange="addEmojiToCanvas(this.value)">
@@ -190,12 +215,22 @@
       <label data-i18n="select_sticker">选择面部贴纸</label>
       <select id="stickerSelect" class="sticker-select" onchange="addStickerToCanvas(this.value)">
         <option value="" data-i18n="select_sticker_option">选择一个贴纸</option>
-        <option value="https://placehold.co/50x50/FFD700/000000/png?text=Dog+Ears">🐶 <span data-i18n="sticker_dog">狗狗耳朵</span></option>
-        <option value="https://placehold.co/50x50/00CED1/000000/png?text=Glasses">👓 <span data-i18n="sticker_glasses">眼镜</span></option>
-        <option value="https://placehold.co/50x50/FF4500/000000/png?text=Hat">🎩 <span data-i18n="sticker_hat">帽子</span></option>
-        <option value="https://placehold.co/50x50/8A2BE2/000000/png?text=Mustache">👨 <span data-i18n="sticker_mustache">胡子</span></option>
-        <option value="https://placehold.co/50x50/FF69B4/000000/png?text=Bunny+Ears">🐰 <span data-i18n="sticker_bunny">兔子耳朵</span></option>
+        <option value="https://picsum.photos/50?random=1">🐶 <span data-i18n="sticker_dog">狗狗耳朵</span></option>
+        <option value="https://picsum.photos/50?random=2">👓 <span data-i18n="sticker_glasses">眼镜</span></option>
+        <option value="https://picsum.photos/50?random=3">🎩 <span data-i18n="sticker_hat">帽子</span></option>
+        <option value="https://picsum.photos/50?random=4">👨 <span data-i18n="sticker_mustache">胡子</span></option>
+        <option value="https://picsum.photos/50?random=5">🐰 <span data-i18n="sticker_bunny">兔子耳朵</span></option>
       </select>
+    </div>
+    <div class="overlay-controls" id="overlayControls">
+      <div class="control-group">
+        <label data-i18n="overlay_size">贴纸/表情大小</label>
+        <input type="range" id="overlaySize" min="20" max="100" step="1" value="40" oninput="adjustOverlaySize()">
+      </div>
+      <div class="control-group">
+        <label data-i18n="overlay_rotation">贴纸/表情角度</label>
+        <input type="range" id="overlayRotation" min="0" max="360" step="1" value="0" oninput="adjustOverlayRotation()">
+      </div>
     </div>
     <div class="controls">
       <button class="print-btn" onclick="printPhoto()" data-i18n="print">打印</button>
@@ -235,6 +270,10 @@
         sticker_hat: "帽子",
         sticker_mustache: "胡子",
         sticker_bunny: "兔子耳朵",
+        photo_size: "照片大小",
+        photo_rotation: "照片角度",
+        overlay_size: "贴纸/表情大小",
+        overlay_rotation: "贴纸/表情角度",
         print: "打印",
         remove_last_overlay: "删除最后一个贴纸/表情",
         delete_selected_overlay: "删除选中贴纸/表情",
@@ -268,6 +307,10 @@
         sticker_hat: "Hat",
         sticker_mustache: "Mustache",
         sticker_bunny: "Bunny Ears",
+        photo_size: "Photo Size",
+        photo_rotation: "Photo Rotation",
+        overlay_size: "Sticker/Emoji Size",
+        overlay_rotation: "Sticker/Emoji Rotation",
         print: "Print",
         remove_last_overlay: "Remove Last Sticker/Emoji",
         delete_selected_overlay: "Delete Selected Sticker/Emoji",
@@ -323,19 +366,15 @@
     }
 
     let image = new Image();
-    let scale = 1;
-    let rotation = 0;
+    let photoScale = 1;
+    let photoRotation = 0;
     let posX = 0;
     let posY = 0;
     let isDraggingImage = false;
     let isDraggingOverlay = false;
-    let isScalingOverlay = false;
-    let isRotatingOverlay = false;
     let draggedOverlayIndex = -1;
     let selectedOverlayIndex = -1;
     let startX, startY;
-    let lastDistance = 0;
-    let lastAngle = 0;
     let brightness = 1;
     let contrast = 1;
     let saturation = 1;
@@ -351,6 +390,9 @@
     ctx.scale(dpr, dpr);
 
     const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const overlayControls = document.getElementById('overlayControls');
+    const overlaySizeInput = document.getElementById('overlaySize');
+    const overlayRotationInput = document.getElementById('overlayRotation');
 
     document.getElementById('photoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -374,54 +416,45 @@
         ctx.save();
         ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
         ctx.translate((canvas.width / dpr) / 2 + posX, (canvas.height / dpr) / 2 + posY);
-        ctx.rotate((rotation * Math.PI) / 180);
-        ctx.scale(scale, scale);
+        ctx.rotate((photoRotation * Math.PI) / 180);
+        ctx.scale(photoScale, photoScale);
         ctx.drawImage(image, -image.width / 2, -image.height / 2);
         ctx.restore();
       }
 
       overlays.forEach((overlay, index) => {
-        if (overlay.image) {
-          ctx.save();
-          ctx.translate(overlay.x + overlay.size / 2, overlay.y + overlay.size / 2);
-          ctx.rotate((overlay.rotation * Math.PI) / 180);
-          if (index === selectedOverlayIndex) {
-            ctx.strokeStyle = 'red';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(-overlay.size / 2 - 2, -overlay.size / 2 - 2, overlay.size + 4, overlay.size + 4);
-          }
-          ctx.drawImage(overlay.image, -overlay.size / 2, -overlay.size / 2, overlay.size, overlay.size);
-          ctx.restore();
+        ctx.save();
+        ctx.translate(overlay.x + overlay.size / 2, overlay.y + overlay.size / 2);
+        ctx.rotate((overlay.rotation * Math.PI) / 180);
+        if (index === selectedOverlayIndex) {
+          ctx.strokeStyle = 'red';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(-overlay.size / 2 - 2, -overlay.size / 2 - 2, overlay.size + 4, overlay.size + 4);
         }
+        if (overlay.type === 'emoji') {
+          ctx.font = `${overlay.size}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(overlay.value, 0, 0);
+        } else if (overlay.type === 'sticker' && overlay.image) {
+          ctx.drawImage(overlay.image, -overlay.size / 2, -overlay.size / 2, overlay.size, overlay.size);
+        }
+        ctx.restore();
       });
     }
 
     function addEmojiToCanvas(emojiUnicode) {
       if (!emojiUnicode) return;
       console.log('Adding emoji:', emojiUnicode);
-      const emojiUrl = twemoji.parse(emojiUnicode, {
-        folder: '72x72',
-        ext: '.png',
-        base: 'https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/'
+      overlays.push({
+        value: emojiUnicode,
+        x: 50 + overlays.length * 10,
+        y: 50 + overlays.length * 10,
+        size: 40,
+        rotation: 0,
+        type: 'emoji'
       });
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.src = emojiUrl.match(/src="([^"]+)"/)[1];
-      img.onload = () => {
-        overlays.push({
-          image: img,
-          x: 50 + overlays.length * 10,
-          y: 50 + overlays.length * 10,
-          size: 40,
-          rotation: 0,
-          type: 'emoji'
-        });
-        drawImage();
-      };
-      img.onerror = () => {
-        console.error('Failed to load emoji image:', img.src);
-        alert(translations[currentLang].emoji_load_failed);
-      };
+      drawImage();
     }
 
     function addStickerToCanvas(stickerUrl) {
@@ -431,6 +464,7 @@
       img.crossOrigin = 'anonymous';
       img.src = stickerUrl;
       img.onload = () => {
+        console.log('Sticker loaded successfully:', stickerUrl);
         overlays.push({
           image: img,
           x: 50 + overlays.length * 10,
@@ -442,7 +476,7 @@
         drawImage();
       };
       img.onerror = () => {
-        console.error('Failed to load sticker image:', stickerUrl);
+        console.error('Failed to load sticker:', stickerUrl);
         alert(translations[currentLang].emoji_load_failed);
       };
     }
@@ -451,6 +485,7 @@
       if (overlays.length > 0) {
         overlays.pop();
         selectedOverlayIndex = -1;
+        overlayControls.style.display = 'none';
         deleteSelectedBtn.style.display = 'none';
         drawImage();
       } else {
@@ -462,6 +497,7 @@
       if (selectedOverlayIndex !== -1) {
         overlays.splice(selectedOverlayIndex, 1);
         selectedOverlayIndex = -1;
+        overlayControls.style.display = 'none';
         deleteSelectedBtn.style.display = 'none';
         drawImage();
       }
@@ -470,6 +506,7 @@
     function clearAllOverlays() {
       overlays = [];
       selectedOverlayIndex = -1;
+      overlayControls.style.display = 'none';
       deleteSelectedBtn.style.display = 'none';
       drawImage();
     }
@@ -489,110 +526,6 @@
       return -1;
     }
 
-    canvas.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        const rect = canvas.getBoundingClientRect();
-        const x = (touch.clientX - rect.left) * (canvas.width / dpr / rect.width);
-        const y = (touch.clientY - rect.top) * (canvas.height / dpr / rect.height);
-
-        draggedOverlayIndex = getOverlayAtPosition(x, y);
-        if (draggedOverlayIndex !== -1) {
-          isDraggingOverlay = true;
-          isDraggingImage = false;
-          selectedOverlayIndex = draggedOverlayIndex;
-          deleteSelectedBtn.style.display = 'block';
-        } else {
-          isDraggingImage = true;
-          isDraggingOverlay = false;
-          selectedOverlayIndex = -1;
-          deleteSelectedBtn.style.display = 'none';
-        }
-
-        startX = touch.clientX;
-        startY = touch.clientY;
-      } else if (e.touches.length === 2) {
-        const touch1 = e.touches[0];
-        const touch2 = e.touches[1];
-        const rect = canvas.getBoundingClientRect();
-        const x1 = (touch1.clientX - rect.left) * (canvas.width / dpr / rect.width);
-        const y1 = (touch1.clientY - rect.top) * (canvas.height / dpr / rect.height);
-        const x2 = (touch2.clientX - rect.left) * (canvas.width / dpr / rect.width);
-        const y2 = (touch2.clientY - rect.top) * (canvas.height / dpr / rect.height);
-
-        draggedOverlayIndex = getOverlayAtPosition((x1 + x2) / 2, (y1 + y2) / 2);
-        if (draggedOverlayIndex !== -1) {
-          isScalingOverlay = true;
-          isRotatingOverlay = true;
-          isDraggingImage = false;
-          isDraggingOverlay = false;
-          selectedOverlayIndex = draggedOverlayIndex;
-          deleteSelectedBtn.style.display = 'block';
-        } else {
-          isScalingOverlay = false;
-          isRotatingOverlay = false;
-          isDraggingImage = false;
-          isDraggingOverlay = false;
-        }
-
-        lastDistance = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
-        lastAngle = Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX);
-      }
-    });
-
-    canvas.addEventListener('touchmove', (e) => {
-      e.preventDefault();
-      if (e.touches.length === 1) {
-        const touch = e.touches[0];
-        const dx = (touch.clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
-        const dy = (touch.clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
-
-        if (isDraggingImage) {
-          posX += dx;
-          posY += dy;
-        } else if (isDraggingOverlay && draggedOverlayIndex !== -1) {
-          overlays[draggedOverlayIndex].x += dx;
-          overlays[draggedOverlayIndex].y += dy;
-        }
-
-        startX = touch.clientX;
-        startY = touch.clientY;
-        drawImage();
-      } else if (e.touches.length === 2) {
-        const touch1 = e.touches[0];
-        const touch2 = e.touches[1];
-        const distance = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
-        const angle = Math.atan2(touch2.clientY - touch1.clientY, touch2.clientX - touch1.clientX);
-
-        if (isScalingOverlay && draggedOverlayIndex !== -1) {
-          const scaleFactor = distance / lastDistance;
-          overlays[draggedOverlayIndex].size *= scaleFactor;
-          overlays[draggedOverlayIndex].size = Math.max(20, Math.min(100, overlays[draggedOverlayIndex].size));
-        }
-        if (isRotatingOverlay && draggedOverlayIndex !== -1) {
-          const angleDiff = (angle - lastAngle) * (180 / Math.PI);
-          overlays[draggedOverlayIndex].rotation += angleDiff;
-        } else {
-          scale *= distance / lastDistance;
-          scale = Math.max(0.1, scale);
-          rotation += (angle - lastAngle) * (180 / Math.PI);
-        }
-
-        lastDistance = distance;
-        lastAngle = angle;
-        drawImage();
-      }
-    });
-
-    canvas.addEventListener('touchend', () => {
-      isDraggingImage = false;
-      isDraggingOverlay = false;
-      isScalingOverlay = false;
-      isRotatingOverlay = false;
-      draggedOverlayIndex = -1;
-    });
-
     canvas.addEventListener('mousedown', (e) => {
       const rect = canvas.getBoundingClientRect();
       const x = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
@@ -603,11 +536,15 @@
         isDraggingOverlay = true;
         isDraggingImage = false;
         selectedOverlayIndex = draggedOverlayIndex;
+        overlayControls.style.display = 'block';
         deleteSelectedBtn.style.display = 'block';
+        overlaySizeInput.value = overlays[selectedOverlayIndex].size;
+        overlayRotationInput.value = overlays[selectedOverlayIndex].rotation;
       } else {
         isDraggingImage = true;
         isDraggingOverlay = false;
         selectedOverlayIndex = -1;
+        overlayControls.style.display = 'none';
         deleteSelectedBtn.style.display = 'none';
       }
 
@@ -640,20 +577,29 @@
       draggedOverlayIndex = -1;
     });
 
-    canvas.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
-      const y = (e.clientY - rect.top) * (canvas.height / dpr / rect.height);
+    function adjustPhotoSize() {
+      photoScale = document.getElementById('photoSize').value;
+      drawImage();
+    }
 
-      const overlayIndex = getOverlayAtPosition(x, y);
-      if (overlayIndex !== -1) {
-        const delta = e.deltaY > 0 ? 0.9 : 1.1;
-        overlays[overlayIndex].size *= delta;
-        overlays[overlayIndex].size = Math.max(20, Math.min(100, overlays[overlayIndex].size));
+    function adjustPhotoRotation() {
+      photoRotation = document.getElementById('photoRotation').value;
+      drawImage();
+    }
+
+    function adjustOverlaySize() {
+      if (selectedOverlayIndex !== -1) {
+        overlays[selectedOverlayIndex].size = parseInt(overlaySizeInput.value);
         drawImage();
       }
-    });
+    }
+
+    function adjustOverlayRotation() {
+      if (selectedOverlayIndex !== -1) {
+        overlays[selectedOverlayIndex].rotation = parseInt(overlayRotationInput.value);
+        drawImage();
+      }
+    }
 
     function adjustColor() {
       brightness = document.getElementById('brightness').value;
