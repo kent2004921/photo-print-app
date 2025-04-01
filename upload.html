@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="upload_title">上传照片打印</title>
+  <!-- 引入 TensorFlow.js 和 Face-api.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.9.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@0.0.3/dist/face-landmarks-detection.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -51,6 +54,7 @@
       border-radius: 8px;
       max-width: 100%;
       margin: 10px 0;
+      touch-action: none; /* 防止触摸时触发默认行为 */
     }
     input[type="file"] {
       width: 100%;
@@ -145,18 +149,18 @@
       width: 100%;
       cursor: pointer;
     }
-    .emoji-picker, .sticker-picker {
+    .sticker-picker {
       margin: 15px 0;
       position: relative;
       z-index: 10;
     }
-    .emoji-picker label, .sticker-picker label {
+    .sticker-picker label {
       display: block;
       margin-bottom: 8px;
       color: #444;
       font-size: 16px;
     }
-    .emoji-select, .sticker-select {
+    .sticker-select {
       width: 100%;
       padding: 10px;
       border: 1px solid #ddd;
@@ -182,6 +186,12 @@
       width: 100%;
       cursor: pointer;
     }
+    .loading-message {
+      display: none;
+      color: #666;
+      font-size: 14px;
+      margin: 10px 0;
+    }
   </style>
 </head>
 <body>
@@ -191,26 +201,8 @@
       <button class="language-btn" onclick="toggleLanguage()">🌐</button>
     </div>
     <input type="file" id="photoInput" accept="image/*">
+    <div id="loadingMessage" class="loading-message" data-i18n="loading_model">正在加载人脸检测模型，请稍候...</div>
     <canvas id="photoCanvas"></canvas>
-    <div class="control-group">
-      <label data-i18n="photo_size">照片大小</label>
-      <input type="range" id="photoSize" min="0.5" max="2" step="0.1" value="1" oninput="adjustPhotoSize()">
-    </div>
-    <div class="control-group">
-      <label data-i18n="photo_rotation">照片角度</label>
-      <input type="range" id="photoRotation" min="0" max="360" step="1" value="0" oninput="adjustPhotoRotation()">
-    </div>
-    <div class="emoji-picker">
-      <label data-i18n="select_emoji">选择表情</label>
-      <select id="emojiSelect" class="emoji-select" onchange="addEmojiToCanvas(this.value)">
-        <option value="" data-i18n="select_emoji_option">选择一个表情</option>
-        <option value="😊">😊 <span data-i18n="emoji_smile">笑脸</span></option>
-        <option value="❤️">❤️ <span data-i18n="emoji_heart">红心</span></option>
-        <option value="🌟">🌟 <span data-i18n="emoji_star">星星</span></option>
-        <option value="🎉">🎉 <span data-i18n="emoji_party">庆祝</span></option>
-        <option value="🐾">🐾 <span data-i18n="emoji_paw">爪印</span></option>
-      </select>
-    </div>
     <div class="sticker-picker">
       <label data-i18n="select_sticker">选择面部贴纸</label>
       <select id="stickerSelect" class="sticker-select" onchange="addStickerToCanvas(this.value)">
@@ -224,21 +216,21 @@
     </div>
     <div class="overlay-controls" id="overlayControls">
       <div class="control-group">
-        <label data-i18n="overlay_size">贴纸/表情大小</label>
+        <label data-i18n="overlay_size">贴纸大小</label>
         <input type="range" id="overlaySize" min="20" max="100" step="1" value="40" oninput="adjustOverlaySize()">
       </div>
       <div class="control-group">
-        <label data-i18n="overlay_rotation">贴纸/表情角度</label>
+        <label data-i18n="overlay_rotation">贴纸角度</label>
         <input type="range" id="overlayRotation" min="0" max="360" step="1" value="0" oninput="adjustOverlayRotation()">
       </div>
     </div>
     <div class="controls">
       <button class="print-btn" onclick="printPhoto()" data-i18n="print">打印</button>
-      <button class="remove-emoji-btn" onclick="removeLastOverlay()" data-i18n="remove_last_overlay">删除最后一个贴纸/表情</button>
-      <button class="delete-selected-btn" id="deleteSelectedBtn" onclick="deleteSelectedOverlay()" data-i18n="delete_selected_overlay">删除选中贴纸/表情</button>
-      <button class="clear-all-btn" onclick="clearAllOverlays()" data-i18n="clear_all_overlays">清空所有贴纸/表情</button>
+      <button class="remove-emoji-btn" onclick="removeLastOverlay()" data-i18n="remove_last_overlay">删除最后一个贴纸</button>
+      <button class="delete-selected-btn" id="deleteSelectedBtn" onclick="deleteSelectedOverlay()" data-i18n="delete_selected_overlay">删除选中贴纸</button>
+      <button class="clear-all-btn" onclick="clearAllOverlays()" data-i18n="clear_all_overlays">清空所有贴纸</button>
     </div>
-    <div class="control-group">
+    <多元
       <label data-i18n="brightness">亮度</label>
       <input type="range" id="brightness" min="0" max="2" step="0.1" value="1" oninput="adjustColor()">
     </div>
@@ -256,13 +248,6 @@
     const translations = {
       zh: {
         upload_title: "上传照片打印",
-        select_emoji: "选择表情",
-        select_emoji_option: "选择一个表情",
-        emoji_smile: "笑脸",
-        emoji_heart: "红心",
-        emoji_star: "星星",
-        emoji_party: "庆祝",
-        emoji_paw: "爪印",
         select_sticker: "选择面部贴纸",
         select_sticker_option: "选择一个贴纸",
         sticker_dog: "狗狗耳朵",
@@ -270,14 +255,12 @@
         sticker_hat: "帽子",
         sticker_mustache: "胡子",
         sticker_bunny: "兔子耳朵",
-        photo_size: "照片大小",
-        photo_rotation: "照片角度",
-        overlay_size: "贴纸/表情大小",
-        overlay_rotation: "贴纸/表情角度",
+        overlay_size: "贴纸大小",
+        overlay_rotation: "贴纸角度",
         print: "打印",
-        remove_last_overlay: "删除最后一个贴纸/表情",
-        delete_selected_overlay: "删除选中贴纸/表情",
-        clear_all_overlays: "清空所有贴纸/表情",
+        remove_last_overlay: "删除最后一个贴纸",
+        delete_selected_overlay: "删除选中贴纸",
+        clear_all_overlays: "清空所有贴纸",
         brightness: "亮度",
         contrast: "对比度",
         saturation: "饱和度",
@@ -287,19 +270,14 @@
         print_success: "打印成功！",
         print_failed: "打印失败！",
         network_error: "网络错误，请稍后再试！",
-        no_emoji_to_remove: "没有贴纸或表情可以删除！",
-        emoji_load_failed: "加载贴纸或表情失败，请选择其他选项！",
+        no_emoji_to_remove: "没有贴纸可以删除！",
+        sticker_load_failed: "加载贴纸失败，请选择其他选项！",
+        loading_model: "正在加载人脸检测模型，请稍候...",
+        no_face_detected: "未检测到人脸，贴纸已放置在默认位置！",
         language_btn: "English"
       },
       en: {
         upload_title: "Upload Photo to Print",
-        select_emoji: "Select Emoji",
-        select_emoji_option: "Select an Emoji",
-        emoji_smile: "Smile",
-        emoji_heart: "Heart",
-        emoji_star: "Star",
-        emoji_party: "Party",
-        emoji_paw: "Paw",
         select_sticker: "Select Face Sticker",
         select_sticker_option: "Select a Sticker",
         sticker_dog: "Dog Ears",
@@ -307,14 +285,12 @@
         sticker_hat: "Hat",
         sticker_mustache: "Mustache",
         sticker_bunny: "Bunny Ears",
-        photo_size: "Photo Size",
-        photo_rotation: "Photo Rotation",
-        overlay_size: "Sticker/Emoji Size",
-        overlay_rotation: "Sticker/Emoji Rotation",
+        overlay_size: "Sticker Size",
+        overlay_rotation: "Sticker Rotation",
         print: "Print",
-        remove_last_overlay: "Remove Last Sticker/Emoji",
-        delete_selected_overlay: "Delete Selected Sticker/Emoji",
-        clear_all_overlays: "Clear All Stickers/Emojis",
+        remove_last_overlay: "Remove Last Sticker",
+        delete_selected_overlay: "Delete Selected Sticker",
+        clear_all_overlays: "Clear All Stickers",
         brightness: "Brightness",
         contrast: "Contrast",
         saturation: "Saturation",
@@ -324,8 +300,10 @@
         print_success: "Print successful!",
         print_failed: "Print failed!",
         network_error: "Network error, please try again later!",
-        no_emoji_to_remove: "No stickers or emojis to remove!",
-        emoji_load_failed: "Failed to load sticker or emoji, please select another one!",
+        no_emoji_to_remove: "No stickers to remove!",
+        sticker_load_failed: "Failed to load sticker, please select another one!",
+        loading_model: "Loading face detection model, please wait...",
+        no_face_detected: "No face detected, sticker placed at default position!",
         language_btn: "中文"
       }
     };
@@ -344,7 +322,7 @@
         const key = element.getAttribute('data-i18n');
         element.textContent = translations[currentLang][key];
       });
-      document.querySelectorAll('#emojiSelect option, #stickerSelect option').forEach(option => {
+      document.querySelectorAll('#stickerSelect option').forEach(option => {
         const key = option.getAttribute('data-i18n');
         if (key) {
           const span = option.querySelector('span');
@@ -380,6 +358,17 @@
     let saturation = 1;
     let overlays = [];
 
+    // 触摸手势相关变量
+    let isPinching = false;
+    let initialDistance = 0;
+    let initialAngle = 0;
+    let initialScale = 1;
+    let initialRotation = 0;
+
+    // Face-api.js 相关变量
+    let faceDetector = null;
+    let isModelLoaded = false;
+
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
@@ -393,6 +382,27 @@
     const overlayControls = document.getElementById('overlayControls');
     const overlaySizeInput = document.getElementById('overlaySize');
     const overlayRotationInput = document.getElementById('overlayRotation');
+    const loadingMessage = document.getElementById('loadingMessage');
+
+    // 加载 Face-api.js 模型
+    async function loadFaceDetector() {
+      loadingMessage.style.display = 'block';
+      try {
+        faceDetector = await faceLandmarksDetection.load(
+          faceLandmarksDetection.SupportedPackages.mediapipeFacemesh,
+          { maxFaces: 1 }
+        );
+        isModelLoaded = true;
+        console.log('Face-api.js model loaded successfully');
+        loadingMessage.style.display = 'none';
+      } catch (error) {
+        console.error('Failed to load Face-api.js model:', error);
+        loadingMessage.textContent = 'Failed to load face detection model!';
+      }
+    }
+
+    // 初始化时加载模型
+    loadFaceDetector();
 
     document.getElementById('photoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -431,44 +441,44 @@
           ctx.lineWidth = 2;
           ctx.strokeRect(-overlay.size / 2 - 2, -overlay.size / 2 - 2, overlay.size + 4, overlay.size + 4);
         }
-        if (overlay.type === 'emoji') {
-          ctx.font = `${overlay.size}px Arial`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(overlay.value, 0, 0);
-        } else if (overlay.type === 'sticker' && overlay.image) {
+        if (overlay.image) {
           ctx.drawImage(overlay.image, -overlay.size / 2, -overlay.size / 2, overlay.size, overlay.size);
         }
         ctx.restore();
       });
     }
 
-    function addEmojiToCanvas(emojiUnicode) {
-      if (!emojiUnicode) return;
-      console.log('Adding emoji:', emojiUnicode);
-      overlays.push({
-        value: emojiUnicode,
-        x: 50 + overlays.length * 10,
-        y: 50 + overlays.length * 10,
-        size: 40,
-        rotation: 0,
-        type: 'emoji'
-      });
-      drawImage();
-    }
-
-    function addStickerToCanvas(stickerUrl) {
+    async function addStickerToCanvas(stickerUrl) {
       if (!stickerUrl) return;
       console.log('Adding sticker:', stickerUrl);
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.src = stickerUrl;
-      img.onload = () => {
+      img.onload = async () => {
         console.log('Sticker loaded successfully:', stickerUrl);
+        let x = 50 + overlays.length * 10;
+        let y = 50 + overlays.length * 10;
+
+        // 使用 Face-api.js 检测人脸并放置贴纸
+        if (isModelLoaded && image.src) {
+          const faces = await faceDetector.estimateFaces(canvas, { flipHorizontal: false });
+          if (faces.length > 0) {
+            const face = faces[0];
+            const landmarks = face.landmarks;
+            // 使用额头位置（landmarks[10] 是额头中心）
+            const forehead = landmarks[10];
+            x = forehead[0] * (canvas.width / dpr / canvas.width) - img.width / 2;
+            y = forehead[1] * (canvas.height / dpr / canvas.height) - img.height;
+          } else {
+            console.log('No face detected, placing sticker at default position');
+            alert(translations[currentLang].no_face_detected);
+          }
+        }
+
         overlays.push({
           image: img,
-          x: 50 + overlays.length * 10,
-          y: 50 + overlays.length * 10,
+          x: x,
+          y: y,
           size: 40,
           rotation: 0,
           type: 'sticker'
@@ -477,7 +487,7 @@
       };
       img.onerror = () => {
         console.error('Failed to load sticker:', stickerUrl);
-        alert(translations[currentLang].emoji_load_failed);
+        alert(translations[currentLang].sticker_load_failed);
       };
     }
 
@@ -526,6 +536,7 @@
       return -1;
     }
 
+    // 鼠标事件：拖动照片或贴纸
     canvas.addEventListener('mousedown', (e) => {
       const rect = canvas.getBoundingClientRect();
       const x = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
@@ -577,15 +588,99 @@
       draggedOverlayIndex = -1;
     });
 
-    function adjustPhotoSize() {
-      photoScale = document.getElementById('photoSize').value;
-      drawImage();
-    }
+    // 触摸事件：双指缩放和旋转照片
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const touches = e.touches;
 
-    function adjustPhotoRotation() {
-      photoRotation = document.getElementById('photoRotation').value;
-      drawImage();
-    }
+      if (touches.length === 1) {
+        // 单指拖动照片或贴纸
+        const x = (touches[0].clientX - rect.left) * (canvas.width / dpr / rect.width);
+        const y = (touches[0].clientY - rect.top) * (canvas.height / dpr / rect.height);
+
+        draggedOverlayIndex = getOverlayAtPosition(x, y);
+        if (draggedOverlayIndex !== -1) {
+          isDraggingOverlay = true;
+          isDraggingImage = false;
+          selectedOverlayIndex = draggedOverlayIndex;
+          overlayControls.style.display = 'block';
+          deleteSelectedBtn.style.display = 'block';
+          overlaySizeInput.value = overlays[selectedOverlayIndex].size;
+          overlayRotationInput.value = overlays[selectedOverlayIndex].rotation;
+        } else {
+          isDraggingImage = true;
+          isDraggingOverlay = false;
+          selectedOverlayIndex = -1;
+          overlayControls.style.display = 'none';
+          deleteSelectedBtn.style.display = 'none';
+        }
+
+        startX = touches[0].clientX;
+        startY = touches[0].clientY;
+      } else if (touches.length === 2) {
+        // 双指缩放和旋转照片
+        isPinching = true;
+        isDraggingImage = false;
+        isDraggingOverlay = false;
+        selectedOverlayIndex = -1;
+        overlayControls.style.display = 'none';
+        deleteSelectedBtn.style.display = 'none';
+
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        initialDistance = Math.sqrt(dx * dx + dy * dy);
+        initialAngle = Math.atan2(dy, dx);
+        initialScale = photoScale;
+        initialRotation = photoRotation;
+      }
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const touches = e.touches;
+
+      if (touches.length === 1 && (isDraggingImage || isDraggingOverlay)) {
+        const dx = (touches[0].clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
+        const dy = (touches[0].clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
+
+        if (isDraggingImage) {
+          posX += dx;
+          posY += dy;
+        } else if (isDraggingOverlay && draggedOverlayIndex !== -1) {
+          overlays[draggedOverlayIndex].x += dx;
+          overlays[draggedOverlayIndex].y += dy;
+        }
+
+        startX = touches[0].clientX;
+        startY = touches[0].clientY;
+        drawImage();
+      } else if (touches.length === 2 && isPinching) {
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+
+        // 计算缩放比例
+        const scaleFactor = distance / initialDistance;
+        photoScale = initialScale * scaleFactor;
+        photoScale = Math.max(0.5, Math.min(photoScale, 2)); // 限制缩放范围
+
+        // 计算旋转角度
+        const angleDiff = (angle - initialAngle) * (180 / Math.PI);
+        photoRotation = initialRotation + angleDiff;
+
+        drawImage();
+      }
+    });
+
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      isDraggingImage = false;
+      isDraggingOverlay = false;
+      isPinching = false;
+      draggedOverlayIndex = -1;
+    });
 
     function adjustOverlaySize() {
       if (selectedOverlayIndex !== -1) {
