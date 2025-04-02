@@ -4,9 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="upload_title">上传照片打印</title>
-  <!-- 引入 TensorFlow.js 和 Face-api.js -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.9.0/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@0.0.3/dist/face-landmarks-detection.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -86,28 +83,6 @@
     .print-btn:hover {
       background: linear-gradient(to right, #0056b3, #0099cc);
     }
-    .remove-emoji-btn {
-      background: linear-gradient(to right, #ff4b4b, #ff7878);
-      color: white;
-    }
-    .remove-emoji-btn:hover {
-      background: linear-gradient(to right, #cc3a3a, #cc6060);
-    }
-    .delete-selected-btn {
-      background: linear-gradient(to right, #ff7878, #ff9999);
-      color: white;
-      display: none;
-    }
-    .delete-selected-btn:hover {
-      background: linear-gradient(to right, #cc6060, #cc7a7a);
-    }
-    .clear-all-btn {
-      background: linear-gradient(to right, #ff9999, #ffbaba);
-      color: white;
-    }
-    .clear-all-btn:hover {
-      background: linear-gradient(to right, #cc7a7a, #cc9999);
-    }
     .language-btn {
       background: linear-gradient(to right, #28a745, #34d058);
       color: white;
@@ -118,7 +93,7 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 20px;
+      font-size: 16px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
       transition: transform 0.1s, background 0.3s;
     }
@@ -149,86 +124,18 @@
       width: 100%;
       cursor: pointer;
     }
-    .sticker-picker {
-      margin: 15px 0;
-      position: relative;
-      z-index: 10;
-    }
-    .sticker-picker label {
-      display: block;
-      margin-bottom: 8px;
-      color: #444;
-      font-size: 16px;
-    }
-    .sticker-select {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      background-color: #fff;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    .overlay-controls {
-      display: none;
-      margin: 15px 0;
-      padding: 10px;
-      background-color: #f9f9f9;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    .overlay-controls label {
-      display: block;
-      margin-bottom: 8px;
-      color: #444;
-      font-size: 16px;
-    }
-    .overlay-controls input[type="range"] {
-      width: 100%;
-      cursor: pointer;
-    }
-    .loading-message {
-      display: none;
-      color: #666;
-      font-size: 14px;
-      margin: 10px 0;
-    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
       <h2 data-i18n="upload_title">上传照片打印</h2>
-      <button class="language-btn" onclick="toggleLanguage()">🌐</button>
+      <button class="language-btn" onclick="toggleLanguage()" data-i18n="language_btn">English</button>
     </div>
     <input type="file" id="photoInput" accept="image/*">
-    <div id="loadingMessage" class="loading-message" data-i18n="loading_model">正在加载人脸检测模型，请稍候...</div>
     <canvas id="photoCanvas"></canvas>
-    <div class="sticker-picker">
-      <label data-i18n="select_sticker">选择面部贴纸</label>
-      <select id="stickerSelect" class="sticker-select" onchange="addStickerToCanvas(this.value)">
-        <option value="" data-i18n="select_sticker_option">选择一个贴纸</option>
-        <option value="https://via.placeholder.com/50/FF0000/FFFFFF?text=🐶" data-i18n="sticker_dog">🐶 狗狗耳朵</option>
-        <option value="https://via.placeholder.com/50/00FF00/FFFFFF?text=👓" data-i18n="sticker_glasses">👓 眼镜</option>
-        <option value="https://via.placeholder.com/50/0000FF/FFFFFF?text=🎩" data-i18n="sticker_hat">🎩 帽子</option>
-        <option value="https://via.placeholder.com/50/FFFF00/FFFFFF?text=👨" data-i18n="sticker_mustache">👨 胡子</option>
-        <option value="https://via.placeholder.com/50/FF00FF/FFFFFF?text=🐰" data-i18n="sticker_bunny">🐰 兔子耳朵</option>
-      </select>
-    </div>
-    <div class="overlay-controls" id="overlayControls">
-      <div class="control-group">
-        <label data-i18n="overlay_size">贴纸大小</label>
-        <input type="range" id="overlaySize" min="20" max="100" step="1" value="40" oninput="adjustOverlaySize()">
-      </div>
-      <div class="control-group">
-        <label data-i18n="overlay_rotation">贴纸角度</label>
-        <input type="range" id="overlayRotation" min="0" max="360" step="1" value="0" oninput="adjustOverlayRotation()">
-      </div>
-    </div>
     <div class="controls">
       <button class="print-btn" onclick="printPhoto()" data-i18n="print">打印</button>
-      <button class="remove-emoji-btn" onclick="removeLastOverlay()" data-i18n="remove_last_overlay">删除最后一个贴纸</button>
-      <button class="delete-selected-btn" id="deleteSelectedBtn" onclick="deleteSelectedOverlay()" data-i18n="delete_selected_overlay">删除选中贴纸</button>
-      <button class="clear-all-btn" onclick="clearAllOverlays()" data-i18n="clear_all_overlays">清空所有贴纸</button>
     </div>
     <div class="control-group">
       <label data-i18n="brightness">亮度</label>
@@ -248,19 +155,7 @@
     const translations = {
       zh: {
         upload_title: "上传照片打印",
-        select_sticker: "选择面部贴纸",
-        select_sticker_option: "选择一个贴纸",
-        sticker_dog: "狗狗耳朵",
-        sticker_glasses: "眼镜",
-        sticker_hat: "帽子",
-        sticker_mustache: "胡子",
-        sticker_bunny: "兔子耳朵",
-        overlay_size: "贴纸大小",
-        overlay_rotation: "贴纸角度",
         print: "打印",
-        remove_last_overlay: "删除最后一个贴纸",
-        delete_selected_overlay: "删除选中贴纸",
-        clear_all_overlays: "清空所有贴纸",
         brightness: "亮度",
         contrast: "对比度",
         saturation: "饱和度",
@@ -270,28 +165,11 @@
         print_success: "打印成功！",
         print_failed: "打印失败！",
         network_error: "网络错误，请稍后再试！",
-        no_emoji_to_remove: "没有贴纸可以删除！",
-        sticker_load_failed: "加载贴纸失败，请选择其他选项！",
-        loading_model: "正在加载人脸检测模型，请稍候...",
-        no_face_detected: "未检测到人脸，贴纸已放置在默认位置！",
-        face_outside_region: "请将人头像调整到限制区域内！",
         language_btn: "English"
       },
       en: {
         upload_title: "Upload Photo to Print",
-        select_sticker: "Select Face Sticker",
-        select_sticker_option: "Select a Sticker",
-        sticker_dog: "Dog Ears",
-        sticker_glasses: "Glasses",
-        sticker_hat: "Hat",
-        sticker_mustache: "Mustache",
-        sticker_bunny: "Bunny Ears",
-        overlay_size: "Sticker Size",
-        overlay_rotation: "Sticker Rotation",
         print: "Print",
-        remove_last_overlay: "Remove Last Sticker",
-        delete_selected_overlay: "Delete Selected Sticker",
-        clear_all_overlays: "Clear All Stickers",
         brightness: "Brightness",
         contrast: "Contrast",
         saturation: "Saturation",
@@ -301,11 +179,6 @@
         print_success: "Print successful!",
         print_failed: "Print failed!",
         network_error: "Network error, please try again later!",
-        no_emoji_to_remove: "No stickers to remove!",
-        sticker_load_failed: "Failed to load sticker, please select another one!",
-        loading_model: "Loading face detection model, please wait...",
-        no_face_detected: "No face detected, sticker placed at default position!",
-        face_outside_region: "Please adjust the face to be within the restricted area!",
         language_btn: "中文"
       }
     };
@@ -323,15 +196,6 @@
       document.querySelectorAll('[data-i18n]').forEach(element => {
         const key = element.getAttribute('data-i18n');
         element.textContent = translations[currentLang][key];
-      });
-      document.querySelectorAll('#stickerSelect option').forEach(option => {
-        const key = option.getAttribute('data-i18n');
-        if (key) {
-          const span = option.querySelector('span');
-          if (span) {
-            span.textContent = translations[currentLang][key];
-          }
-        }
       });
       document.title = translations[currentLang].upload_title;
     }
@@ -352,15 +216,10 @@
     let posX = 0;
     let posY = 0;
     let isDraggingImage = false;
-    let isDraggingOverlay = false;
-    let draggedOverlayIndex = -1;
-    let selectedOverlayIndex = -1;
     let startX, startY;
     let brightness = 1;
     let contrast = 1;
     let saturation = 1;
-    let overlays = [];
-    let restrictionPath = null;
 
     // 触摸手势相关变量
     let isPinching = false;
@@ -368,10 +227,6 @@
     let initialAngle = 0;
     let initialScale = 1;
     let initialRotation = 0;
-
-    // Face-api.js 相关变量
-    let faceDetector = null;
-    let isModelLoaded = false;
 
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
@@ -384,15 +239,5 @@
     canvas.style.height = '300px';
     ctx.scale(dpr, dpr);
 
-    // 创建临时画布用于人脸检测
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
-
-    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
-    const overlayControls = document.getElementById('overlayControls');
-    const overlaySizeInput = document.getElementById('overlaySize');
-    const overlayRotationInput = document.getElementById('overlayRotation');
-    const loadingMessage = document.getElementById('loadingMessage');
-
     // 加载蒙版图片（主人提供的椭圆图片）
-    maskImage.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAACXBIWXMAAAsTAAALEwEAmpwYAAAKT2lDQ1BQaG90b3Nob3AgSUNDIHByb2ZpbGUAAHjanVNnVFPpFj333vRCS4iAlEtvUhUIIFJCi4AUkSYqIQkQSoghodkVUcERRUUEG8igiAOOjoCMFVEsDIoK2AfkIaKOg6OIisr74Xuja9a89+bN/rXXPues852zzwfACAyWSDNRNYAMqUIeEeCDx8TG4eQuQIEKJHAAEAizZCFz/SMBAPh+PDwrIsAHvgABeNMLCADATZvAMByH/w/qQplcAYCEAcB0kThLCIAUAEB6jkKmAEBGAYCdmCZTAKAEAGDLY2LjAFAtAGAnf+bTAICd+Jl7AQBblCEVAaCRACATZYhEAGg7AKzPVopFAFgwABRmS8Q5ANgtADBJV2ZIALC3AMDOEAuyAAgMADBRiIUpAAR7AGDIIyN4AISZABRG8lc88SuuEOcqAAB4mbI8uSQ5RYFbCC1xB1dXLh4ozkkXKxQ2YQJhmkAuwnmZGTKBNA/g88wAAKCRFRHgg/P9eM4Ors7ONo62Dl8t6r8G/yJiYuP+5c+rcEAAAOF0ftH+LC+zGoA7BoBt/qIl7gRoXgugdfeLZrIPQLUAoOnaV/Nw+H48PEWhkLnZ2eXk5NhKxEJbYcpXff5nwl/AV/1s+X48/Pf14L7iJIEyXYFHBPjgwsz0TKUcz5IJhGLc5o9H/LcL//wd0yLESWK5WCoU41EScY5EmozzMqUiiUKSKcUl0v9k4t8s+wM+3zUAsGo+AXuRLahdYwP2SycQWHTA4vcAAPK7b8HUKAgDgGiD4c93/+8//UegJQCAZkmScQAAXkQkLlTKsz/HCAAARKCBKrBBG/TBGCzABhzBBdzBC/xgNoRCJMTCQhBCCmSAHHJgKayCQiiGzbAdKmAv1EAdNMBRaIaTcA4uwlW4Dj1wD/phCJ7BKLyBCQRByAgTYSHaiAFiilgjjggXmYX4IcFIBBKLJCDJiBRRIkuRNUgxUopUIFVIHfI9cgI5h1xGupE7yAAygvyGvEcxlIGyUT3UDLVDuag3GoRGogvQZHQxmo8WoJvQcrQaPYw2oefQq2gP2o8+Q8cwwOgYBzPEbDAuxsNCsTgsCZNjy7EirAyrxhqwVqwDu4n1Y8+xdwQSgUXACTYEd0IgYR5BSFhMWE7YSKggHCQ0EdoJNwkDhFHCJyKTqEu0JroR+cQYYjIxh1hILCPWEo8wy3rHDpwtz4/w0GO1qB3W7I7ieP/NCbBoWYwoNCjCLQa4KRUgXEGwJDV3dLNYWgaNJDnlaMGbGLiMosxUXJWXjS1U/pDYMSND0+noKk9gzX/w8cXnyWf/O/5s/3dz/Mw5fP/8/3z/9t7+/3v//+7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7
+    maskImage.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAACXBIWXMAAAsTAAALEwEAmpwYAAAKT2lDQ1BQaG90b3Nob3AgSUNDIHByb2ZpbGUAAHjanVNnVFPpFj333vRCS4iAlEtvUhUIIFJCi4AUkSYqIQkQSoghodkVUcERRUUEG8igiAOOjoCMFVEsDIoK2AfkIaKOg6OIisr74Xuja9a89+bN/rXXPues852zzwfACAyWSDNRNYAMqUIeEeCDx8TG4eQuQIEKJHAAEAizZCFz/SMBAPh+PDwrIsAHvgABeNMLCADATZvAMByH/w/qQplcAYCEAcB0kThLCIAUAEB6jkKmAEBGAYCdmCZTAKAEAGDLY2LjAFAtAGAnf+bTAICd+Jl7AQBblCEVAaCRACATZYhEAGg7AKzPVopFAFgwABRmS8Q5ANgtADBJV2ZIALC3AMDOEAuyAAgMADBRiIUpAAR7AGDIIyN4AISZABRG8lc88SuuEOcqAAB4mbI8uSQ5RYFbCC1xB1dXLh4ozkkXKxQ2YQJhmkAuwnmZGTKBNA/g88wAAKCRFRHgg/P9eM4Ors7ONo62Dl8t6r8G/yJiYuP+5c+rcEAAAOF0ftH+LC+zGoA7BoBt/qIl7gRoXgugdfeLZrIPQLUAoOnaV/Nw+H48PEWhkLnZ2eXk5NhKxEJbYcpXff5nwl/AV/1s+X48/Pf14L7iJIEyXYFHBPjgwsz0TKUcz5IJhGLc5o9H/LcL//wd0yLESWK5WCoU41EScY5EmozzMqUiiUKSKcUl0v9k4t8s+wM+3zUAsGo+AXuRLahdYwP2SycQWHTA4vcAAPK7b8HUKAgDgGiD4c93/+8//UegJQCAZkmScQAAXkQkLlTKsz/HCAAARKCBKrBBG/TBGCzABhzBBdzBC/xgNoRCJMTCQhBCCmSAHHJgKayCQiiGzbAdKmAv1EAdNMBRaIaTcA4uwlW4Dj1wD/phCJ7BKLyBCQRByAgTYSHaiAFiilgjjggXmYX4IcFIBBKLJCDJiBRRIkuRNUgxUopUIFVIHfI9cgI5h1xGupE7yAAygvyGvEcxlIGyUT3UDLVDuag3GoRGogvQZHQxmo8WoJvQcrQaPYw2oefQq2gP2o8+Q8cwwOgYBzPEbDAuxsNCsTgsCZNjy7EirAyrxhqwVqwDu4n1Y8+xdwQSgUXACTYEd0IgYR5BSFhMWE7YSKggHCQ0EdoJNwkDhFHCJyKTqEu0JroR+cQYYjIxh1hILCPWEo8wy3rHDpwtz4/w0GO1qB3W7I7ieP/NCbBoWYwoNCjCLQa4KRUgXEGwJDV3dLNYWgaNJDnlaMGbGLiMosxUXJWXjS1U/pDYMSND0+noKk9gzX/w8cXnyWf/O/5s/3dz/Mw5fP/8/3z/9t7+/3v//+7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/
