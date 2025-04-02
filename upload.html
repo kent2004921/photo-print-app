@@ -53,7 +53,7 @@
       border: 1px solid #ddd;
       border-radius: 8px;
       max-width: 100%;
-      margin: 10pxK
+      margin: 10px 0;
       touch-action: none;
     }
     input[type="file"] {
@@ -274,6 +274,7 @@
         sticker_load_failed: "加载贴纸失败，请选择其他选项！",
         loading_model: "正在加载人脸检测模型，请稍候...",
         no_face_detected: "未检测到人脸，贴纸已放置在默认位置！",
+        face_outside_region: "请将人头像调整到限制区域内！",
         language_btn: "English"
       },
       en: {
@@ -302,8 +303,9 @@
         network_error: "Network error, please try again later!",
         no_emoji_to_remove: "No stickers to remove!",
         sticker_load_failed: "Failed to load sticker, please select another one!",
-        loading植物: "Loading face detection model, please wait...",
+        loading_model: "Loading face detection model, please wait...",
         no_face_detected: "No face detected, sticker placed at default position!",
+        face_outside_region: "Please adjust the face to be within the restricted area!",
         language_btn: "中文"
       }
     };
@@ -344,6 +346,7 @@
     }
 
     let image = new Image();
+    let maskImage = new Image();
     let photoScale = 1;
     let photoRotation = 0;
     let posX = 0;
@@ -357,6 +360,7 @@
     let contrast = 1;
     let saturation = 1;
     let overlays = [];
+    let restrictionPath = null;
 
     // 触摸手势相关变量
     let isPinching = false;
@@ -372,8 +376,10 @@
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = 300 * dpr;
-    canvas.height = 300 * dpr;
+    const printWidth = 1200; // 4 英寸 * 300 DPI
+    const printHeight = 1200; // 4 英寸 * 300 DPI
+    canvas.width = printWidth * dpr;
+    canvas.height = printHeight * dpr;
     canvas.style.width = '300px';
     canvas.style.height = '300px';
     ctx.scale(dpr, dpr);
@@ -388,420 +394,5 @@
     const overlayRotationInput = document.getElementById('overlayRotation');
     const loadingMessage = document.getElementById('loadingMessage');
 
-    // 加载 Face-api.js 模型
-    async function loadFaceDetector() {
-      loadingMessage.style.display = 'block';
-      try {
-        faceDetector = await faceLandmarksDetection.load(
-          faceLandmarksDetection.SupportedPackages.mediapipeFacemesh,
-          { maxFaces: 1 }
-        );
-        isModelLoaded = true;
-        console.log('Face-api.js model loaded successfully');
-        loadingMessage.style.display = 'none';
-      } catch (error) {
-        console.error('Failed to load Face-api.js model:', error);
-        loadingMessage.textContent = 'Failed to load face detection model!';
-      }
-    }
-
-    // 初始化时加载模型
-    loadFaceDetector();
-
-    // 照片上传逻辑
-    const photoInput = document.getElementById('photoInput');
-    if (!photoInput) {
-      console.error('Photo input element not found!');
-    } else {
-      photoInput.addEventListener('change', (e) => {
-        console.log('Photo input change event triggered');
-        const file = e.target.files[0];
-        if (!file) {
-          console.error('No file selected');
-          alert('Please select a file!');
-          return;
-        }
-
-        console.log('File selected:', file.name, 'Size:', file.size, 'Type:', file.type);
-
-        // 检查文件大小（例如限制为 10MB）
-        const maxSize = 10 * 1024 * 1024; // 10MB
-        if (file.size > maxSize) {
-          console.error('File too large:', file.size, 'bytes');
-          alert('File is too large! Please select a file smaller than 10MB.');
-          e.target.value = ''; // 清空输入
-          return;
-        }
-
-        try {
-          const objectURL = URL.createObjectURL(file);
-          console.log('Object URL created:', objectURL);
-          image.src = objectURL;
-        } catch (error) {
-          console.error('Failed to create object URL:', error);
-          alert('Failed to load photo: ' + error.message);
-          e.target.value = '';
-          return;
-        }
-
-        image.onload = () => {
-          console.log('Image loaded successfully. Width:', image.width, 'Height:', image.height);
-          const canvasWidth = canvas.width / dpr;
-          const canvasHeight = canvas.height / dpr;
-          const scaleX = canvasWidth / image.width;
-          const scaleY = canvasHeight / image.height;
-          photoScale = Math.min(scaleX, scaleY);
-          console.log('Initial photoScale:', photoScale);
-          drawImage();
-        };
-
-        image.onerror = () => {
-          console.error('Failed to load image');
-          alert(translations[currentLang].no_photo);
-          URL.revokeObjectURL(image.src);
-          e.target.value = '';
-        };
-      });
-    }
-
-    function drawImage() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (image.src && image.complete) {
-        ctx.save();
-        ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-        ctx.translate((canvas.width / dpr) / 2 + posX, (canvas.height / dpr) / 2 + posY);
-        ctx.rotate((photoRotation * Math.PI) / 180);
-        ctx.scale(photoScale, photoScale);
-        ctx.drawImage(image, -image.width / 2, -image.height / 2);
-        ctx.restore();
-      }
-
-      overlays.for-each((overlay, index) => {
-        ctx.save();
-        ctx.translate(overlay.x + overlay.size / 2, overlay.y + overlay.size / 2);
-        ctx.rotate((overlay.rotation * Math.PI) / 180);
-        if (index === selectedOverlayIndex) {
-          ctx.strokeStyle = 'red';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(-overlay.size / 2 - 2, -overlay.size / 2 - 2, overlay.size + 4, overlay.size + 4);
-        }
-        if (overlay.image) {
-          ctx.drawImage(overlay.image, -overlay.size / 2, -overlay.size / 2, overlay.size, overlay.size);
-        }
-        ctx.restore();
-      });
-    }
-
-    async function addStickerToCanvas(stickerUrl) {
-      if (!stickerUrl) {
-        console.log('No sticker URL provided');
-        return;
-      }
-      console.log('Adding sticker:', stickerUrl);
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.src = stickerUrl;
-
-      img.onload = async () => {
-        console.log('Sticker loaded successfully:', stickerUrl);
-        let x = (canvas.width / dpr) / 2 - img.width / 2;
-        let y = (canvas.height / dpr) / 2 - img.height / 2;
-
-        if (isModelLoaded && image.src && image.complete) {
-          try {
-            tempCanvas.width = image.width;
-            tempCanvas.height = image.height;
-            tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
-            tempCtx.drawImage(image, 0, 0, image.width, image.height);
-
-            const faces = await faceDetector.estimateFaces(tempCanvas, { flipHorizontal: false });
-            if (faces.length > 0) {
-              const face = faces[0];
-              const landmarks = face.landmarks;
-              const forehead = landmarks[10];
-              const tempScaleX = (canvas.width / dpr) / image.width;
-              const tempScaleY = (canvas.height / dpr) / image.height;
-              let faceX = forehead[0] * tempScaleX;
-              let faceY = forehead[1] * tempScaleY;
-              const centerX = (canvas.width / dpr) / 2 + posX;
-              const centerY = (canvas.height / dpr) / 2 + posY;
-              const rotatedX = faceX - (canvas.width / dpr) / 2;
-              const rotatedY = faceY - (canvas.height / dpr) / 2;
-              const angleRad = (photoRotation * Math.PI) / 180;
-              const adjustedX = rotatedX * Math.cos(angleRad) + rotatedY * Math.sin(angleRad);
-              const adjustedY = -rotatedX * Math.sin(angleRad) + rotatedY * Math.cos(angleRad);
-              x = centerX + adjustedX * photoScale - img.width / 2;
-              y = centerY + adjustedY * photoScale - img.height;
-            } else {
-              console.log('No face detected, placing sticker at default position');
-              alert(translations[currentLang].no_face_detected);
-            }
-          } catch (error) {
-            console.error('Face detection failed:', error);
-            alert('Face detection failed: ' + error.message);
-          }
-        } else {
-          console.log('Model not loaded or no image, placing sticker at default position');
-        }
-
-        overlays.push({
-          image: img,
-          x: x,
-          y: y,
-          size: 40,
-          rotation: 0,
-          type: 'sticker'
-        });
-        drawImage();
-      };
-
-      img.onerror = () => {
-        console.error('Failed to load sticker:', stickerUrl);
-        alert(translations[currentLang].sticker_load_failed);
-      };
-    }
-
-    function removeLastOverlay() {
-      if (overlays.length > 0) {
-        overlays.pop();
-        selectedOverlayIndex = -1;
-        overlayControls.style.display = 'none';
-        deleteSelectedBtn.style.display = 'none';
-        drawImage();
-      } else {
-        alert(translations[currentLang].no_emoji_to_remove);
-      }
-    }
-
-    function deleteSelectedOverlay() {
-      if (selectedOverlayIndex !== -1) {
-        overlays.splice(selectedOverlayIndex, 1);
-        selectedOverlayIndex = -1;
-        overlayControls.style.display = 'none';
-        deleteSelectedBtn.style.display = 'none';
-        drawImage();
-      }
-    }
-
-    function clearAllOverlays() {
-      overlays = [];
-      selectedOverlayIndex = -1;
-      overlayControls.style.display = 'none';
-      deleteSelectedBtn.style.display = 'none';
-      drawImage();
-    }
-
-    function getOverlayAtPosition(x, y) {
-      for (let i = overlays.length - 1; i >= 0; i--) {
-        const overlay = overlays[i];
-        const centerX = overlay.x + overlay.size / 2;
-        const centerY = overlay.y + overlay.size / 2;
-        const dx = x - centerX;
-        const dy = y - centerY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance <= overlay.size / 2) {
-          return i;
-        }
-      }
-      return -1;
-    }
-
-    // 鼠标事件：拖动照片或贴纸
-    canvas.addEventListener('mousedown', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
-      const y = (e.clientY - rect.top) * (canvas.height / dpr / rect.height);
-
-      draggedOverlayIndex = getOverlayAtPosition(x, y);
-      if (draggedOverlayIndex !== -1) {
-        isDraggingOverlay = true;
-        isDraggingImage = false;
-        selectedOverlayIndex = draggedOverlayIndex;
-        overlayControls.style.display = 'block';
-        deleteSelectedBtn.style.display = 'block';
-        overlaySizeInput.value = overlays[selectedOverlayIndex].size;
-        overlayRotationInput.value = overlays[selectedOverlayIndex].rotation;
-      } else {
-        isDraggingImage = true;
-        isDraggingOverlay = false;
-        selectedOverlayIndex = -1;
-        overlayControls.style.display = 'none';
-        deleteSelectedBtn.style.display = 'none';
-      }
-
-      startX = e.clientX;
-      startY = e.clientY;
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-      if (isDraggingImage || isDraggingOverlay) {
-        const dx = (e.clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
-        const dy = (e.clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
-
-        if (isDraggingImage) {
-          posX += dx;
-          posY += dy;
-        } else if (isDraggingOverlay && draggedOverlayIndex !== -1) {
-          overlays[draggedOverlayIndex].x += dx;
-          overlays[draggedOverlayIndex].y += dy;
-        }
-
-        startX = e.clientX;
-        startY = e.clientY;
-        drawImage();
-      }
-    });
-
-    canvas.addEventListener('mouseup', () => {
-      isDraggingImage = false;
-      isDraggingOverlay = false;
-      draggedOverlayIndex = -1;
-    });
-
-    // 触摸事件：双指缩放和旋转照片
-    canvas.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const touches = e.touches;
-
-      if (touches.length === 1) {
-        const x = (touches[0].clientX - rect.left) * (canvas.width / dpr / rect.width);
-        const y = (touches[0].clientY - rect.top) * (canvas.height / dpr / rect.height);
-
-        draggedOverlayIndex = getOverlayAtPosition(x, y);
-        if (draggedOverlayIndex !== -1) {
-          isDraggingOverlay = true;
-          isDraggingImage = false;
-          selectedOverlayIndex = draggedOverlayIndex;
-          overlayControls.style.display = 'block';
-          deleteSelectedBtn.style.display = 'block';
-          overlaySizeInput.value = overlays[selectedOverlayIndex].size;
-          overlayRotationInput.value = overlays[selectedOverlayIndex].rotation;
-        } else {
-          isDraggingImage = true;
-          isDraggingOverlay = false;
-          selectedOverlayIndex = -1;
-          overlayControls.style.display = 'none';
-          deleteSelectedBtn.style.display = 'none';
-        }
-
-        startX = touches[0].clientX;
-        startY = touches[0].clientY;
-      } else if (touches.length === 2) {
-        isPinching = true;
-        isDraggingImage = false;
-        isDraggingOverlay = false;
-        selectedOverlayIndex = -1;
-        overlayControls.style.display = 'none';
-        deleteSelectedBtn.style.display = 'none';
-
-        const dx = touches[0].clientX - touches[1].clientX;
-        const dy = touches[0].clientY - touches[1].clientY;
-        initialDistance = Math.sqrt(dx * dx + dy * dy);
-        initialAngle = Math.atan2(dy, dx);
-        initialScale = photoScale;
-        initialRotation = photoRotation;
-      }
-    });
-
-    canvas.addEventListener('touchmove', (e) => {
-      e.preventDefault();
-      const touches = e.touches;
-
-      if (touches.length === 1 && (isDraggingImage || isDraggingOverlay)) {
-        const dx = (touches[0].clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
-        const dy = (touches[0].clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
-
-        if (isDraggingImage) {
-          posX += dx;
-          posY += dy;
-        } else if (isDraggingOverlay && draggedOverlayIndex !== -1) {
-          overlays[draggedOverlayIndex].x += dx;
-          overlays[draggedOverlayIndex].y += dy;
-        }
-
-        startX = touches[0].clientX;
-        startY = touches[0].clientY;
-        drawImage();
-      } else if (touches.length === 2 && isPinching) {
-        const dx = touches[0].clientX - touches[1].clientX;
-        const dy = touches[0].clientY - touches[1].clientY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const angle = Math.atan2(dy, dx);
-
-        const scaleFactor = distance / initialDistance;
-        photoScale = initialScale * scaleFactor;
-        photoScale = Math.min(photoScale, 5);
-
-        const angleDiff = (angle - initialAngle) * (180 / Math.PI);
-        photoRotation = initialRotation + angleDiff;
-
-        drawImage();
-      }
-    });
-
-    canvas.addEventListener('touchend', (e) => {
-      e.preventDefault();
-      isDraggingImage = false;
-      isDraggingOverlay = false;
-      isPinching = false;
-      draggedOverlayIndex = -1;
-    });
-
-    function adjustOverlaySize() {
-      if (selectedOverlayIndex !== -1) {
-        overlays[selectedOverlayIndex].size = parseInt(overlaySizeInput.value);
-        drawImage();
-      }
-    }
-
-    function adjustOverlayRotation() {
-      if (selectedOverlayIndex !== -1) {
-        overlays[selectedOverlayIndex].rotation = parseInt(overlayRotationInput.value);
-        drawImage();
-      }
-    }
-
-    function adjustColor() {
-      brightness = document.getElementById('brightness').value;
-      contrast = document.getElementById('contrast').value;
-      saturation = document.getElementById('saturation').value;
-      drawImage();
-    }
-
-    async function printPhoto() {
-      if (!image.src || !image.complete) {
-        alert(translations[currentLang].no_photo);
-        return;
-      }
-
-      const dataUrl = canvas.toDataURL('image/jpeg');
-      if (!username || !dataUrl) {
-        alert(translations[currentLang].missing_data);
-        return;
-      }
-
-      try {
-        const response = await fetch('/.netlify/functions/print', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({ username, dataUrl })
-        });
-
-        const data = await response.json();
-        if (data.success) {
-          alert(translations[currentLang].print_success);
-        } else {
-          alert(data.message || translations[currentLang].print_failed);
-        }
-      } catch (error) {
-        console.error('Print photo error:', error);
-        alert(translations[currentLang].network_error);
-      }
-    }
-  </script>
-</body>
-</html>
+    // 加载蒙版图片（主人提供的椭圆图片）
+    maskImage.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAACXBIWXMAAAsTAAALEwEAmpwYAAAKT2lDQ1BQaG90b3Nob3AgSUNDIHByb2ZpbGUAAHjanVNnVFPpFj333vRCS4iAlEtvUhUIIFJCi4AUkSYqIQkQSoghodkVUcERRUUEG8igiAOOjoCMFVEsDIoK2AfkIaKOg6OIisr74Xuja9a89+bN/rXXPues852zzwfACAyWSDNRNYAMqUIeEeCDx8TG4eQuQIEKJHAAEAizZCFz/SMBAPh+PDwrIsAHvgABeNMLCADATZvAMByH/w/qQplcAYCEAcB0kThLCIAUAEB6jkKmAEBGAYCdmCZTAKAEAGDLY2LjAFAtAGAnf+bTAICd+Jl7AQBblCEVAaCRACATZYhEAGg7AKzPVopFAFgwABRmS8Q5ANgtADBJV2ZIALC3AMDOEAuyAAgMADBRiIUpAAR7AGDIIyN4AISZABRG8lc88SuuEOcqAAB4mbI8uSQ5RYFbCC1xB1dXLh4ozkkXKxQ2YQJhmkAuwnmZGTKBNA/g88wAAKCRFRHgg/P9eM4Ors7ONo62Dl8t6r8G/yJiYuP+5c+rcEAAAOF0ftH+LC+zGoA7BoBt/qIl7gRoXgugdfeLZrIPQLUAoOnaV/Nw+H48PEWhkLnZ2eXk5NhKxEJbYcpXff5nwl/AV/1s+X48/Pf14L7iJIEyXYFHBPjgwsz0TKUcz5IJhGLc5o9H/LcL//wd0yLESWK5WCoU41EScY5EmozzMqUiiUKSKcUl0v9k4t8s+wM+3zUAsGo+AXuRLahdYwP2SycQWHTA4vcAAPK7b8HUKAgDgGiD4c93/+8//UegJQCAZkmScQAAXkQkLlTKsz/HCAAARKCBKrBBG/TBGCzABhzBBdzBC/xgNoRCJMTCQhBCCmSAHHJgKayCQiiGzbAdKmAv1EAdNMBRaIaTcA4uwlW4Dj1wD/phCJ7BKLyBCQRByAgTYSHaiAFiilgjjggXmYX4IcFIBBKLJCDJiBRRIkuRNUgxUopUIFVIHfI9cgI5h1xGupE7yAAygvyGvEcxlIGyUT3UDLVDuag3GoRGogvQZHQxmo8WoJvQcrQaPYw2oefQq2gP2o8+Q8cwwOgYBzPEbDAuxsNCsTgsCZNjy7EirAyrxhqwVqwDu4n1Y8+xdwQSgUXACTYEd0IgYR5BSFhMWE7YSKggHCQ0EdoJNwkDhFHCJyKTqEu0JroR+cQYYjIxh1hILCPWEo8wy3rHDpwtz4/w0GO1qB3W7I7ieP/NCbBoWYwoNCjCLQa4KRUgXEGwJDV3dLNYWgaNJDnlaMGbGLiMosxUXJWXjS1U/pDYMSND0+noKk9gzX/w8cXnyWf/O/5s/3dz/Mw5fP/8/3z/9t7+/3v//+7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7
