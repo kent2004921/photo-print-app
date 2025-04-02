@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="upload_title">上传照片打印</title>
+  <!-- 引入 TensorFlow.js 和 Face-api.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.9.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@0.0.3/dist/face-landmarks-detection.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -51,7 +54,7 @@
       border-radius: 8px;
       max-width: 100%;
       margin: 10px 0;
-      touch-action: none;
+      touch-action: none; /* 防止触摸时触发默认行为 */
     }
     input[type="file"] {
       width: 100%;
@@ -83,6 +86,28 @@
     .print-btn:hover {
       background: linear-gradient(to right, #0056b3, #0099cc);
     }
+    .remove-emoji-btn {
+      background: linear-gradient(to right, #ff4b4b, #ff7878);
+      color: white;
+    }
+    .remove-emoji-btn:hover {
+      background: linear-gradient(to right, #cc3a3a, #cc6060);
+    }
+    .delete-selected-btn {
+      background: linear-gradient(to right, #ff7878, #ff9999);
+      color: white;
+      display: none;
+    }
+    .delete-selected-btn:hover {
+      background: linear-gradient(to right, #cc6060, #cc7a7a);
+    }
+    .clear-all-btn {
+      background: linear-gradient(to right, #ff9999, #ffbaba);
+      color: white;
+    }
+    .clear-all-btn:hover {
+      background: linear-gradient(to right, #cc7a7a, #cc9999);
+    }
     .language-btn {
       background: linear-gradient(to right, #28a745, #34d058);
       color: white;
@@ -93,7 +118,7 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 16px;
+      font-size: 20px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
       transition: transform 0.1s, background 0.3s;
     }
@@ -124,18 +149,86 @@
       width: 100%;
       cursor: pointer;
     }
+    .sticker-picker {
+      margin: 15px 0;
+      position: relative;
+      z-index: 10;
+    }
+    .sticker-picker label {
+      display: block;
+      margin-bottom: 8px;
+      color: #444;
+      font-size: 16px;
+    }
+    .sticker-select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background-color: #fff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .overlay-controls {
+      display: none;
+      margin: 15px 0;
+      padding: 10px;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .overlay-controls label {
+      display: block;
+      margin-bottom: 8px;
+      color: #444;
+      font-size: 16px;
+    }
+    .overlay-controls input[type="range"] {
+      width: 100%;
+      cursor: pointer;
+    }
+    .loading-message {
+      display: none;
+      color: #666;
+      font-size: 14px;
+      margin: 10px 0;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
       <h2 data-i18n="upload_title">上传照片打印</h2>
-      <button class="language-btn" onclick="toggleLanguage()" data-i18n="language_btn">English</button>
+      <button class="language-btn" onclick="toggleLanguage()">🌐</button>
     </div>
     <input type="file" id="photoInput" accept="image/*">
+    <div id="loadingMessage" class="loading-message" data-i18n="loading_model">正在加载人脸检测模型，请稍候...</div>
     <canvas id="photoCanvas"></canvas>
+    <div class="sticker-picker">
+      <label data-i18n="select_sticker">选择面部贴纸</label>
+      <select id="stickerSelect" class="sticker-select" onchange="addStickerToCanvas(this.value)">
+        <option value="" data-i18n="select_sticker_option">选择一个贴纸</option>
+        <option value="https://picsum.photos/50?random=1">🐶 <span data-i18n="sticker_dog">狗狗耳朵</span></option>
+        <option value="https://picsum.photos/50?random=2">👓 <span data-i18n="sticker_glasses">眼镜</span></option>
+        <option value="https://picsum.photos/50?random=3">🎩 <span data-i18n="sticker_hat">帽子</span></option>
+        <option value="https://picsum.photos/50?random=4">👨 <span data-i18n="sticker_mustache">胡子</span></option>
+        <option value="https://picsum.photos/50?random=5">🐰 <span data-i18n="sticker_bunny">兔子耳朵</span></option>
+      </select>
+    </div>
+    <div class="overlay-controls" id="overlayControls">
+      <div class="control-group">
+        <label data-i18n="overlay_size">贴纸大小</label>
+        <input type="range" id="overlaySize" min="20" max="100" step="1" value="40" oninput="adjustOverlaySize()">
+      </div>
+      <div class="control-group">
+        <label data-i18n="overlay_rotation">贴纸角度</label>
+        <input type="range" id="overlayRotation" min="0" max="360" step="1" value="0" oninput="adjustOverlayRotation()">
+      </div>
+    </div>
     <div class="controls">
       <button class="print-btn" onclick="printPhoto()" data-i18n="print">打印</button>
+      <button class="remove-emoji-btn" onclick="removeLastOverlay()" data-i18n="remove_last_overlay">删除最后一个贴纸</button>
+      <button class="delete-selected-btn" id="deleteSelectedBtn" onclick="deleteSelectedOverlay()" data-i18n="delete_selected_overlay">删除选中贴纸</button>
+      <button class="clear-all-btn" onclick="clearAllOverlays()" data-i18n="clear_all_overlays">清空所有贴纸</button>
     </div>
     <div class="control-group">
       <label data-i18n="brightness">亮度</label>
@@ -155,7 +248,19 @@
     const translations = {
       zh: {
         upload_title: "上传照片打印",
+        select_sticker: "选择面部贴纸",
+        select_sticker_option: "选择一个贴纸",
+        sticker_dog: "狗狗耳朵",
+        sticker_glasses: "眼镜",
+        sticker_hat: "帽子",
+        sticker_mustache: "胡子",
+        sticker_bunny: "兔子耳朵",
+        overlay_size: "贴纸大小",
+        overlay_rotation: "贴纸角度",
         print: "打印",
+        remove_last_overlay: "删除最后一个贴纸",
+        delete_selected_overlay: "删除选中贴纸",
+        clear_all_overlays: "清空所有贴纸",
         brightness: "亮度",
         contrast: "对比度",
         saturation: "饱和度",
@@ -165,11 +270,28 @@
         print_success: "打印成功！",
         print_failed: "打印失败！",
         network_error: "网络错误，请稍后再试！",
+        no_emoji_to_remove: "没有贴纸可以删除！",
+        sticker_load_failed: "加载贴纸失败，请选择其他选项！",
+        loading_model: "正在加载人脸检测模型，请稍候...",
+        no_face_detected: "未检测到人脸，贴纸已放置在默认位置！",
+        photo_too_small: "照片过小，可能难以操作！",
         language_btn: "English"
       },
       en: {
         upload_title: "Upload Photo to Print",
+        select_sticker: "Select Face Sticker",
+        select_sticker_option: "Select a Sticker",
+        sticker_dog: "Dog Ears",
+        sticker_glasses: "Glasses",
+        sticker_hat: "Hat",
+        sticker_mustache: "Mustache",
+        sticker_bunny: "Bunny Ears",
+        overlay_size: "Sticker Size",
+        overlay_rotation: "Sticker Rotation",
         print: "Print",
+        remove_last_overlay: "Remove Last Sticker",
+        delete_selected_overlay: "Delete Selected Sticker",
+        clear_all_overlays: "Clear All Stickers",
         brightness: "Brightness",
         contrast: "Contrast",
         saturation: "Saturation",
@@ -179,6 +301,11 @@
         print_success: "Print successful!",
         print_failed: "Print failed!",
         network_error: "Network error, please try again later!",
+        no_emoji_to_remove: "No stickers to remove!",
+        sticker_load_failed: "Failed to load sticker, please select another one!",
+        loading_model: "Loading face detection model, please wait...",
+        no_face_detected: "No face detected, sticker placed at default position!",
+        photo_too_small: "Photo is too small, may be difficult to operate!",
         language_btn: "中文"
       }
     };
@@ -197,6 +324,15 @@
         const key = element.getAttribute('data-i18n');
         element.textContent = translations[currentLang][key];
       });
+      document.querySelectorAll('#stickerSelect option').forEach(option => {
+        const key = option.getAttribute('data-i18n');
+        if (key) {
+          const span = option.querySelector('span');
+          if (span) {
+            span.textContent = translations[currentLang][key];
+          }
+        }
+      });
       document.title = translations[currentLang].upload_title;
     }
 
@@ -210,16 +346,19 @@
     }
 
     let image = new Image();
-    let maskImage = new Image();
     let photoScale = 1;
     let photoRotation = 0;
     let posX = 0;
     let posY = 0;
     let isDraggingImage = false;
+    let isDraggingOverlay = false;
+    let draggedOverlayIndex = -1;
+    let selectedOverlayIndex = -1;
     let startX, startY;
     let brightness = 1;
     let contrast = 1;
     let saturation = 1;
+    let overlays = [];
 
     // 触摸手势相关变量
     let isPinching = false;
@@ -228,16 +367,382 @@
     let initialScale = 1;
     let initialRotation = 0;
 
+    // Face-api.js 相关变量
+    let faceDetector = null;
+    let isModelLoaded = false;
+
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    const printWidth = 1200; // 4 英寸 * 300 DPI
-    const printHeight = 1200; // 4 英寸 * 300 DPI
-    canvas.width = printWidth * dpr;
-    canvas.height = printHeight * dpr;
+    canvas.width = 300 * dpr;
+    canvas.height = 300 * dpr;
     canvas.style.width = '300px';
     canvas.style.height = '300px';
     ctx.scale(dpr, dpr);
 
-    // 加载蒙版图片（主人提供的椭圆图片）
-    maskImage.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAACXBIWXMAAAsTAAALEwEAmpwYAAAKT2lDQ1BQaG90b3Nob3AgSUNDIHByb2ZpbGUAAHjanVNnVFPpFj333vRCS4iAlEtvUhUIIFJCi4AUkSYqIQkQSoghodkVUcERRUUEG8igiAOOjoCMFVEsDIoK2AfkIaKOg6OIisr74Xuja9a89+bN/rXXPues852zzwfACAyWSDNRNYAMqUIeEeCDx8TG4eQuQIEKJHAAEAizZCFz/SMBAPh+PDwrIsAHvgABeNMLCADATZvAMByH/w/qQplcAYCEAcB0kThLCIAUAEB6jkKmAEBGAYCdmCZTAKAEAGDLY2LjAFAtAGAnf+bTAICd+Jl7AQBblCEVAaCRACATZYhEAGg7AKzPVopFAFgwABRmS8Q5ANgtADBJV2ZIALC3AMDOEAuyAAgMADBRiIUpAAR7AGDIIyN4AISZABRG8lc88SuuEOcqAAB4mbI8uSQ5RYFbCC1xB1dXLh4ozkkXKxQ2YQJhmkAuwnmZGTKBNA/g88wAAKCRFRHgg/P9eM4Ors7ONo62Dl8t6r8G/yJiYuP+5c+rcEAAAOF0ftH+LC+zGoA7BoBt/qIl7gRoXgugdfeLZrIPQLUAoOnaV/Nw+H48PEWhkLnZ2eXk5NhKxEJbYcpXff5nwl/AV/1s+X48/Pf14L7iJIEyXYFHBPjgwsz0TKUcz5IJhGLc5o9H/LcL//wd0yLESWK5WCoU41EScY5EmozzMqUiiUKSKcUl0v9k4t8s+wM+3zUAsGo+AXuRLahdYwP2SycQWHTA4vcAAPK7b8HUKAgDgGiD4c93/+8//UegJQCAZkmScQAAXkQkLlTKsz/HCAAARKCBKrBBG/TBGCzABhzBBdzBC/xgNoRCJMTCQhBCCmSAHHJgKayCQiiGzbAdKmAv1EAdNMBRaIaTcA4uwlW4Dj1wD/phCJ7BKLyBCQRByAgTYSHaiAFiilgjjggXmYX4IcFIBBKLJCDJiBRRIkuRNUgxUopUIFVIHfI9cgI5h1xGupE7yAAygvyGvEcxlIGyUT3UDLVDuag3GoRGogvQZHQxmo8WoJvQcrQaPYw2oefQq2gP2o8+Q8cwwOgYBzPEbDAuxsNCsTgsCZNjy7EirAyrxhqwVqwDu4n1Y8+xdwQSgUXACTYEd0IgYR5BSFhMWE7YSKggHCQ0EdoJNwkDhFHCJyKTqEu0JroR+cQYYjIxh1hILCPWEo8wy3rHDpwtz4/w0GO1qB3W7I7ieP/NCbBoWYwoNCjCLQa4KRUgXEGwJDV3dLNYWgaNJDnlaMGbGLiMosxUXJWXjS1U/pDYMSND0+noKk9gzX/w8cXnyWf/O/5s/3dz/Mw5fP/8/3z/9t7+/3v//+7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/+/////7+/
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const overlayControls = document.getElementById('overlayControls');
+    const overlaySizeInput = document.getElementById('overlaySize');
+    const overlayRotationInput = document.getElementById('overlayRotation');
+    const loadingMessage = document.getElementById('loadingMessage');
+
+    // 加载 Face-api.js 模型
+    async function loadFaceDetector() {
+      loadingMessage.style.display = 'block';
+      try {
+        faceDetector = await faceLandmarksDetection.load(
+          faceLandmarksDetection.SupportedPackages.mediapipeFacemesh,
+          { maxFaces: 1 }
+        );
+        isModelLoaded = true;
+        console.log('Face-api.js model loaded successfully');
+        loadingMessage.style.display = 'none';
+      } catch (error) {
+        console.error('Failed to load Face-api.js model:', error);
+        loadingMessage.textContent = 'Failed to load face detection model!';
+      }
+    }
+
+    // 初始化时加载模型
+    loadFaceDetector();
+
+    document.getElementById('photoInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        console.log('Photo selected:', file.name);
+        image.src = URL.createObjectURL(file);
+        image.onload = () => {
+          console.log('Photo loaded successfully');
+          drawImage();
+        };
+        image.onerror = () => {
+          console.error('Failed to load photo');
+          alert('Failed to load photo, please try another one!');
+        };
+      }
+    });
+
+    function drawImage() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (image.src) {
+        ctx.save();
+        ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
+        ctx.translate((canvas.width / dpr) / 2 + posX, (canvas.height / dpr) / 2 + posY);
+        ctx.rotate((photoRotation * Math.PI) / 180);
+        ctx.scale(photoScale, photoScale);
+        ctx.drawImage(image, -image.width / 2, -image.height / 2);
+        ctx.restore();
+      }
+
+      overlays.forEach((overlay, index) => {
+        ctx.save();
+        ctx.translate(overlay.x + overlay.size / 2, overlay.y + overlay.size / 2);
+        ctx.rotate((overlay.rotation * Math.PI) / 180);
+        if (index === selectedOverlayIndex) {
+          ctx.strokeStyle = 'red';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(-overlay.size / 2 - 2, -overlay.size / 2 - 2, overlay.size + 4, overlay.size + 4);
+        }
+        if (overlay.image) {
+          ctx.drawImage(overlay.image, -overlay.size / 2, -overlay.size / 2, overlay.size, overlay.size);
+        }
+        ctx.restore();
+      });
+    }
+
+    async function addStickerToCanvas(stickerUrl) {
+      if (!stickerUrl) return;
+      console.log('Adding sticker:', stickerUrl);
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = stickerUrl;
+      img.onload = async () => {
+        console.log('Sticker loaded successfully:', stickerUrl);
+        let x = 50 + overlays.length * 10;
+        let y = 50 + overlays.length * 10;
+
+        // 使用 Face-api.js 检测人脸并放置贴纸
+        if (isModelLoaded && image.src) {
+          const faces = await faceDetector.estimateFaces(canvas, { flipHorizontal: false });
+          if (faces.length > 0) {
+            const face = faces[0];
+            const landmarks = face.landmarks;
+            // 使用额头位置（landmarks[10] 是额头中心）
+            const forehead = landmarks[10];
+            x = forehead[0] * (canvas.width / dpr / canvas.width) - img.width / 2;
+            y = forehead[1] * (canvas.height / dpr / canvas.height) - img.height;
+          } else {
+            console.log('No face detected, placing sticker at default position');
+            alert(translations[currentLang].no_face_detected);
+          }
+        }
+
+        overlays.push({
+          image: img,
+          x: x,
+          y: y,
+          size: 40,
+          rotation: 0,
+          type: 'sticker'
+        });
+        drawImage();
+      };
+      img.onerror = () => {
+        console.error('Failed to load sticker:', stickerUrl);
+        alert(translations[currentLang].sticker_load_failed);
+      };
+    }
+
+    function removeLastOverlay() {
+      if (overlays.length > 0) {
+        overlays.pop();
+        selectedOverlayIndex = -1;
+        overlayControls.style.display = 'none';
+        deleteSelectedBtn.style.display = 'none';
+        drawImage();
+      } else {
+        alert(translations[currentLang].no_emoji_to_remove);
+      }
+    }
+
+    function deleteSelectedOverlay() {
+      if (selectedOverlayIndex !== -1) {
+        overlays.splice(selectedOverlayIndex, 1);
+        selectedOverlayIndex = -1;
+        overlayControls.style.display = 'none';
+        deleteSelectedBtn.style.display = 'none';
+        drawImage();
+      }
+    }
+
+    function clearAllOverlays() {
+      overlays = [];
+      selectedOverlayIndex = -1;
+      overlayControls.style.display = 'none';
+      deleteSelectedBtn.style.display = 'none';
+      drawImage();
+    }
+
+    function getOverlayAtPosition(x, y) {
+      for (let i = overlays.length - 1; i >= 0; i--) {
+        const overlay = overlays[i];
+        const centerX = overlay.x + overlay.size / 2;
+        const centerY = overlay.y + overlay.size / 2;
+        const dx = x - centerX;
+        const dy = y - centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance <= overlay.size / 2) {
+          return i;
+        }
+      }
+      return -1;
+    }
+
+    // 鼠标事件：拖动照片或贴纸
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
+      const y = (e.clientY - rect.top) * (canvas.height / dpr / rect.height);
+
+      draggedOverlayIndex = getOverlayAtPosition(x, y);
+      if (draggedOverlayIndex !== -1) {
+        isDraggingOverlay = true;
+        isDraggingImage = false;
+        selectedOverlayIndex = draggedOverlayIndex;
+        overlayControls.style.display = 'block';
+        deleteSelectedBtn.style.display = 'block';
+        overlaySizeInput.value = overlays[selectedOverlayIndex].size;
+        overlayRotationInput.value = overlays[selectedOverlayIndex].rotation;
+      } else {
+        isDraggingImage = true;
+        isDraggingOverlay = false;
+        selectedOverlayIndex = -1;
+        overlayControls.style.display = 'none';
+        deleteSelectedBtn.style.display = 'none';
+      }
+
+      startX = e.clientX;
+      startY = e.clientY;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isDraggingImage || isDraggingOverlay) {
+        const dx = (e.clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
+        const dy = (e.clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
+
+        if (isDraggingImage) {
+          posX += dx;
+          posY += dy;
+        } else if (isDraggingOverlay && draggedOverlayIndex !== -1) {
+          overlays[draggedOverlayIndex].x += dx;
+          overlays[draggedOverlayIndex].y += dy;
+        }
+
+        startX = e.clientX;
+        startY = e.clientY;
+        drawImage();
+      }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      isDraggingImage = false;
+      isDraggingOverlay = false;
+      draggedOverlayIndex = -1;
+    });
+
+    // 触摸事件：双指缩放和旋转照片
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const touches = e.touches;
+
+      if (touches.length === 1) {
+        // 单指拖动照片或贴纸
+        const x = (touches[0].clientX - rect.left) * (canvas.width / dpr / rect.width);
+        const y = (touches[0].clientY - rect.top) * (canvas.height / dpr / rect.height);
+
+        draggedOverlayIndex = getOverlayAtPosition(x, y);
+        if (draggedOverlayIndex !== -1) {
+          isDraggingOverlay = true;
+          isDraggingImage = false;
+          selectedOverlayIndex = draggedOverlayIndex;
+          overlayControls.style.display = 'block';
+          deleteSelectedBtn.style.display = 'block';
+          overlaySizeInput.value = overlays[selectedOverlayIndex].size;
+          overlayRotationInput.value = overlays[selectedOverlayIndex].rotation;
+        } else {
+          isDraggingImage = true;
+          isDraggingOverlay = false;
+          selectedOverlayIndex = -1;
+          overlayControls.style.display = 'none';
+          deleteSelectedBtn.style.display = 'none';
+        }
+
+        startX = touches[0].clientX;
+        startY = touches[0].clientY;
+      } else if (touches.length === 2) {
+        // 双指缩放和旋转照片
+        isPinching = true;
+        isDraggingImage = false;
+        isDraggingOverlay = false;
+        selectedOverlayIndex = -1;
+        overlayControls.style.display = 'none';
+        deleteSelectedBtn.style.display = 'none';
+
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        initialDistance = Math.sqrt(dx * dx + dy * dy);
+        initialAngle = Math.atan2(dy, dx);
+        initialScale = photoScale;
+        initialRotation = photoRotation;
+      }
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const touches = e.touches;
+
+      if (touches.length === 1 && (isDraggingImage || isDraggingOverlay)) {
+        const dx = (touches[0].clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
+        const dy = (touches[0].clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
+
+        if (isDraggingImage) {
+          posX += dx;
+          posY += dy;
+        } else if (isDraggingOverlay && draggedOverlayIndex !== -1) {
+          overlays[draggedOverlayIndex].x += dx;
+          overlays[draggedOverlayIndex].y += dy;
+        }
+
+        startX = touches[0].clientX;
+        startY = touches[0].clientY;
+        drawImage();
+      } else if (touches.length === 2 && isPinching) {
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+
+        // 计算缩放比例
+        const scaleFactor = distance / initialDistance;
+        photoScale = initialScale * scaleFactor;
+        photoScale = Math.max(0.1, Math.min(photoScale, 5)); // 放宽缩放范围到 10% - 500%
+
+        // 提示用户如果照片过小
+        if (photoScale < 0.2) {
+          alert(translations[currentLang].photo_too_small);
+        }
+
+        // 计算旋转角度
+        const angleDiff = (angle - initialAngle) * (180 / Math.PI);
+        photoRotation = initialRotation + angleDiff;
+
+        drawImage();
+      }
+    });
+
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      isDraggingImage = false;
+      isDraggingOverlay = false;
+      isPinching = false;
+      draggedOverlayIndex = -1;
+    });
+
+    function adjustOverlaySize() {
+      if (selectedOverlayIndex !== -1) {
+        overlays[selectedOverlayIndex].size = parseInt(overlaySizeInput.value);
+        drawImage();
+      }
+    }
+
+    function adjustOverlayRotation() {
+      if (selectedOverlayIndex !== -1) {
+        overlays[selectedOverlayIndex].rotation = parseInt(overlayRotationInput.value);
+        drawImage();
+      }
+    }
+
+    function adjustColor() {
+      brightness = document.getElementById('brightness').value;
+      contrast = document.getElementById('contrast').value;
+      saturation = document.getElementById('saturation').value;
+      drawImage();
+    }
+
+    async function printPhoto() {
+      if (!image.src) {
+        alert(translations[currentLang].no_photo);
+        return;
+      }
+
+      const dataUrl = canvas.toDataURL('image/jpeg');
+      if (!username || !dataUrl) {
+        alert(translations[currentLang].missing_data);
+        return;
+      }
+
+      try {
+        const response = await fetch('/.netlify/functions/print', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ username, dataUrl })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+          alert(translations[currentLang].print_success);
+        } else {
+          alert(data.message || translations[currentLang].print_failed);
+        }
+      } catch (error) {
+        console.error('Print photo error:', error);
+        alert(translations[currentLang].network_error);
+      }
+    }
+  </script>
+</body>
+</html>
