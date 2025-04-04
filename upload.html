@@ -231,10 +231,21 @@
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = 874 * dpr; // 宽度 874px
-    canvas.height = 1251 * dpr; // 高度 1251px
-    canvas.style.width = '874px';
-    canvas.style.height = '1251px';
+    const canvasWidth = 874; // 打印宽度 874px
+    const canvasHeight = 1251; // 打印高度 1251px
+    canvas.width = canvasWidth * dpr;
+    canvas.height = canvasHeight * dpr;
+
+    // 自适应屏幕大小
+    function adjustCanvasDisplaySize() {
+      const maxWidth = window.innerWidth * 0.9; // 屏幕宽度的 90%
+      const scale = Math.min(maxWidth / canvasWidth, 1); // 计算缩放比例
+      canvas.style.width = `${canvasWidth * scale}px`;
+      canvas.style.height = `${canvasHeight * scale}px`;
+    }
+    adjustCanvasDisplaySize();
+    window.addEventListener('resize', adjustCanvasDisplaySize);
+
     ctx.scale(dpr, dpr);
 
     // 加载蒙版图片（PNG 格式，椭圆形区域透明）
@@ -243,18 +254,16 @@
     maskImage.src = maskUrl;
     maskImage.onload = () => {
       console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
-      // 验证蒙版尺寸
-      if (maskImage.width !== 874 || maskImage.height !== 1251) {
+      if (maskImage.width !== canvasWidth || maskImage.height !== canvasHeight) {
         console.warn('Mask image dimensions do not match canvas (874x1251), resizing may affect quality.');
       }
-      // 增强蒙版透明区域验证
       const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = 874 * dpr;
-      tempCanvas.height = 1251 * dpr;
+      tempCanvas.width = canvasWidth * dpr;
+      tempCanvas.height = canvasHeight * dpr;
       const tempCtx = tempCanvas.getContext('2d');
       tempCtx.scale(dpr, dpr);
-      tempCtx.drawImage(maskImage, 0, 0, 874, 1251);
-      const imageData = tempCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
+      tempCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+      const imageData = tempCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
       const data = imageData.data;
       let hasFullyTransparent = false;
       let hasFullyOpaque = false;
@@ -282,23 +291,76 @@
       alert('Failed to load mask image from ' + maskUrl + ', please check the path, filename case, or deployment!');
     };
 
-    document.getElementById('photoInput').addEventListener('change', (e) => {
+    // 照片压缩函数
+    async function compressImage(file, maxSizeKB = 500) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+
+          let quality = 0.9;
+          const maxSizeBytes = maxSizeKB * 1024; // 500kb 转换为字节
+          let dataUrl;
+
+          const compress = () => {
+            dataUrl = canvas.toDataURL('image/jpeg', quality);
+            const binary = atob(dataUrl.split(',')[1]);
+            const array = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+              array[i] = binary.charCodeAt(i);
+            }
+            const size = array.length;
+
+            if (size > maxSizeBytes && quality > 0.1) {
+              quality -= 0.1;
+              setTimeout(compress, 0); // 异步递归压缩
+            } else if (size > maxSizeBytes) {
+              console.warn('Cannot compress image below 500kb without significant quality loss.');
+              resolve(dataUrl);
+            } else {
+              console.log(`Compressed image size: ${(size / 1024).toFixed(2)}kb, quality: ${quality}`);
+              resolve(dataUrl);
+            }
+          };
+          compress();
+        };
+        img.onerror = reject;
+      });
+    }
+
+    document.getElementById('photoInput').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (file) {
-        console.log('Photo selected:', file.name);
-        // 清理之前的照片 URL
-        if (image.src) {
-          URL.revokeObjectURL(image.src);
+        console.log('Photo selected:', file.name, `Original size: ${(file.size / 1024).toFixed(2)}kb`);
+        try {
+          const compressedDataUrl = await compressImage(file, 500);
+          if (image.src) {
+            URL.revokeObjectURL(image.src);
+          }
+          image.src = compressedDataUrl;
+          image.onload = () => {
+            console.log('Compressed photo loaded successfully, dimensions:', image.width, 'x', image.height);
+            drawImage();
+          };
+          image.onerror = () => {
+            console.error('Failed to load compressed photo');
+            alert('Failed to load compressed photo, please try another one!');
+          };
+        } catch (error) {
+          console.error('Image compression failed:', error);
+          alert('Image compression failed, please try another photo!');
         }
-        image.src = URL.createObjectURL(file);
-        image.onload = () => {
-          console.log('Photo loaded successfully, dimensions:', image.width, 'x', image.height);
-          drawImage();
-        };
-        image.onerror = () => {
-          console.error('Failed to load photo');
-          alert('Failed to load photo, please try another one!');
-        };
       }
     });
 
@@ -306,63 +368,54 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       if (image.src && maskImage.complete) {
-        // 保存上下文状态
         ctx.save();
 
-        // 创建一个离屏画布来绘制照片
         const photoCanvas = document.createElement('canvas');
-        photoCanvas.width = 874 * dpr;
-        photoCanvas.height = 1251 * dpr;
+        photoCanvas.width = canvasWidth * dpr;
+        photoCanvas.height = canvasHeight * dpr;
         const photoCtx = photoCanvas.getContext('2d');
         photoCtx.scale(dpr, dpr);
 
-        // 绘制照片
         photoCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
         photoCtx.translate((canvas.width / dpr) / 2 + posX, (canvas.height / dpr) / 2 + posY);
         photoCtx.rotate((photoRotation * Math.PI) / 180);
         photoCtx.scale(photoScale, photoScale);
         photoCtx.drawImage(image, -image.width / 2, -image.height / 2);
 
-        // 创建一个离屏画布来绘制蒙版
         const maskCanvas = document.createElement('canvas');
-        maskCanvas.width = 874 * dpr;
-        maskCanvas.height = 1251 * dpr;
+        maskCanvas.width = canvasWidth * dpr;
+        maskCanvas.height = canvasHeight * dpr;
         const maskCtx = maskCanvas.getContext('2d');
         maskCtx.scale(dpr, dpr);
-        maskCtx.drawImage(maskImage, 0, 0, 874, 1251);
+        maskCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
 
-        // 获取照片和蒙版的像素数据
-        const photoData = photoCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
-        const maskData = maskCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
+        const photoData = photoCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
+        const maskData = maskCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
         const photoPixels = photoData.data;
         const maskPixels = maskData.data;
 
-        // 手动应用蒙版：根据蒙版的 alpha 通道调整照片的透明度
         for (let i = 0; i < photoPixels.length; i += 4) {
           const maskAlpha = maskPixels[i + 3];
           if (maskAlpha !== 0) {
-            // 如果蒙版像素不完全透明（alpha != 0），将照片像素设为透明
             photoPixels[i + 3] = 0;
           }
         }
 
-        // 将处理后的照片绘制到主画布
         ctx.putImageData(photoData, 0, 0);
 
-        // 绘制蒙版边框（使用蒙版图片的透明区域边界）
         ctx.save();
-        ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)'; // 红色半透明边框
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
         ctx.lineWidth = 2;
-        for (let y = 0; y < 1251 * dpr; y++) {
-          for (let x = 0; x < 874 * dpr; x++) {
-            const idx = (y * 874 * dpr + x) * 4;
+        for (let y = 0; y < canvasHeight * dpr; y++) {
+          for (let x = 0; x < canvasWidth * dpr; x++) {
+            const idx = (y * canvasWidth * dpr + x) * 4;
             const alpha = maskPixels[idx + 3];
             if (alpha === 0) {
               const neighbors = [
-                (y - 1) * 874 * dpr + x, // 上
-                (y + 1) * 874 * dpr + x, // 下
-                y * 874 * dpr + (x - 1), // 左
-                y * 874 * dpr + (x + 1)  // 右
+                (y - 1) * canvasWidth * dpr + x,
+                (y + 1) * canvasWidth * dpr + x,
+                y * canvasWidth * dpr + (x - 1),
+                y * canvasWidth * dpr + (x + 1)
               ];
               for (const n of neighbors) {
                 if (n >= 0 && n < maskPixels.length / 4) {
@@ -378,18 +431,17 @@
         }
         ctx.restore();
 
-        // 恢复主画布上下文状态
         ctx.restore();
       } else {
         console.log('Cannot draw image: image.src=', image.src, 'maskImage.complete=', maskImage.complete);
       }
     }
 
-    // 鼠标事件：拖动照片
     canvas.addEventListener('mousedown', (e) => {
       const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
-      const y = (e.clientY - rect.top) * (canvas.height / dpr / rect.height);
+      const scale = rect.width / canvasWidth;
+      const x = (e.clientX - rect.left) * (canvasWidth / rect.width);
+      const y = (e.clientY - rect.top) * (canvasHeight / rect.height);
 
       isDraggingImage = true;
       startX = e.clientX;
@@ -398,8 +450,10 @@
 
     canvas.addEventListener('mousemove', (e) => {
       if (isDraggingImage) {
-        const dx = (e.clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
-        const dy = (e.clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
+        const rect = canvas.getBoundingClientRect();
+        const scale = rect.width / canvasWidth;
+        const dx = (e.clientX - startX) * (canvasWidth / rect.width);
+        const dy = (e.clientY - startY) * (canvasHeight / rect.height);
 
         posX += dx;
         posY += dy;
@@ -414,22 +468,20 @@
       isDraggingImage = false;
     });
 
-    // 触摸事件：双指缩放和旋转照片
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
+      const scale = rect.width / canvasWidth;
       const touches = e.touches;
 
       if (touches.length === 1) {
-        // 单指拖动照片
-        const x = (touches[0].clientX - rect.left) * (canvas.width / dpr / rect.width);
-        const y = (touches[0].clientY - rect.top) * (canvas.height / dpr / rect.height);
+        const x = (touches[0].clientX - rect.left) * (canvasWidth / rect.width);
+        const y = (touches[0].clientY - rect.top) * (canvasHeight / rect.height);
 
         isDraggingImage = true;
         startX = touches[0].clientX;
         startY = touches[0].clientY;
       } else if (touches.length === 2) {
-        // 双指缩放和旋转照片
         isPinching = true;
         isDraggingImage = false;
 
@@ -445,10 +497,12 @@
     canvas.addEventListener('touchmove', (e) => {
       e.preventDefault();
       const touches = e.touches;
+      const rect = canvas.getBoundingClientRect();
+      const scale = rect.width / canvasWidth;
 
       if (touches.length === 1 && isDraggingImage) {
-        const dx = (touches[0].clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
-        const dy = (touches[0].clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
+        const dx = (touches[0].clientX - startX) * (canvasWidth / rect.width);
+        const dy = (touches[0].clientY - startY) * (canvasHeight / rect.height);
 
         posX += dx;
         posY += dy;
@@ -462,11 +516,9 @@
         const distance = Math.sqrt(dx * dx + dy * dy);
         const angle = Math.atan2(dy, dx);
 
-        // 计算缩放比例（无限制）
         const scaleFactor = distance / initialDistance;
         photoScale = initialScale * scaleFactor;
 
-        // 计算旋转角度
         const angleDiff = (angle - initialAngle) * (180 / Math.PI);
         photoRotation = initialRotation + angleDiff;
 
