@@ -245,8 +245,8 @@
     maskCtx = maskCanvas.getContext('2d');
     maskCtx.scale(dpr, dpr);
 
-    // 加载蒙版图片（使用 JPG 格式）
-    maskImage.src = 'https://photo-print-app.netlify.app/assets/mask.jpg';
+    // 加载蒙版图片（调整路径和文件名）
+    maskImage.src = 'https://photo-print-app.netlify.app/functions/assets/mask.JPG';
     maskImage.onload = () => {
       console.log('Mask image loaded successfully');
       // 绘制蒙版到临时 Canvas
@@ -270,8 +270,8 @@
       drawImage();
     };
     maskImage.onerror = () => {
-      console.error('Failed to load mask image from https://photo-print-app.netlify.app/assets/mask.jpg');
-      alert('Failed to load mask image from https://photo-print-app.netlify.app/assets/mask.jpg, please check the path or deployment!');
+      console.error('Failed to load mask image from https://photo-print-app.netlify.app/functions/assets/mask.JPG');
+      alert('Failed to load mask image from https://photo-print-app.netlify.app/functions/assets/mask.JPG, please check the path, filename case, or deployment!');
     };
 
     document.getElementById('photoInput').addEventListener('change', (e) => {
