@@ -210,6 +210,7 @@
     }
 
     let image = new Image();
+    let maskImage = new Image();
     let photoScale = 1;
     let photoRotation = 0;
     let posX = 0;
@@ -236,6 +237,17 @@
     canvas.style.height = '400px';
     ctx.scale(dpr, dpr);
 
+    // 加载蒙版图片
+    maskImage.src = 'assets/mask.png';
+    maskImage.onload = () => {
+      console.log('Mask image loaded successfully');
+      drawImage();
+    };
+    maskImage.onerror = () => {
+      console.error('Failed to load mask image');
+      alert('Failed to load mask image, please check the path!');
+    };
+
     document.getElementById('photoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
@@ -255,63 +267,33 @@
     function drawImage() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if (image.src) {
+      if (image.src && maskImage.src) {
         // 保存上下文状态
         ctx.save();
 
-        // 创建定制化的椭圆形路径（顶端大，下方小）
-        const centerX = 150; // 中心 X 坐标
-        const centerY = 200; // 中心 Y 坐标
-        const topWidth = 120; // 顶部半宽（顶端较大）
-        const bottomWidth = 90; // 底部半宽（下方较小）
-        const height = 150; // 垂直半高
+        // 首先绘制蒙版图片
+        ctx.drawImage(maskImage, 0, 0, canvas.width / dpr, canvas.height / dpr);
 
-        ctx.beginPath();
-        // 起点：顶部中心
-        ctx.moveTo(centerX, centerY - height);
-        // 右上到右下：使用贝塞尔曲线，控制点使顶部更宽，底部更窄
-        ctx.bezierCurveTo(
-          centerX + topWidth * 1.2, centerY - height, // 右上控制点（顶部更宽）
-          centerX + bottomWidth * 1.2, centerY + height, // 右下控制点（底部更窄）
-          centerX, centerY + height // 底部中心
-        );
-        // 左下到左上：对称绘制
-        ctx.bezierCurveTo(
-          centerX - bottomWidth * 1.2, centerY + height, // 左下控制点
-          centerX - topWidth * 1.2, centerY - height, // 左上控制点
-          centerX, centerY - height // 回到顶部中心
-        );
-        ctx.closePath();
-        ctx.clip();
+        // 设置 globalCompositeOperation 为 'source-in'
+        // 这会让后续绘制的照片只显示在蒙版的透明区域内（即椭圆形区域）
+        ctx.globalCompositeOperation = 'source-in';
 
-        // 绘制照片（会被裁剪到定制化的椭圆形区域内）
+        // 绘制照片
         ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
         ctx.translate((canvas.width / dpr) / 2 + posX, (canvas.height / dpr) / 2 + posY);
         ctx.rotate((photoRotation * Math.PI) / 180);
         ctx.scale(photoScale, photoScale);
         ctx.drawImage(image, -image.width / 2, -image.height / 2);
 
+        // 恢复 globalCompositeOperation
+        ctx.globalCompositeOperation = 'source-over';
+
         // 恢复上下文状态
         ctx.restore();
 
-        // 绘制椭圆形边框（使用相同的路径，让顾客看到裁剪区域）
+        // 绘制蒙版边框（用于让顾客看到裁剪区域）
         ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(centerX, centerY - height);
-        ctx.bezierCurveTo(
-          centerX + topWidth * 1.2, centerY - height,
-          centerX + bottomWidth * 1.2, centerY + height,
-          centerX, centerY + height
-        );
-        ctx.bezierCurveTo(
-          centerX - bottomWidth * 1.2, centerY + height,
-          centerX - topWidth * 1.2, centerY - height,
-          centerX, centerY - height
-        );
-        ctx.closePath();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        ctx.drawImage(maskImage, 0, 0, canvas.width / dpr, canvas.height / dpr);
         ctx.restore();
       }
     }
@@ -379,6 +361,16 @@
 
       if (touches.length === 1 && isDraggingImage) {
         const dx = (touches[0].clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
+        const dy = (touches[0].clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
+
+        posX += dx;
+        posY += dy;
+
+        startX = touches[0].clientX;
+        startY = touches[0].clientY;
+        drawImage();
+      } else if (touches.length === 2 && isPinching) {
+        const dx = touches[0].clientX - touches[1].clientX;
         const dy = (touches[0].clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
 
         posX += dx;
