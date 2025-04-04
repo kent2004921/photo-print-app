@@ -245,7 +245,7 @@
     maskCtx = maskCanvas.getContext('2d');
     maskCtx.scale(dpr, dpr);
 
-    // 加载蒙版图片（调整路径和文件名）
+    // 加载蒙版图片
     maskImage.src = 'https://photo-print-app.netlify.app/functions/assets/mask.JPG';
     maskImage.onload = () => {
       console.log('Mask image loaded successfully');
@@ -278,9 +278,13 @@
       const file = e.target.files[0];
       if (file) {
         console.log('Photo selected:', file.name);
+        // 清理之前的照片 URL
+        if (image.src) {
+          URL.revokeObjectURL(image.src);
+        }
         image.src = URL.createObjectURL(file);
         image.onload = () => {
-          console.log('Photo loaded successfully');
+          console.log('Photo loaded successfully, dimensions:', image.width, 'x', image.height);
           drawImage();
         };
         image.onerror = () => {
@@ -304,7 +308,7 @@
         // 这会让后续绘制的照片只显示在蒙版的透明区域内（即椭圆形区域）
         ctx.globalCompositeOperation = 'source-in';
 
-        // 绘制照片
+        // 绘制上传的照片
         ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
         ctx.translate((canvas.width / dpr) / 2 + posX, (canvas.height / dpr) / 2 + posY);
         ctx.rotate((photoRotation * Math.PI) / 180);
@@ -317,10 +321,40 @@
         // 恢复上下文状态
         ctx.restore();
 
-        // 绘制蒙版边框（使用原始蒙版图片，让顾客看到裁剪区域）
+        // 绘制蒙版边框（使用蒙版数据生成边框，而不是直接绘制 maskImage）
         ctx.save();
-        ctx.drawImage(maskImage, 0, 0, canvas.width / dpr, canvas.height / dpr);
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)'; // 红色半透明边框
+        ctx.lineWidth = 2;
+        // 遍历蒙版数据，找到透明区域的边界并绘制
+        const imageData = maskCtx.getImageData(0, 0, 300 * dpr, 400 * dpr);
+        const data = imageData.data;
+        for (let y = 0; y < 400 * dpr; y++) {
+          for (let x = 0; x < 300 * dpr; x++) {
+            const idx = (y * 300 * dpr + x) * 4;
+            const alpha = data[idx + 3];
+            // 检查相邻像素，找到透明区域的边界
+            if (alpha === 0) {
+              const neighbors = [
+                (y - 1) * 300 * dpr + x, // 上
+                (y + 1) * 300 * dpr + x, // 下
+                y * 300 * dpr + (x - 1), // 左
+                y * 300 * dpr + (x + 1)  // 右
+              ];
+              for (const n of neighbors) {
+                if (n >= 0 && n < data.length / 4) {
+                  const nIdx = n * 4;
+                  if (data[nIdx + 3] === 255) {
+                    ctx.fillRect(x / dpr, y / dpr, 1, 1);
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
         ctx.restore();
+      } else {
+        console.log('Cannot draw image: image.src=', image.src, 'maskData=', !!maskData);
       }
     }
 
