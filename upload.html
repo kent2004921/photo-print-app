@@ -210,6 +210,7 @@
     }
 
     let image = new Image();
+    let maskImage = new Image();
     let photoScale = 1;
     let photoRotation = 0;
     let posX = 0;
@@ -236,6 +237,46 @@
     canvas.style.height = '1251px';
     ctx.scale(dpr, dpr);
 
+    // 加载蒙版图片（PNG 格式，椭圆形区域透明）
+    const maskUrl = 'https://photo-print-app.netlify.app/assets/mask.png';
+    console.log('Attempting to load mask image from:', maskUrl);
+    maskImage.src = maskUrl;
+    maskImage.onload = () => {
+      console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
+      // 验证蒙版尺寸
+      if (maskImage.width !== 874 || maskImage.height !== 1251) {
+        console.warn('Mask image dimensions do not match canvas (874x1251), resizing may affect quality.');
+      }
+      // 验证蒙版透明区域
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = 874 * dpr;
+      tempCanvas.height = 1251 * dpr;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.scale(dpr, dpr);
+      tempCtx.drawImage(maskImage, 0, 0, 874, 1251);
+      const imageData = tempCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
+      const data = imageData.data;
+      let hasTransparent = false;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] === 0) {
+          hasTransparent = true;
+          break;
+        }
+      }
+      if (!hasTransparent) {
+        console.error('Mask image has no transparent areas, it will not work as a mask!');
+        alert('Mask image has no transparent areas! Please ensure the mask has a transparent elliptical region.');
+      } else {
+        console.log('Mask image has transparent areas, should work as a mask.');
+      }
+      drawImage();
+    };
+    maskImage.onerror = (error) => {
+      console.error('Failed to load mask image, error:', error);
+      console.log('Please verify the mask image URL by opening it in a browser:', maskUrl);
+      alert('Failed to load mask image from ' + maskUrl + ', please check the path, filename case, or deployment!');
+    };
+
     document.getElementById('photoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
@@ -259,15 +300,23 @@
     function drawImage() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if (image.src) {
+      if (image.src && maskImage.complete) {
         // 保存上下文状态
         ctx.save();
 
-        // 绘制椭圆形蒙版
-        ctx.beginPath();
-        ctx.ellipse(437, 625.5, 350, 500, 0, 0, Math.PI * 2); // 中心点 (437, 625.5)，宽度 700px，高度 1000px
-        ctx.closePath();
-        ctx.clip();
+        // 创建一个离屏画布来绘制蒙版
+        const maskCanvas = document.createElement('canvas');
+        maskCanvas.width = 874 * dpr;
+        maskCanvas.height = 1251 * dpr;
+        const maskCtx = maskCanvas.getContext('2d');
+        maskCtx.scale(dpr, dpr);
+        maskCtx.drawImage(maskImage, 0, 0, 874, 1251);
+
+        // 将蒙版应用到主画布
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.drawImage(maskCanvas, 0, 0);
+        ctx.globalCompositeOperation = 'source-in';
 
         // 绘制上传的照片
         ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
@@ -276,20 +325,45 @@
         ctx.scale(photoScale, photoScale);
         ctx.drawImage(image, -image.width / 2, -image.height / 2);
 
-        // 恢复上下文状态
+        // 恢复 globalCompositeOperation
+        ctx.globalCompositeOperation = 'source-over';
         ctx.restore();
 
-        // 绘制蒙版边框
+        // 绘制蒙版边框（使用蒙版图片的透明区域边界）
         ctx.save();
-        ctx.beginPath();
-        ctx.ellipse(437, 625.5, 350, 500, 0, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)'; // 红色半透明边框
         ctx.lineWidth = 2;
-        ctx.stroke();
+        const imageData = maskCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
+        const data = imageData.data;
+        for (let y = 0; y < 1251 * dpr; y++) {
+          for (let x = 0; x < 874 * dpr; x++) {
+            const idx = (y * 874 * dpr + x) * 4;
+            const alpha = data[idx + 3];
+            if (alpha === 0) {
+              const neighbors = [
+                (y - 1) * 874 * dpr + x, // 上
+                (y + 1) * 874 * dpr + x, // 下
+                y * 874 * dpr + (x - 1), // 左
+                y * 874 * dpr + (x + 1)  // 右
+              ];
+              for (const n of neighbors) {
+                if (n >= 0 && n < data.length / 4) {
+                  const nIdx = n * 4;
+                  if (data[nIdx + 3] > 0) {
+                    ctx.fillRect(x / dpr, y / dpr, 1, 1);
+                    break;
+                  }
+                }
+              }
+            }
+          }
+        }
+        ctx.restore();
+
+        // 恢复主画布上下文状态
         ctx.restore();
       } else {
-        console.log('Cannot draw image: image.src=', image.src);
+        console.log('Cannot draw image: image.src=', image.src, 'maskImage.complete=', maskImage.complete);
       }
     }
 
