@@ -51,7 +51,6 @@
       border-radius: 8px;
       display: block;
       margin: 0 auto;
-      touch-action: none;
     }
     input[type="file"] {
       width: 100%;
@@ -240,20 +239,9 @@
     let image = new Image();
     let maskImage = new Image();
     let photoScale = 1;
-    let photoRotation = 0;
-    let posX = 0;
-    let posY = 0;
-    let isDraggingImage = false;
-    let startX, startY;
     let brightness = 1;
     let contrast = 1;
     let saturation = 1;
-
-    let isPinching = false;
-    let initialDistance = 0;
-    let initialAngle = 0;
-    let initialScale = 1;
-    let initialRotation = 0;
 
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
@@ -279,6 +267,9 @@
     console.log('Attempting to load mask image from:', maskUrl);
     maskImage.onload = () => {
       console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
+      if (maskImage.width !== 874 || maskImage.height !== 1251) {
+        console.warn('Mask image dimensions do not match expected size (874x1251).');
+      }
       drawImage();
     };
     maskImage.onerror = (error) => {
@@ -311,7 +302,7 @@
           const compress = () => {
             dataUrl = canvas.toDataURL('image/jpeg', quality);
             const binary = atob(dataUrl.split(',')[1]);
-            const array = new Uint8Array(binary.length);
+            🙂const array = new Uint8Array(binary.length);
             for (let i = 0; i < binary.length; i++) {
               array[i] = binary.charCodeAt(i);
             }
@@ -349,9 +340,6 @@
           image.src = compressedDataUrl;
           image.onload = () => {
             console.log('Compressed photo loaded successfully, dimensions:', image.width, 'x', image.height);
-            // 重置位置和缩放
-            posX = 0;
-            posY = 0;
             photoScale = Math.min(canvasWidth / image.width, canvasHeight / image.height);
             drawImage();
             adjustCanvasDisplaySize();
@@ -369,126 +357,30 @@
       }
     });
 
-    let rafId;
     function drawImage() {
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        console.log('Drawing image, image.src:', image.src, 'image.complete:', image.complete, 'maskImage.complete:', maskImage.complete);
-        if (!image.src || !image.complete || image.naturalWidth === 0) {
-          console.log('Image not loaded, skipping draw.');
-          return;
-        }
+      console.log('Drawing image, image.src:', image.src, 'image.complete:', image.complete, 'maskImage.complete:', maskImage.complete);
+      if (!image.src || !image.complete || image.naturalWidth === 0) {
+        console.log('Image not loaded, skipping draw.');
+        return;
+      }
 
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.save();
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
 
-        ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-        ctx.translate((canvas.width / dpr) / 2 + posX, (canvas.height / dpr) / 2 + posY);
-        ctx.rotate((photoRotation * Math.PI) / 180);
-        ctx.scale(photoScale, photoScale);
-        ctx.drawImage(image, -image.width / 2, -image.height / 2);
+      ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
+      ctx.translate(canvasWidth / 2, canvasHeight / 2);
+      ctx.scale(photoScale, photoScale);
+      ctx.drawImage(image, -image.width / 2, -image.height / 2);
 
-        if (maskImage.complete && maskImage.naturalWidth !== 0) {
-          ctx.globalCompositeOperation = 'destination-in';
-          ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
-        } else {
-          console.warn('Mask image not loaded, skipping mask application.');
-        }
+      if (maskImage.complete && maskImage.naturalWidth !== 0) {
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+      } else {
+        console.warn('Mask image not loaded, skipping mask application.');
+      }
 
-        ctx.restore();
-      });
+      ctx.restore();
     }
-
-    let lastDrawTime = 0;
-    const throttleDraw = (callback) => {
-      const now = performance.now();
-      if (now - lastDrawTime > 32) {
-        callback();
-        lastDrawTime = now;
-      }
-    };
-
-    canvas.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      const touches = e.touches;
-      if (touches.length === 1) {
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvasWidth / rect.width;
-        const scaleY = canvasHeight / rect.height;
-        startX = touches[0].clientX;
-        startY = touches[0].clientY;
-        isDraggingImage = true;
-      } else if (touches.length === 2) {
-        const dx = touches[0].clientX - touches[1].clientX;
-        const dy = touches[0].clientY - touches[1].clientY;
-        initialDistance = Math.sqrt(dx * dx + dy * dy);
-        initialAngle = Math.atan2(dy, dx);
-        initialScale = photoScale;
-        initialRotation = photoRotation;
-        isPinching = true;
-      }
-    });
-
-    canvas.addEventListener('touchmove', (e) => {
-      e.preventDefault();
-      const touches = e.touches;
-      if (touches.length === 1 && isDraggingImage) {
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvasWidth / rect.width;
-        const scaleY = canvasHeight / rect.height;
-        const dx = (touches[0].clientX - startX) * scaleX;
-        const dy = (touches[0].clientY - startY) * scaleY;
-        posX += dx;
-        posY += dy;
-        startX = touches[0].clientX;
-        startY = touches[0].clientY;
-        throttleDraw(drawImage);
-      } else if (touches.length === 2 && isPinching) {
-        const dx = touches[0].clientX - touches[1].clientX;
-        const dy = touches[0].clientY - touches[1].clientY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const angle = Math.atan2(dy, dx);
-        const scaleFactor = distance / initialDistance;
-        photoScale = initialScale * scaleFactor;
-        const angleDiff = (angle - initialAngle) * (180 / Math.PI);
-        photoRotation = initialRotation + angleDiff;
-        throttleDraw(drawImage);
-      }
-    });
-
-    canvas.addEventListener('touchend', (e) => {
-      e.preventDefault();
-      isDraggingImage = false;
-      isPinching = false;
-    });
-
-    canvas.addEventListener('mousedown', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvasWidth / rect.width;
-      const scaleY = canvasHeight / rect.height;
-      startX = e.clientX;
-      startY = e.clientY;
-      isDraggingImage = true;
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-      if (isDraggingImage) {
-        const rect = canvas.getBoundingClientRect();
-        const scaleX = canvasWidth / rect.width;
-        const scaleY = canvasHeight / rect.height;
-        const dx = (e.clientX - startX) * scaleX;
-        const dy = (e.clientY - startY) * scaleY;
-        posX += dx;
-        posY += dy;
-        startX = e.clientX;
-        startY = e.clientY;
-        throttleDraw(drawImage);
-      }
-    });
-
-    canvas.addEventListener('mouseup', () => {
-      isDraggingImage = false;
-    });
 
     function adjustColor() {
       brightness = document.getElementById('brightness').value;
@@ -514,8 +406,7 @@
       printCtx.save();
 
       printCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-      printCtx.translate((printCanvas.width / printDpr) / 2 + posX * 2, (printCanvas.height / printDpr) / 2 + posY * 2);
-      printCtx.rotate((photoRotation * Math.PI) / 180);
+      printCtx.translate(874 / 2, 1251 / 2);
       printCtx.scale(photoScale * 2, photoScale * 2);
       printCtx.drawImage(image, -image.width / 2, -image.height / 2);
 
