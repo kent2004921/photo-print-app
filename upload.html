@@ -211,6 +211,7 @@
 
     let image = new Image();
     let maskImage = new Image();
+    let maskCanvas, maskCtx, maskData;
     let photoScale = 1;
     let photoRotation = 0;
     let posX = 0;
@@ -237,15 +238,40 @@
     canvas.style.height = '400px';
     ctx.scale(dpr, dpr);
 
-    // 加载蒙版图片
-    maskImage.src = 'assets/mask.png';
+    // 创建一个临时的 Canvas 用于处理蒙版
+    maskCanvas = document.createElement('canvas');
+    maskCanvas.width = 300 * dpr;
+    maskCanvas.height = 400 * dpr;
+    maskCtx = maskCanvas.getContext('2d');
+    maskCtx.scale(dpr, dpr);
+
+    // 加载蒙版图片（使用 JPG 格式）
+    maskImage.src = 'https://photo-print-app.netlify.app/assets/mask.jpg';
     maskImage.onload = () => {
       console.log('Mask image loaded successfully');
+      // 绘制蒙版到临时 Canvas
+      maskCtx.drawImage(maskImage, 0, 0, 300, 400);
+      // 获取蒙版图片的像素数据
+      const imageData = maskCtx.getImageData(0, 0, 300 * dpr, 400 * dpr);
+      maskData = imageData.data;
+      // 将白色区域（椭圆形）设置为透明，黑色区域（周围）设置为不透明
+      for (let i = 0; i < maskData.length; i += 4) {
+        const r = maskData[i];
+        const g = maskData[i + 1];
+        const b = maskData[i + 2];
+        // 假设椭圆形区域是白色 (255, 255, 255)，周围是黑色 (0, 0, 0)
+        if (r === 255 && g === 255 && b === 255) {
+          maskData[i + 3] = 0; // 白色区域设置为透明
+        } else {
+          maskData[i + 3] = 255; // 黑色区域设置为不透明
+        }
+      }
+      maskCtx.putImageData(imageData, 0, 0);
       drawImage();
     };
     maskImage.onerror = () => {
-      console.error('Failed to load mask image');
-      alert('Failed to load mask image, please check the path!');
+      console.error('Failed to load mask image from https://photo-print-app.netlify.app/assets/mask.jpg');
+      alert('Failed to load mask image from https://photo-print-app.netlify.app/assets/mask.jpg, please check the path or deployment!');
     };
 
     document.getElementById('photoInput').addEventListener('change', (e) => {
@@ -267,12 +293,12 @@
     function drawImage() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if (image.src && maskImage.src) {
+      if (image.src && maskData) {
         // 保存上下文状态
         ctx.save();
 
-        // 首先绘制蒙版图片
-        ctx.drawImage(maskImage, 0, 0, canvas.width / dpr, canvas.height / dpr);
+        // 首先绘制蒙版（使用临时 Canvas）
+        ctx.drawImage(maskCanvas, 0, 0);
 
         // 设置 globalCompositeOperation 为 'source-in'
         // 这会让后续绘制的照片只显示在蒙版的透明区域内（即椭圆形区域）
@@ -291,7 +317,7 @@
         // 恢复上下文状态
         ctx.restore();
 
-        // 绘制蒙版边框（用于让顾客看到裁剪区域）
+        // 绘制蒙版边框（使用原始蒙版图片，让顾客看到裁剪区域）
         ctx.save();
         ctx.drawImage(maskImage, 0, 0, canvas.width / dpr, canvas.height / dpr);
         ctx.restore();
@@ -361,16 +387,6 @@
 
       if (touches.length === 1 && isDraggingImage) {
         const dx = (touches[0].clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
-        const dy = (touches[0].clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
-
-        posX += dx;
-        posY += dy;
-
-        startX = touches[0].clientX;
-        startY = touches[0].clientY;
-        drawImage();
-      } else if (touches.length === 2 && isPinching) {
-        const dx = touches[0].clientX - touches[1].clientX;
         const dy = (touches[0].clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
 
         posX += dx;
