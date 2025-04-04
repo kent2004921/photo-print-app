@@ -210,7 +210,6 @@
     }
 
     let image = new Image();
-    let maskImage = new Image();
     let photoScale = 1;
     let photoRotation = 0;
     let posX = 0;
@@ -231,21 +230,11 @@
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = 300 * dpr;
-    canvas.height = 300 * dpr;
+    canvas.width = 300 * dpr; // 调整为图片的宽度
+    canvas.height = 400 * dpr; // 调整为图片的高度
     canvas.style.width = '300px';
-    canvas.style.height = '300px';
+    canvas.style.height = '400px';
     ctx.scale(dpr, dpr);
-
-    // 加载蒙版图片
-    maskImage.src = 'assets/mask.png';
-    maskImage.onload = () => {
-      console.log('Mask image loaded successfully');
-      drawImage();
-    };
-    maskImage.onerror = () => {
-      console.error('Failed to load mask image');
-    };
 
     document.getElementById('photoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -265,20 +254,37 @@
 
     function drawImage() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
       if (image.src) {
+        // 保存上下文状态
         ctx.save();
+
+        // 创建椭圆形裁剪区域（与图片中的椭圆形一致）
+        const centerX = 150; // 椭圆形中心 X 坐标（图片宽度的一半）
+        const centerY = 200; // 椭圆形中心 Y 坐标（图片高度的一半）
+        const radiusX = 120; // 椭圆形的水平半径（与图片中的椭圆形一致）
+        const radiusY = 150; // 椭圆形的垂直半径（与图片中的椭圆形一致）
+        ctx.beginPath();
+        ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+        ctx.clip();
+
+        // 绘制照片（会被裁剪到椭圆形区域内）
         ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
         ctx.translate((canvas.width / dpr) / 2 + posX, (canvas.height / dpr) / 2 + posY);
         ctx.rotate((photoRotation * Math.PI) / 180);
         ctx.scale(photoScale, photoScale);
         ctx.drawImage(image, -image.width / 2, -image.height / 2);
-        ctx.restore();
-      }
 
-      // 绘制蒙版
-      if (maskImage.src) {
+        // 恢复上下文状态
+        ctx.restore();
+
+        // 绘制椭圆形边框（可选，用于让顾客看到椭圆形区域）
         ctx.save();
-        ctx.drawImage(maskImage, 0, 0, canvas.width / dpr, canvas.height / dpr);
+        ctx.beginPath();
+        ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
         ctx.restore();
       }
     }
@@ -360,11 +366,9 @@
         const distance = Math.sqrt(dx * dx + dy * dy);
         const angle = Math.atan2(dy, dx);
 
-        // 计算缩放比例（移除最小值限制）
+        // 计算缩放比例（无限制）
         const scaleFactor = distance / initialDistance;
         photoScale = initialScale * scaleFactor;
-        // 移除 photoScale 的最小值限制，允许无限缩小
-        // photoScale = Math.max(0.1, Math.min(photoScale, 5)); // 已删除
 
         // 计算旋转角度
         const angleDiff = (angle - initialAngle) * (180 / Math.PI);
