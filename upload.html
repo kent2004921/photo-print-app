@@ -17,18 +17,18 @@
     }
     .container {
       background: white;
-      padding: 15px;
+      padding: 10px;
       border-radius: 15px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.2);
       width: 90%;
-      max-width: 400px; /* 匹配画布显示宽度 */
-      margin: 10px 0;
+      max-width: 437px; /* 参考宽度 */
+      margin: 5px 0;
       text-align: center;
       position: relative;
       display: flex;
       flex-direction: column;
-      height: calc(100vh - 20px);
-      overflow: hidden;
+      height: calc(100vh - 10px);
+      overflow-y: auto;
     }
     .container::before {
       content: '';
@@ -43,43 +43,41 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
+      margin-bottom: 5px;
       flex-shrink: 0;
     }
     h2 {
       color: #333;
-      font-size: 20px;
+      font-size: 16px;
       margin: 0;
     }
     canvas {
       border: 1px solid #ddd;
       border-radius: 8px;
-      width: 400px; /* 固定显示宽度 */
-      height: 300px; /* 固定显示高度 */
-      flex-grow: 0; /* 不拉伸 */
+      flex-grow: 0;
       flex-shrink: 0;
       margin: 5px 0;
       touch-action: none;
     }
     input[type="file"] {
       width: 100%;
-      padding: 8px;
+      padding: 5px;
       margin: 5px 0;
       border: 1px solid #ddd;
       border-radius: 8px;
       box-sizing: border-box;
-      font-size: 14px;
+      font-size: 12px;
       background-color: #f9f9f9;
       flex-shrink: 0;
     }
     button {
       width: 100%;
-      padding: 8px;
+      padding: 5px;
       margin: 5px 0;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 12px;
       transition: transform 0.1s, background 0.3s;
       flex-shrink: 0;
     }
@@ -96,14 +94,14 @@
     .language-btn {
       background: linear-gradient(to right, #28a745, #34d058);
       color: white;
-      width: 30px;
-      height: 30px;
+      width: 25px;
+      height: 25px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 16px;
+      font-size: 14px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
       transition: transform 0.1s, background 0.3s;
     }
@@ -114,7 +112,7 @@
     .controls {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 5px;
       justify-content: center;
       flex-shrink: 0;
     }
@@ -128,9 +126,9 @@
     }
     .control-group label {
       display: block;
-      margin-bottom: 5px;
+      margin-bottom: 3px;
       color: #444;
-      font-size: 14px;
+      font-size: 12px;
     }
     .control-group input[type="range"] {
       width: 100%;
@@ -138,7 +136,7 @@
     }
     .compression-status {
       margin: 5px 0;
-      font-size: 12px;
+      font-size: 10px;
       color: #555;
       flex-shrink: 0;
     }
@@ -184,10 +182,11 @@
         print_success: "打印成功！",
         print_failed: "打印失败！",
         network_error: "网络错误，请稍后再试！",
-        language_btn: "English39",
+        language_btn: "English",
         compressing: "正在压缩照片...",
         compression_success: "照片压缩成功，大小：{size}kb",
-        compression_failed: "照片压缩失败，请重试！"
+        compression_failed: "照片压缩失败，请重试！",
+        mask_load_failed: "蒙版加载失败，请检查网络或蒙版文件！"
       },
       en: {
         upload_title: "Upload Photo to Print",
@@ -204,7 +203,8 @@
         language_btn: "中文",
         compressing: "Compressing photo...",
         compression_success: "Photo compressed successfully, size: {size}kb",
-        compression_failed: "Photo compression failed, please try again!"
+        compression_failed: "Photo compression failed, please try again!",
+        mask_load_failed: "Failed to load mask image, please check network or mask file!"
       }
     };
 
@@ -223,7 +223,7 @@
         element.textContent = translations[currentLang][key];
       });
       document.title = translations[currentLang].upload_title;
-      updateCompressionStatus(''); // 更新压缩状态文本
+      updateCompressionStatus('');
     }
 
     function updateCompressionStatus(message, size) {
@@ -269,10 +269,41 @@
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    const canvasWidth = 874; // 打印宽度
-    const canvasHeight = 1251; // 打印高度
+    const canvasWidth = 874;
+    const canvasHeight = 1251;
     canvas.width = canvasWidth * dpr;
     canvas.height = canvasHeight * dpr;
+
+    function adjustCanvasDisplaySize() {
+      const container = document.querySelector('.container');
+      const containerHeight = container.clientHeight;
+      const headerHeight = document.querySelector('.header').offsetHeight;
+      const inputHeight = document.querySelector('input[type="file"]').offsetHeight;
+      const statusHeight = document.getElementById('compressionStatus').offsetHeight;
+      const controlsHeight = document.querySelector('.controls').offsetHeight;
+      const controlGroups = document.querySelectorAll('.control-group');
+      let controlGroupsHeight = 0;
+      controlGroups.forEach(group => {
+        controlGroupsHeight += group.offsetHeight;
+      });
+
+      const availableHeight = containerHeight - headerHeight - inputHeight - statusHeight - controlsHeight - controlGroupsHeight - 30;
+      const maxWidth = window.innerWidth * 0.9;
+      const referenceWidth = 437; // 参考宽度
+      const referenceHeight = 625.5; // 参考高度
+      const scaleWidth = maxWidth / canvasWidth;
+      const scaleHeight = availableHeight / canvasHeight;
+      const scale = Math.min(scaleWidth, scaleHeight, 1);
+
+      const displayWidth = canvasWidth * scale;
+      const displayHeight = canvasHeight * scale;
+
+      canvas.style.width = `${displayWidth}px`;
+      canvas.style.height = `${displayHeight}px`;
+    }
+
+    adjustCanvasDisplaySize();
+    window.addEventListener('resize', adjustCanvasDisplaySize);
 
     ctx.scale(dpr, dpr);
 
@@ -315,7 +346,7 @@
     maskImage.onerror = (error) => {
       console.error('Failed to load mask image, error:', error);
       console.log('Please verify the mask image URL by opening it in a browser:', maskUrl);
-      alert('Failed to load mask image from ' + maskUrl + ', please check the path, filename case, or deployment!');
+      alert(translations[currentLang].mask_load_failed);
     };
 
     async function compressImage(file, maxSizeKB = 500) {
@@ -381,6 +412,7 @@
           image.onload = () => {
             console.log('Compressed photo loaded successfully, dimensions:', image.width, 'x', image.height);
             drawImage();
+            adjustCanvasDisplaySize();
           };
           image.onerror = () => {
             console.error('Failed to load compressed photo');
@@ -471,8 +503,8 @@
 
     canvas.addEventListener('mousedown', (e) => {
       const rect = canvas.getBoundingClientRect();
-      const scaleX = canvasWidth / 400; // 显示宽度 400px
-      const scaleY = canvasHeight / 300; // 显示高度 300px
+      const scaleX = canvasWidth / rect.width;
+      const scaleY = canvasHeight / rect.height;
       const x = (e.clientX - rect.left) * scaleX;
       const y = (e.clientY - rect.top) * scaleY;
 
@@ -484,8 +516,8 @@
     canvas.addEventListener('mousemove', (e) => {
       if (isDraggingImage) {
         const rect = canvas.getBoundingClientRect();
-        const scaleX = canvasWidth / 400;
-        const scaleY = canvasHeight / 300;
+        const scaleX = canvasWidth / rect.width;
+        const scaleY = canvasHeight / rect.height;
         const dx = (e.clientX - startX) * scaleX;
         const dy = (e.clientY - startY) * scaleY;
 
@@ -505,8 +537,8 @@
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
-      const scaleX = canvasWidth / 400;
-      const scaleY = canvasHeight / 300;
+      const scaleX = canvasWidth / rect.width;
+      const scaleY = canvasHeight / rect.height;
       const touches = e.touches;
 
       if (touches.length === 1) {
@@ -533,8 +565,8 @@
       e.preventDefault();
       const touches = e.touches;
       const rect = canvas.getBoundingClientRect();
-      const scaleX = canvasWidth / 400;
-      const scaleY = canvasHeight / 300;
+      const scaleX = canvasWidth / rect.width;
+      const scaleY = canvasHeight / rect.height;
 
       if (touches.length === 1 && isDraggingImage) {
         const dx = (touches[0].clientX - startX) * scaleX;
@@ -563,6 +595,8 @@
     });
 
     canvas.addEventListener('touchend', (e) => {
+      eರ
+
       e.preventDefault();
       isDraggingImage = false;
       isPinching = false;
@@ -571,7 +605,7 @@
     function adjustColor() {
       brightness = document.getElementById('brightness').value;
       contrast = document.getElementById('contrast').value;
-      saturation = document.getElementById('saturation').value;
+      saturation = document.getElementById('saturation'). Wvalue;
       drawImage();
     }
 
