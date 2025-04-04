@@ -9,12 +9,11 @@
       font-family: 'Segoe UI', Arial, sans-serif;
       margin: 0;
       background: linear-gradient(135deg, #74ebd5, #acb6e5);
-      overflow: hidden;
-      height: 100vh;
+      overflow-y: auto;
     }
     .container {
       display: grid;
-      grid-template-rows: auto auto auto 1fr auto;
+      grid-template-rows: auto auto auto auto auto;
       gap: 8px;
       background: white;
       padding: 10px;
@@ -24,7 +23,8 @@
       max-width: 437px;
       margin: 5px auto;
       text-align: center;
-      height: calc(100vh - 10px);
+      height: auto;
+      min-height: 100vh;
       overflow-y: auto;
     }
     .container::before {
@@ -258,35 +258,16 @@
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    const canvasWidth = 874;
-    const canvasHeight = 1251;
+    const canvasWidth = 437;
+    const canvasHeight = 625.5;
     canvas.width = canvasWidth * dpr;
     canvas.height = canvasHeight * dpr;
 
     function adjustCanvasDisplaySize() {
-      const containerHeight = window.innerHeight - 10;
-      const headerHeight = document.querySelector('.header').offsetHeight;
-      const inputHeight = document.querySelector('input[type="file"]').offsetHeight;
-      const statusHeight = document.getElementById('compressionStatus').offsetHeight;
-      const controlsHeight = document.querySelector('.controls').offsetHeight;
-      const controlGroups = document.querySelectorAll('.control-group');
-      let controlGroupsHeight = 0;
-      controlGroups.forEach(group => {
-        controlGroupsHeight += group.offsetHeight;
-      });
-
-      const totalControlsHeight = headerHeight + inputHeight + statusHeight + controlsHeight + controlGroupsHeight + 40;
-      const availableHeight = containerHeight - totalControlsHeight;
       const maxWidth = window.innerWidth * 0.9;
-      const scaleWidth = maxWidth / canvasWidth;
-      const scaleHeight = availableHeight / canvasHeight;
-      const scale = Math.min(scaleWidth, scaleHeight, 1);
-
-      const displayWidth = canvasWidth * scale;
-      const displayHeight = canvasHeight * scale;
-
-      canvas.style.width = `${displayWidth}px`;
-      canvas.style.height = `${displayHeight}px`;
+      const scale = Math.min(maxWidth / canvasWidth, 1);
+      canvas.style.width = `${canvasWidth * scale}px`;
+      canvas.style.height = `${canvasHeight * scale}px`;
     }
 
     adjustCanvasDisplaySize();
@@ -298,9 +279,6 @@
     console.log('Attempting to load mask image from:', maskUrl);
     maskImage.onload = () => {
       console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
-      if (maskImage.width !== canvasWidth || maskImage.height !== canvasHeight) {
-        console.warn('Mask image dimensions do not match canvas (874x1251), resizing may affect quality.');
-      }
       drawImage();
     };
     maskImage.onerror = (error) => {
@@ -343,7 +321,7 @@
               quality -= 0.1;
               setTimeout(compress, 0);
             } else if (size > maxSizeBytes) {
-              console.warn('Cannot compress image below 500kb without significant quality loss.');
+              console.warn('Cannot compress image below 500kb without significant Wquality loss.');
               updateCompressionStatus('success', size / 1024);
               resolve(dataUrl);
             } else {
@@ -396,38 +374,15 @@
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.save();
 
-          const photoCanvas = document.createElement('canvas');
-          photoCanvas.width = canvasWidth * dpr;
-          photoCanvas.height = canvasHeight * dpr;
-          const photoCtx = photoCanvas.getContext('2d');
-          photoCtx.scale(dpr, dpr);
+          ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
+          ctx.translate((canvas.width / dpr) / 2 + posX, (canvas.height / dpr) / 2 + posY);
+          ctx.rotate((photoRotation * Math.PI) / 180);
+          ctx.scale(photoScale, photoScale);
+          ctx.drawImage(image, -image.width / 2, -image.height / 2);
 
-          photoCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-          photoCtx.translate((canvas.width / dpr) / 2 + posX, (canvas.height / dpr) / 2 + posY);
-          photoCtx.rotate((photoRotation * Math.PI) / 180);
-          photoCtx.scale(photoScale, photoScale);
-          photoCtx.drawImage(image, -image.width / 2, -image.height / 2);
+          ctx.globalCompositeOperation = 'destination-in';
+          ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
 
-          const maskCanvas = document.createElement('canvas');
-          maskCanvas.width = canvasWidth * dpr;
-          maskCanvas.height = canvasHeight * dpr;
-          const maskCtx = maskCanvas.getContext('2d');
-          maskCtx.scale(dpr, dpr);
-          maskCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
-
-          const photoData = photoCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
-          const maskData = maskCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
-          const photoPixels = photoData.data;
-          const maskPixels = maskData.data;
-
-          for (let i = 0; i < photoPixels.length; i += 4) {
-            const maskAlpha = maskPixels[i + 3];
-            if (maskAlpha !== 0) {
-              photoPixels[i + 3] = 0;
-            }
-          }
-
-          ctx.putImageData(photoData, 0, 0);
           ctx.restore();
         } else {
           console.log('Cannot draw image: image.src=', image.src, 'maskImage.complete=', maskImage.complete);
@@ -438,7 +393,7 @@
     let lastDrawTime = 0;
     const throttleDraw = (callback) => {
       const now = performance.now();
-      if (now - lastDrawTime > 16) {
+      if (now - lastDrawTime > 32) {
         callback();
         lastDrawTime = now;
       }
@@ -510,11 +465,34 @@
         alert(translations[currentLang].no_photo);
         return;
       }
-      const dataUrl = canvas.toDataURL('image/jpeg');
+
+      const printCanvas = document.createElement('canvas');
+      const printCtx = printCanvas.getContext('2d');
+      const printDpr = window.devicePixelRatio || 1;
+      printCanvas.width = 874 * printDpr;
+      printCanvas.height = 1251 * printDpr;
+      printCtx.scale(printDpr, printDpr);
+
+      printCtx.clearRect(0, 0, printCanvas.width, printCanvas.height);
+      printCtx.save();
+
+      printCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
+      printCtx.translate((printCanvas.width / printDpr) / 2 + posX * 2, (printCanvas.height / printDpr) / 2 + posY * 2);
+      printCtx.rotate((photoRotation * Math.PI) / 180);
+      printCtx.scale(photoScale * 2, photoScale * 2);
+      printCtx.drawImage(image, -image.width / 2, -image.height / 2);
+
+      printCtx.globalCompositeOperation = 'destination-in';
+      printCtx.drawImage(maskImage, 0, 0, 874, 1251);
+
+      printCtx.restore();
+
+      const dataUrl = printCanvas.toDataURL('image/jpeg');
       if (!username || !dataUrl) {
         alert(translations[currentLang].missing_data);
         return;
       }
+
       try {
         const response = await fetch('/.netlify/functions/print', {
           method: 'POST',
