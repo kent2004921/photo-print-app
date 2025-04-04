@@ -238,14 +238,17 @@
     ctx.scale(dpr, dpr);
 
     // 加载蒙版图片（PNG 格式，椭圆形区域透明）
-    maskImage.src = 'https://photo-print-app.netlify.app/assets/mask.png';
+    const maskUrl = 'https://photo-print-app.netlify.app/assets/mask.png';
+    console.log('Attempting to load mask image from:', maskUrl);
+    maskImage.src = maskUrl;
     maskImage.onload = () => {
-      console.log('Mask image loaded successfully');
+      console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
       drawImage();
     };
-    maskImage.onerror = () => {
-      console.error('Failed to load mask image');
-      alert('Failed to load mask image from https://photo-print-app.netlify.app/assets/mask.png, please check the path, filename case, or deployment!');
+    maskImage.onerror = (error) => {
+      console.error('Failed to load mask image, error:', error);
+      console.log('Please verify the mask image URL by opening it in a browser:', maskUrl);
+      alert('Failed to load mask image from ' + maskUrl + ', please check the path, filename case, or deployment!');
     };
 
     document.getElementById('photoInput').addEventListener('change', (e) => {
@@ -379,7 +382,7 @@
         const y = (touches[0].clientY - rect.top) * (canvas.height / dpr / rect.height);
 
         isDraggingImage = true;
-        startX = touches[0].clientX;
+        startX =touches[0].clientX;
         startY = touches[0].clientY;
       } else if (touches.length === 2) {
         // 双指缩放和旋转照片
