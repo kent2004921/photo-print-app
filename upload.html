@@ -20,7 +20,7 @@
       border-radius: 15px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.2);
       width: 90%;
-      max-width: 500px;
+      max-width: 874px;
       margin: 20px 0;
       text-align: center;
       position: relative;
@@ -210,7 +210,6 @@
     }
 
     let image = new Image();
-    let maskImage = new Image();
     let photoScale = 1;
     let photoRotation = 0;
     let posX = 0;
@@ -231,25 +230,11 @@
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = 300 * dpr; // 宽度 300px
-    canvas.height = 400 * dpr; // 高度 400px
-    canvas.style.width = '300px';
-    canvas.style.height = '400px';
+    canvas.width = 874 * dpr; // 宽度 874px
+    canvas.height = 1251 * dpr; // 高度 1251px
+    canvas.style.width = '874px';
+    canvas.style.height = '1251px';
     ctx.scale(dpr, dpr);
-
-    // 加载蒙版图片（PNG 格式，椭圆形区域透明）
-    const maskUrl = 'https://photo-print-app.netlify.app/assets/mask.png';
-    console.log('Attempting to load mask image from:', maskUrl);
-    maskImage.src = maskUrl;
-    maskImage.onload = () => {
-      console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
-      drawImage();
-    };
-    maskImage.onerror = (error) => {
-      console.error('Failed to load mask image, error:', error);
-      console.log('Please verify the mask image URL by opening it in a browser:', maskUrl);
-      alert('Failed to load mask image from ' + maskUrl + ', please check the path, filename case, or deployment!');
-    };
 
     document.getElementById('photoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -274,16 +259,15 @@
     function drawImage() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if (image.src && maskImage.complete) {
+      if (image.src) {
         // 保存上下文状态
         ctx.save();
 
-        // 绘制蒙版图片
-        ctx.drawImage(maskImage, 0, 0, 300, 400);
-
-        // 设置 globalCompositeOperation 为 'source-in'
-        // 这会让后续绘制的照片只显示在蒙版的透明区域内（即椭圆形区域）
-        ctx.globalCompositeOperation = 'source-in';
+        // 绘制椭圆形蒙版
+        ctx.beginPath();
+        ctx.ellipse(437, 625.5, 350, 500, 0, 0, Math.PI * 2); // 中心点 (437, 625.5)，宽度 700px，高度 1000px
+        ctx.closePath();
+        ctx.clip();
 
         // 绘制上传的照片
         ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
@@ -292,52 +276,20 @@
         ctx.scale(photoScale, photoScale);
         ctx.drawImage(image, -image.width / 2, -image.height / 2);
 
-        // 恢复 globalCompositeOperation
-        ctx.globalCompositeOperation = 'source-over';
-
         // 恢复上下文状态
         ctx.restore();
 
-        // 绘制蒙版边框（使用蒙版图片的透明区域边界）
+        // 绘制蒙版边框
         ctx.save();
-        ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)'; // 红色半透明边框
+        ctx.beginPath();
+        ctx.ellipse(437, 625.5, 350, 500, 0, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
         ctx.lineWidth = 2;
-        // 创建一个临时 Canvas 来检测透明区域边界
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = 300 * dpr;
-        tempCanvas.height = 400 * dpr;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCtx.scale(dpr, dpr);
-        tempCtx.drawImage(maskImage, 0, 0, 300, 400);
-        const imageData = tempCtx.getImageData(0, 0, 300 * dpr, 400 * dpr);
-        const data = imageData.data;
-        for (let y = 0; y < 400 * dpr; y++) {
-          for (let x = 0; x < 300 * dpr; x++) {
-            const idx = (y * 300 * dpr + x) * 4;
-            const alpha = data[idx + 3];
-            // 检查相邻像素，找到透明区域的边界
-            if (alpha === 0) {
-              const neighbors = [
-                (y - 1) * 300 * dpr + x, // 上
-                (y + 1) * 300 * dpr + x, // 下
-                y * 300 * dpr + (x - 1), // 左
-                y * 300 * dpr + (x + 1)  // 右
-              ];
-              for (const n of neighbors) {
-                if (n >= 0 && n < data.length / 4) {
-                  const nIdx = n * 4;
-                  if (data[nIdx + 3] > 0) {
-                    ctx.fillRect(x / dpr, y / dpr, 1, 1);
-                    break;
-                  }
-                }
-              }
-            }
-          }
-        }
+        ctx.stroke();
         ctx.restore();
       } else {
-        console.log('Cannot draw image: image.src=', image.src, 'maskImage.complete=', maskImage.complete);
+        console.log('Cannot draw image: image.src=', image.src);
       }
     }
 
@@ -382,7 +334,7 @@
         const y = (touches[0].clientY - rect.top) * (canvas.height / dpr / rect.height);
 
         isDraggingImage = true;
-        startX =touches[0].clientX;
+        startX = touches[0].clientX;
         startY = touches[0].clientY;
       } else if (touches.length === 2) {
         // 双指缩放和旋转照片
