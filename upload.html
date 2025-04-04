@@ -13,17 +13,21 @@
       min-height: 100vh;
       margin: 0;
       background: linear-gradient(135deg, #74ebd5, #acb6e5);
+      overflow: hidden; /* 防止页面滚动 */
     }
     .container {
       background: white;
-      padding: 30px;
+      padding: 15px;
       border-radius: 15px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.2);
       width: 90%;
       max-width: 874px;
-      margin: 20px 0;
+      margin: 10px 0;
       text-align: center;
       position: relative;
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 20px); /* 占满屏幕高度，减去 margin */
       overflow: hidden;
     }
     .container::before {
@@ -39,39 +43,43 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
+      margin-bottom: 10px;
+      flex-shrink: 0;
     }
     h2 {
       color: #333;
-      font-size: 24px;
+      font-size: 20px;
       margin: 0;
     }
     canvas {
       border: 1px solid #ddd;
       border-radius: 8px;
+      flex-grow: 1; /* 画布占满剩余空间 */
       max-width: 100%;
-      margin: 10px 0;
-      touch-action: none; /* 防止触摸时触发默认行为 */
+      margin: 5px 0;
+      touch-action: none;
     }
     input[type="file"] {
       width: 100%;
-      padding: 12px;
-      margin: 10px 0;
+      padding: 8px;
+      margin: 5px 0;
       border: 1px solid #ddd;
       border-radius: 8px;
       box-sizing: border-box;
-      font-size: 16px;
+      font-size: 14px;
       background-color: #f9f9f9;
+      flex-shrink: 0;
     }
     button {
       width: 100%;
-      padding: 12px;
-      margin: 10px 0;
+      padding: 8px;
+      margin: 5px 0;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      font-size: 16px;
+      font-size: 14px;
       transition: transform 0.1s, background 0.3s;
+      flex-shrink: 0;
     }
     button:hover {
       transform: scale(1.02);
@@ -86,14 +94,14 @@
     .language-btn {
       background: linear-gradient(to right, #28a745, #34d058);
       color: white;
-      width: 40px;
-      height: 40px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 20px;
+      font-size: 16px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
       transition: transform 0.1s, background 0.3s;
     }
@@ -104,25 +112,33 @@
     .controls {
       display: flex;
       flex-wrap: wrap;
-      gap: 15px;
+      gap: 10px;
       justify-content: center;
+      flex-shrink: 0;
     }
     .control-group {
-      margin: 15px 0;
-      padding: 10px;
+      margin: 5px 0;
+      padding: 5px;
       background-color: #f9f9f9;
       border-radius: 8px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      flex-shrink: 0;
     }
     .control-group label {
       display: block;
-      margin-bottom: 8px;
+      margin-bottom: 5px;
       color: #444;
-      font-size: 16px;
+      font-size: 14px;
     }
     .control-group input[type="range"] {
       width: 100%;
       cursor: pointer;
+    }
+    .compression-status {
+      margin: 5px 0;
+      font-size: 12px;
+      color: #555;
+      flex-shrink: 0;
     }
   </style>
 </head>
@@ -133,6 +149,7 @@
       <button class="language-btn" onclick="toggleLanguage()">🌐</button>
     </div>
     <input type="file" id="photoInput" accept="image/*">
+    <div class="compression-status" id="compressionStatus"></div>
     <canvas id="photoCanvas"></canvas>
     <div class="controls">
       <button class="print-btn" onclick="printPhoto()" data-i18n="print">打印</button>
@@ -165,7 +182,10 @@
         print_success: "打印成功！",
         print_failed: "打印失败！",
         network_error: "网络错误，请稍后再试！",
-        language_btn: "English"
+        language_btn: "English",
+        compressing: "正在压缩照片...",
+        compression_success: "照片压缩成功，大小：{size}kb",
+        compression_failed: "照片压缩失败，请重试！"
       },
       en: {
         upload_title: "Upload Photo to Print",
@@ -179,7 +199,10 @@
         print_success: "Print successful!",
         print_failed: "Print failed!",
         network_error: "Network error, please try again later!",
-        language_btn: "中文"
+        language_btn: "中文",
+        compressing: "Compressing photo...",
+        compression_success: "Photo compressed successfully, size: {size}kb",
+        compression_failed: "Photo compression failed, please try again!"
       }
     };
 
@@ -198,6 +221,20 @@
         element.textContent = translations[currentLang][key];
       });
       document.title = translations[currentLang].upload_title;
+      updateCompressionStatus(''); // 更新压缩状态文本
+    }
+
+    function updateCompressionStatus(message, size) {
+      const statusElement = document.getElementById('compressionStatus');
+      if (message === 'compressing') {
+        statusElement.textContent = translations[currentLang].compressing;
+      } else if (message === 'success') {
+        statusElement.textContent = translations[currentLang].compression_success.replace('{size}', size.toFixed(2));
+      } else if (message === 'failed') {
+        statusElement.textContent = translations[currentLang].compression_failed;
+      } else {
+        statusElement.textContent = '';
+      }
     }
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -221,7 +258,6 @@
     let contrast = 1;
     let saturation = 1;
 
-    // 触摸手势相关变量
     let isPinching = false;
     let initialDistance = 0;
     let initialAngle = 0;
@@ -231,24 +267,39 @@
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    const canvasWidth = 874; // 打印宽度 874px
-    const canvasHeight = 1251; // 打印高度 1251px
+    const canvasWidth = 874;
+    const canvasHeight = 1251;
     canvas.width = canvasWidth * dpr;
     canvas.height = canvasHeight * dpr;
 
-    // 自适应屏幕大小
     function adjustCanvasDisplaySize() {
-      const maxWidth = window.innerWidth * 0.9; // 屏幕宽度的 90%
-      const scale = Math.min(maxWidth / canvasWidth, 1); // 计算缩放比例
+      const container = document.querySelector('.container');
+      const containerHeight = container.clientHeight;
+      const headerHeight = document.querySelector('.header').offsetHeight;
+      const inputHeight = document.querySelector('input[type="file"]').offsetHeight;
+      const statusHeight = document.getElementById('compressionStatus').offsetHeight;
+      const controlsHeight = document.querySelector('.controls').offsetHeight;
+      const controlGroups = document.querySelectorAll('.control-group');
+      let controlGroupsHeight = 0;
+      controlGroups.forEach(group => {
+        controlGroupsHeight += group.offsetHeight;
+      });
+
+      const availableHeight = containerHeight - headerHeight - inputHeight - statusHeight - controlsHeight - controlGroupsHeight - 40; // 减去 padding 和 margin
+      const maxWidth = window.innerWidth * 0.9;
+      const scaleWidth = maxWidth / canvasWidth;
+      const scaleHeight = availableHeight / canvasHeight;
+      const scale = Math.min(scaleWidth, scaleHeight, 1);
+
       canvas.style.width = `${canvasWidth * scale}px`;
       canvas.style.height = `${canvasHeight * scale}px`;
     }
+
     adjustCanvasDisplaySize();
     window.addEventListener('resize', adjustCanvasDisplaySize);
 
     ctx.scale(dpr, dpr);
 
-    // 加载蒙版图片（PNG 格式，椭圆形区域透明）
     const maskUrl = 'https://photo-print-app.netlify.app/assets/mask.png';
     console.log('Attempting to load mask image from:', maskUrl);
     maskImage.src = maskUrl;
@@ -291,7 +342,6 @@
       alert('Failed to load mask image from ' + maskUrl + ', please check the path, filename case, or deployment!');
     };
 
-    // 照片压缩函数
     async function compressImage(file, maxSizeKB = 500) {
       return new Promise((resolve, reject) => {
         const img = new Image();
@@ -310,7 +360,7 @@
           ctx.drawImage(img, 0, 0);
 
           let quality = 0.9;
-          const maxSizeBytes = maxSizeKB * 1024; // 500kb 转换为字节
+          const maxSizeBytes = maxSizeKB * 1024;
           let dataUrl;
 
           const compress = () => {
@@ -324,12 +374,14 @@
 
             if (size > maxSizeBytes && quality > 0.1) {
               quality -= 0.1;
-              setTimeout(compress, 0); // 异步递归压缩
+              setTimeout(compress, 0);
             } else if (size > maxSizeBytes) {
               console.warn('Cannot compress image below 500kb without significant quality loss.');
+              updateCompressionStatus('success', size / 1024);
               resolve(dataUrl);
             } else {
               console.log(`Compressed image size: ${(size / 1024).toFixed(2)}kb, quality: ${quality}`);
+              updateCompressionStatus('success', size / 1024);
               resolve(dataUrl);
             }
           };
@@ -343,6 +395,7 @@
       const file = e.target.files[0];
       if (file) {
         console.log('Photo selected:', file.name, `Original size: ${(file.size / 1024).toFixed(2)}kb`);
+        updateCompressionStatus('compressing');
         try {
           const compressedDataUrl = await compressImage(file, 500);
           if (image.src) {
@@ -352,19 +405,23 @@
           image.onload = () => {
             console.log('Compressed photo loaded successfully, dimensions:', image.width, 'x', image.height);
             drawImage();
+            adjustCanvasDisplaySize(); // 重新调整画布大小
           };
           image.onerror = () => {
             console.error('Failed to load compressed photo');
+            updateCompressionStatus('failed');
             alert('Failed to load compressed photo, please try another one!');
           };
         } catch (error) {
           console.error('Image compression failed:', error);
+          updateCompressionStatus('failed');
           alert('Image compression failed, please try another photo!');
         }
       }
     });
 
     function drawImage() {
+      console.log('Drawing image, image.src:', image.src, 'maskImage.complete:', maskImage.complete);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       if (image.src && maskImage.complete) {
