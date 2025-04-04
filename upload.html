@@ -247,7 +247,7 @@
       if (maskImage.width !== 874 || maskImage.height !== 1251) {
         console.warn('Mask image dimensions do not match canvas (874x1251), resizing may affect quality.');
       }
-      // 验证蒙版透明区域
+      // 增强蒙版透明区域验证
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = 874 * dpr;
       tempCanvas.height = 1251 * dpr;
@@ -256,18 +256,23 @@
       tempCtx.drawImage(maskImage, 0, 0, 874, 1251);
       const imageData = tempCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
       const data = imageData.data;
-      let hasTransparent = false;
+      let hasFullyTransparent = false;
+      let hasFullyOpaque = false;
       for (let i = 0; i < data.length; i += 4) {
-        if (data[i + 3] === 0) {
-          hasTransparent = true;
-          break;
+        const alpha = data[i + 3];
+        if (alpha === 0) {
+          hasFullyTransparent = true;
+        } else if (alpha === 255) {
+          hasFullyOpaque = true;
         }
       }
-      if (!hasTransparent) {
-        console.error('Mask image has no transparent areas, it will not work as a mask!');
-        alert('Mask image has no transparent areas! Please ensure the mask has a transparent elliptical region.');
+      if (!hasFullyTransparent) {
+        console.error('Mask image has no fully transparent areas (alpha = 0), it will not work as a mask!');
+        alert('Mask image has no fully transparent areas! Please ensure the mask has a fully transparent elliptical region (alpha = 0).');
+      } else if (!hasFullyOpaque) {
+        console.warn('Mask image has no fully opaque areas (alpha = 255), surrounding areas may not mask correctly.');
       } else {
-        console.log('Mask image has transparent areas, should work as a mask.');
+        console.log('Mask image has fully transparent and opaque areas, should work as a mask.');
       }
       drawImage();
     };
@@ -326,26 +331,32 @@
         maskCtx.scale(dpr, dpr);
         maskCtx.drawImage(maskImage, 0, 0, 874, 1251);
 
-        // 将照片绘制到主画布
-        ctx.drawImage(photoCanvas, 0, 0);
+        // 获取照片和蒙版的像素数据
+        const photoData = photoCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
+        const maskData = maskCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
+        const photoPixels = photoData.data;
+        const maskPixels = maskData.data;
 
-        // 使用蒙版裁剪照片（只保留蒙版透明区域内的内容）
-        ctx.globalCompositeOperation = 'destination-in';
-        ctx.drawImage(maskCanvas, 0, 0);
+        // 手动应用蒙版：根据蒙版的 alpha 通道调整照片的透明度
+        for (let i = 0; i < photoPixels.length; i += 4) {
+          const maskAlpha = maskPixels[i + 3];
+          if (maskAlpha !== 0) {
+            // 如果蒙版像素不完全透明（alpha != 0），将照片像素设为透明
+            photoPixels[i + 3] = 0;
+          }
+        }
 
-        // 恢复 globalCompositeOperation
-        ctx.globalCompositeOperation = 'source-over';
+        // 将处理后的照片绘制到主画布
+        ctx.putImageData(photoData, 0, 0);
 
         // 绘制蒙版边框（使用蒙版图片的透明区域边界）
         ctx.save();
         ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)'; // 红色半透明边框
         ctx.lineWidth = 2;
-        const imageData = maskCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
-        const data = imageData.data;
         for (let y = 0; y < 1251 * dpr; y++) {
           for (let x = 0; x < 874 * dpr; x++) {
             const idx = (y * 874 * dpr + x) * 4;
-            const alpha = data[idx + 3];
+            const alpha = maskPixels[idx + 3];
             if (alpha === 0) {
               const neighbors = [
                 (y - 1) * 874 * dpr + x, // 上
@@ -354,9 +365,9 @@
                 y * 874 * dpr + (x + 1)  // 右
               ];
               for (const n of neighbors) {
-                if (n >= 0 && n < data.length / 4) {
+                if (n >= 0 && n < maskPixels.length / 4) {
                   const nIdx = n * 4;
-                  if (data[nIdx + 3] > 0) {
+                  if (maskPixels[nIdx + 3] > 0) {
                     ctx.fillRect(x / dpr, y / dpr, 1, 1);
                     break;
                   }
