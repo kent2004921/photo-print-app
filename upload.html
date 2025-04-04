@@ -238,14 +238,14 @@
     ctx.scale(dpr, dpr);
 
     // 加载蒙版图片（PNG 格式，椭圆形区域透明）
-    maskImage.src = 'https://photo-print-app.netlify.app/functions/assets/mask.png';
+    maskImage.src = 'https://photo-print-app.netlify.app/assets/mask.png';
     maskImage.onload = () => {
       console.log('Mask image loaded successfully');
       drawImage();
     };
     maskImage.onerror = () => {
       console.error('Failed to load mask image');
-      alert('Failed to load mask image from https://photo-print-app.netlify.app/functions/assets/mask.png, Wplease check the path, filename case, or deployment!');
+      alert('Failed to load mask image from https://photo-print-app.netlify.app/assets/mask.png, please check the path, filename case, or deployment!');
     };
 
     document.getElementById('photoInput').addEventListener('change', (e) => {
