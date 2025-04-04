@@ -21,13 +21,13 @@
       border-radius: 15px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.2);
       width: 90%;
-      max-width: 437px; /* 参考宽度 */
+      max-width: 437px;
       margin: 5px 0;
       text-align: center;
       position: relative;
       display: flex;
       flex-direction: column;
-      height: calc(100vh - 10px);
+      height: 100vh;
       overflow-y: auto;
     }
     .container::before {
@@ -58,6 +58,7 @@
       flex-shrink: 0;
       margin: 5px 0;
       touch-action: none;
+      display: block;
     }
     input[type="file"] {
       width: 100%;
@@ -276,7 +277,7 @@
 
     function adjustCanvasDisplaySize() {
       const container = document.querySelector('.container');
-      const containerHeight = container.clientHeight;
+      const containerHeight = window.innerHeight - 10;
       const headerHeight = document.querySelector('.header').offsetHeight;
       const inputHeight = document.querySelector('input[type="file"]').offsetHeight;
       const statusHeight = document.getElementById('compressionStatus').offsetHeight;
@@ -287,10 +288,9 @@
         controlGroupsHeight += group.offsetHeight;
       });
 
-      const availableHeight = containerHeight - headerHeight - inputHeight - statusHeight - controlsHeight - controlGroupsHeight - 30;
+      const totalControlsHeight = headerHeight + inputHeight + statusHeight + controlsHeight + controlGroupsHeight + 30;
+      const availableHeight = containerHeight - totalControlsHeight;
       const maxWidth = window.innerWidth * 0.9;
-      const referenceWidth = 437; // 参考宽度
-      const referenceHeight = 625.5; // 参考高度
       const scaleWidth = maxWidth / canvasWidth;
       const scaleHeight = availableHeight / canvasHeight;
       const scale = Math.min(scaleWidth, scaleHeight, 1);
@@ -315,37 +315,10 @@
       if (maskImage.width !== canvasWidth || maskImage.height !== canvasHeight) {
         console.warn('Mask image dimensions do not match canvas (874x1251), resizing may affect quality.');
       }
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvasWidth * dpr;
-      tempCanvas.height = canvasHeight * dpr;
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCtx.scale(dpr, dpr);
-      tempCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
-      const imageData = tempCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
-      const data = imageData.data;
-      let hasFullyTransparent = false;
-      let hasFullyOpaque = false;
-      for (let i = 0; i < data.length; i += 4) {
-        const alpha = data[i + 3];
-        if (alpha === 0) {
-          hasFullyTransparent = true;
-        } else if (alpha === 255) {
-          hasFullyOpaque = true;
-        }
-      }
-      if (!hasFullyTransparent) {
-        console.error('Mask image has no fully transparent areas (alpha = 0), it will not work as a mask!');
-        alert('Mask image has no fully transparent areas! Please ensure the mask has a fully transparent elliptical region (alpha = 0).');
-      } else if (!hasFullyOpaque) {
-        console.warn('Mask image has no fully opaque areas (alpha = 255), surrounding areas may not mask correctly.');
-      } else {
-        console.log('Mask image has fully transparent and opaque areas, should work as a mask.');
-      }
       drawImage();
     };
     maskImage.onerror = (error) => {
       console.error('Failed to load mask image, error:', error);
-      console.log('Please verify the mask image URL by opening it in a browser:', maskUrl);
       alert(translations[currentLang].mask_load_failed);
     };
 
@@ -429,9 +402,8 @@
 
     function drawImage() {
       console.log('Drawing image, image.src:', image.src, 'maskImage.complete:', maskImage.complete);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
       if (image.src && maskImage.complete) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.save();
 
         const photoCanvas = document.createElement('canvas');
@@ -466,137 +438,61 @@
         }
 
         ctx.putImageData(photoData, 0, 0);
-
-        ctx.save();
-        ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-        ctx.lineWidth = 2;
-        for (let y = 0; y < canvasHeight * dpr; y++) {
-          for (let x = 0; x < canvasWidth * dpr; x++) {
-            const idx = (y * canvasWidth * dpr + x) * 4;
-            const alpha = maskPixels[idx + 3];
-            if (alpha === 0) {
-              const neighbors = [
-                (y - 1) * canvasWidth * dpr + x,
-                (y + 1) * canvasWidth * dpr + x,
-                y * canvasWidth * dpr + (x - 1),
-                y * canvasWidth * dpr + (x + 1)
-              ];
-              for (const n of neighbors) {
-                if (n >= 0 && n < maskPixels.length / 4) {
-                  const nIdx = n * 4;
-                  if (maskPixels[nIdx + 3] > 0) {
-                    ctx.fillRect(x / dpr, y / dpr, 1, 1);
-                    break;
-                  }
-                }
-              }
-            }
-          }
-        }
-        ctx.restore();
-
         ctx.restore();
       } else {
         console.log('Cannot draw image: image.src=', image.src, 'maskImage.complete=', maskImage.complete);
       }
     }
 
-    canvas.addEventListener('mousedown', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvasWidth / rect.width;
-      const scaleY = canvasHeight / rect.height;
-      const x = (e.clientX - rect.left) * scaleX;
-      const y = (e.clientY - rect.top) * scaleY;
-
-      isDraggingImage = true;
-      startX = e.clientX;
-      startY = e.clientY;
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-      if (isDraggingImage) {
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const touches = e.touches;
+      if (touches.length === 1) {
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvasWidth / rect.width;
         const scaleY = canvasHeight / rect.height;
-        const dx = (e.clientX - startX) * scaleX;
-        const dy = (e.clientY - startY) * scaleY;
-
-        posX += dx;
-        posY += dy;
-
-        startX = e.clientX;
-        startY = e.clientY;
-        drawImage();
-      }
-    });
-
-    canvas.addEventListener('mouseup', () => {
-      isDraggingImage = false;
-    });
-
-    canvas.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvasWidth / rect.width;
-      const scaleY = canvasHeight / rect.height;
-      const touches = e.touches;
-
-      if (touches.length === 1) {
-        const x = (touches[0].clientX - rect.left) * scaleX;
-        const y = (touches[0].clientY - rect.top) * scaleY;
-
-        isDraggingImage = true;
         startX = touches[0].clientX;
         startY = touches[0].clientY;
+        isDraggingImage = true;
       } else if (touches.length === 2) {
-        isPinching = true;
-        isDraggingImage = false;
-
         const dx = touches[0].clientX - touches[1].clientX;
         const dy = touches[0].clientY - touches[1].clientY;
         initialDistance = Math.sqrt(dx * dx + dy * dy);
         initialAngle = Math.atan2(dy, dx);
         initialScale = photoScale;
         initialRotation = photoRotation;
+        isPinching = true;
       }
     });
 
     canvas.addEventListener('touchmove', (e) => {
       e.preventDefault();
       const touches = e.touches;
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvasWidth / rect.width;
-      const scaleY = canvasHeight / rect.height;
-
       if (touches.length === 1 && isDraggingImage) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvasWidth / rect.width;
+        const scaleY = canvasHeight / rect.height;
         const dx = (touches[0].clientX - startX) * scaleX;
         const dy = (touches[0].clientY - startY) * scaleY;
-
         posX += dx;
         posY += dy;
-
         startX = touches[0].clientX;
         startY = touches[0].clientY;
         drawImage();
       } else if (touches.length === 2 && isPinching) {
         const dx = touches[0].clientX - touches[1].clientX;
-        const dy = (touches[0].clientY - touches[1].clientY);
+        const dy = touches[0].clientY - touches[1].clientY;
         const distance = Math.sqrt(dx * dx + dy * dy);
         const angle = Math.atan2(dy, dx);
-
         const scaleFactor = distance / initialDistance;
         photoScale = initialScale * scaleFactor;
-
         const angleDiff = (angle - initialAngle) * (180 / Math.PI);
         photoRotation = initialRotation + angleDiff;
-
         drawImage();
       }
     });
 
     canvas.addEventListener('touchend', (e) => {
-      eರ
-
       e.preventDefault();
       isDraggingImage = false;
       isPinching = false;
@@ -605,7 +501,7 @@
     function adjustColor() {
       brightness = document.getElementById('brightness').value;
       contrast = document.getElementById('contrast').value;
-      saturation = document.getElementById('saturation'). Wvalue;
+      saturation = document.getElementById('saturation').value;
       drawImage();
     }
 
@@ -614,13 +510,11 @@
         alert(translations[currentLang].no_photo);
         return;
       }
-
       const dataUrl = canvas.toDataURL('image/jpeg');
       if (!username || !dataUrl) {
         alert(translations[currentLang].missing_data);
         return;
       }
-
       try {
         const response = await fetch('/.netlify/functions/print', {
           method: 'POST',
@@ -630,7 +524,6 @@
           },
           body: JSON.stringify({ username, dataUrl })
         });
-
         const data = await response.json();
         if (data.success) {
           alert(translations[currentLang].print_success);
