@@ -13,7 +13,7 @@
       min-height: 100vh;
       margin: 0;
       background: linear-gradient(135deg, #74ebd5, #acb6e5);
-      overflow: hidden; /* 防止页面滚动 */
+      overflow: hidden;
     }
     .container {
       background: white;
@@ -21,13 +21,13 @@
       border-radius: 15px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.2);
       width: 90%;
-      max-width: 874px;
+      max-width: 400px; /* 匹配画布显示宽度 */
       margin: 10px 0;
       text-align: center;
       position: relative;
       display: flex;
       flex-direction: column;
-      height: calc(100vh - 20px); /* 占满屏幕高度，减去 margin */
+      height: calc(100vh - 20px);
       overflow: hidden;
     }
     .container::before {
@@ -54,8 +54,10 @@
     canvas {
       border: 1px solid #ddd;
       border-radius: 8px;
-      flex-grow: 1; /* 画布占满剩余空间 */
-      max-width: 100%;
+      width: 400px; /* 固定显示宽度 */
+      height: 300px; /* 固定显示高度 */
+      flex-grow: 0; /* 不拉伸 */
+      flex-shrink: 0;
       margin: 5px 0;
       touch-action: none;
     }
@@ -182,7 +184,7 @@
         print_success: "打印成功！",
         print_failed: "打印失败！",
         network_error: "网络错误，请稍后再试！",
-        language_btn: "English",
+        language_btn: "English39",
         compressing: "正在压缩照片...",
         compression_success: "照片压缩成功，大小：{size}kb",
         compression_failed: "照片压缩失败，请重试！"
@@ -267,36 +269,10 @@
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    const canvasWidth = 874;
-    const canvasHeight = 1251;
+    const canvasWidth = 874; // 打印宽度
+    const canvasHeight = 1251; // 打印高度
     canvas.width = canvasWidth * dpr;
     canvas.height = canvasHeight * dpr;
-
-    function adjustCanvasDisplaySize() {
-      const container = document.querySelector('.container');
-      const containerHeight = container.clientHeight;
-      const headerHeight = document.querySelector('.header').offsetHeight;
-      const inputHeight = document.querySelector('input[type="file"]').offsetHeight;
-      const statusHeight = document.getElementById('compressionStatus').offsetHeight;
-      const controlsHeight = document.querySelector('.controls').offsetHeight;
-      const controlGroups = document.querySelectorAll('.control-group');
-      let controlGroupsHeight = 0;
-      controlGroups.forEach(group => {
-        controlGroupsHeight += group.offsetHeight;
-      });
-
-      const availableHeight = containerHeight - headerHeight - inputHeight - statusHeight - controlsHeight - controlGroupsHeight - 40; // 减去 padding 和 margin
-      const maxWidth = window.innerWidth * 0.9;
-      const scaleWidth = maxWidth / canvasWidth;
-      const scaleHeight = availableHeight / canvasHeight;
-      const scale = Math.min(scaleWidth, scaleHeight, 1);
-
-      canvas.style.width = `${canvasWidth * scale}px`;
-      canvas.style.height = `${canvasHeight * scale}px`;
-    }
-
-    adjustCanvasDisplaySize();
-    window.addEventListener('resize', adjustCanvasDisplaySize);
 
     ctx.scale(dpr, dpr);
 
@@ -405,7 +381,6 @@
           image.onload = () => {
             console.log('Compressed photo loaded successfully, dimensions:', image.width, 'x', image.height);
             drawImage();
-            adjustCanvasDisplaySize(); // 重新调整画布大小
           };
           image.onerror = () => {
             console.error('Failed to load compressed photo');
@@ -496,9 +471,10 @@
 
     canvas.addEventListener('mousedown', (e) => {
       const rect = canvas.getBoundingClientRect();
-      const scale = rect.width / canvasWidth;
-      const x = (e.clientX - rect.left) * (canvasWidth / rect.width);
-      const y = (e.clientY - rect.top) * (canvasHeight / rect.height);
+      const scaleX = canvasWidth / 400; // 显示宽度 400px
+      const scaleY = canvasHeight / 300; // 显示高度 300px
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
 
       isDraggingImage = true;
       startX = e.clientX;
@@ -508,9 +484,10 @@
     canvas.addEventListener('mousemove', (e) => {
       if (isDraggingImage) {
         const rect = canvas.getBoundingClientRect();
-        const scale = rect.width / canvasWidth;
-        const dx = (e.clientX - startX) * (canvasWidth / rect.width);
-        const dy = (e.clientY - startY) * (canvasHeight / rect.height);
+        const scaleX = canvasWidth / 400;
+        const scaleY = canvasHeight / 300;
+        const dx = (e.clientX - startX) * scaleX;
+        const dy = (e.clientY - startY) * scaleY;
 
         posX += dx;
         posY += dy;
@@ -528,12 +505,13 @@
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
-      const scale = rect.width / canvasWidth;
+      const scaleX = canvasWidth / 400;
+      const scaleY = canvasHeight / 300;
       const touches = e.touches;
 
       if (touches.length === 1) {
-        const x = (touches[0].clientX - rect.left) * (canvasWidth / rect.width);
-        const y = (touches[0].clientY - rect.top) * (canvasHeight / rect.height);
+        const x = (touches[0].clientX - rect.left) * scaleX;
+        const y = (touches[0].clientY - rect.top) * scaleY;
 
         isDraggingImage = true;
         startX = touches[0].clientX;
@@ -555,11 +533,12 @@
       e.preventDefault();
       const touches = e.touches;
       const rect = canvas.getBoundingClientRect();
-      const scale = rect.width / canvasWidth;
+      const scaleX = canvasWidth / 400;
+      const scaleY = canvasHeight / 300;
 
       if (touches.length === 1 && isDraggingImage) {
-        const dx = (touches[0].clientX - startX) * (canvasWidth / rect.width);
-        const dy = (touches[0].clientY - startY) * (canvasHeight / rect.height);
+        const dx = (touches[0].clientX - startX) * scaleX;
+        const dy = (touches[0].clientY - startY) * scaleY;
 
         posX += dx;
         posY += dy;
