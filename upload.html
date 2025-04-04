@@ -230,8 +230,8 @@
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    canvas.width = 300 * dpr; // 调整为图片的宽度
-    canvas.height = 400 * dpr; // 调整为图片的高度
+    canvas.width = 300 * dpr; // 宽度 300px
+    canvas.height = 400 * dpr; // 高度 400px
     canvas.style.width = '300px';
     canvas.style.height = '400px';
     ctx.scale(dpr, dpr);
@@ -259,16 +259,32 @@
         // 保存上下文状态
         ctx.save();
 
-        // 创建椭圆形裁剪区域（与图片中的椭圆形一致）
-        const centerX = 150; // 椭圆形中心 X 坐标（图片宽度的一半）
-        const centerY = 200; // 椭圆形中心 Y 坐标（图片高度的一半）
-        const radiusX = 120; // 椭圆形的水平半径（与图片中的椭圆形一致）
-        const radiusY = 150; // 椭圆形的垂直半径（与图片中的椭圆形一致）
+        // 创建定制化的椭圆形路径（顶端大，下方小）
+        const centerX = 150; // 中心 X 坐标
+        const centerY = 200; // 中心 Y 坐标
+        const topWidth = 120; // 顶部半宽（顶端较大）
+        const bottomWidth = 90; // 底部半宽（下方较小）
+        const height = 150; // 垂直半高
+
         ctx.beginPath();
-        ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+        // 起点：顶部中心
+        ctx.moveTo(centerX, centerY - height);
+        // 右上到右下：使用贝塞尔曲线，控制点使顶部更宽，底部更窄
+        ctx.bezierCurveTo(
+          centerX + topWidth * 1.2, centerY - height, // 右上控制点（顶部更宽）
+          centerX + bottomWidth * 1.2, centerY + height, // 右下控制点（底部更窄）
+          centerX, centerY + height // 底部中心
+        );
+        // 左下到左上：对称绘制
+        ctx.bezierCurveTo(
+          centerX - bottomWidth * 1.2, centerY + height, // 左下控制点
+          centerX - topWidth * 1.2, centerY - height, // 左上控制点
+          centerX, centerY - height // 回到顶部中心
+        );
+        ctx.closePath();
         ctx.clip();
 
-        // 绘制照片（会被裁剪到椭圆形区域内）
+        // 绘制照片（会被裁剪到定制化的椭圆形区域内）
         ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
         ctx.translate((canvas.width / dpr) / 2 + posX, (canvas.height / dpr) / 2 + posY);
         ctx.rotate((photoRotation * Math.PI) / 180);
@@ -278,10 +294,21 @@
         // 恢复上下文状态
         ctx.restore();
 
-        // 绘制椭圆形边框（可选，用于让顾客看到椭圆形区域）
+        // 绘制椭圆形边框（使用相同的路径，让顾客看到裁剪区域）
         ctx.save();
         ctx.beginPath();
-        ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+        ctx.moveTo(centerX, centerY - height);
+        ctx.bezierCurveTo(
+          centerX + topWidth * 1.2, centerY - height,
+          centerX + bottomWidth * 1.2, centerY + height,
+          centerX, centerY + height
+        );
+        ctx.bezierCurveTo(
+          centerX - bottomWidth * 1.2, centerY + height,
+          centerX - topWidth * 1.2, centerY - height,
+          centerX, centerY - height
+        );
+        ctx.closePath();
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
         ctx.lineWidth = 2;
         ctx.stroke();
