@@ -209,6 +209,7 @@
         const key = element.getAttribute('data-i18n');
         element.textContent = translations[currentLang][key];
       });
+      document.querySelector('.language-btn').textContent = translations[currentLang].language_btn;
       document.title = translations[currentLang].upload_title;
       updateCompressionStatus('');
     }
@@ -227,7 +228,7 @@
     }
 
     const urlParams = new URLSearchParams(window.location.search);
-    const username = urlParams.get('username');
+    const username = urlParams.get('username')?.replace(/[^a-zA-Z0-9_-]/g, '');
     if (!username) {
       alert(translations[currentLang].invalid_qr);
       window.location.href = '/index.html';
@@ -250,32 +251,27 @@
     let canvasHeight = 625.5; // 默认实际高度
 
     function adjustCanvasDisplaySize() {
-      // 获取可用宽度和高度
-      const maxWidth = window.innerWidth * 0.9;
-      const maxHeight = window.innerHeight * 0.85; // 调整为 0.85 以占用更多空间
+      const container = document.querySelector('.container');
+      const maxWidth = container.clientWidth * 0.95;
+      const maxHeight = container.clientHeight * 0.9;
 
-      // 基于宽度计算显示尺寸
       let displayWidth = maxWidth;
       let displayHeight = displayWidth / aspectRatio;
 
-      // 如果高度超过最大高度，基于高度反算宽度
       if (displayHeight > maxHeight) {
         displayHeight = maxHeight;
         displayWidth = displayHeight * aspectRatio;
       }
 
-      // 设置画布的显示尺寸
       canvas.style.width = `${displayWidth}px`;
       canvas.style.height = `${displayHeight}px`;
 
-      // 设置画布的实际尺寸（保持比例）
       canvasWidth = displayWidth;
       canvasHeight = displayHeight;
       canvas.width = canvasWidth * dpr;
       canvas.height = canvasHeight * dpr;
       ctx.scale(dpr, dpr);
 
-      // 重新绘制
       drawImage();
     }
 
@@ -293,9 +289,10 @@
     };
     maskImage.onerror = (error) => {
       console.error('Failed to load mask image, error:', error);
-      alert(translations[currentLang].mask_load_failed);
-      // 尝试加载备用蒙版（如果有本地路径）
-      // maskImage.src = '/assets/mask.png';
+      maskImage.src = '/assets/mask.png';
+      maskImage.onerror = () => {
+        alert(translations[currentLang].mask_load_failed);
+      };
     };
     maskImage.src = maskUrl;
 
@@ -325,6 +322,8 @@
           let quality = 0.9;
           const maxSizeBytes = maxSizeKB * 1024;
           let dataUrl;
+          let attempts = 0;
+          const maxAttempts = 10;
 
           const compress = () => {
             dataUrl = canvas.toDataURL('image/jpeg', quality);
@@ -335,17 +334,14 @@
             }
             const size = array.length;
 
-            if (size > maxSizeBytes && quality > 0.1) {
+            if (size > maxSizeBytes && quality > 0.1 && attempts < maxAttempts) {
               quality -= 0.1;
+              attempts++;
               console.log(`Reducing quality to ${quality}, size: ${(size / 1024).toFixed(2)}kb`);
               setTimeout(compress, 0);
-            } else if (size > maxSizeBytes) {
-              console.warn('Cannot compress image below 500kb without significant quality loss.');
-              updateCompressionStatus('success', size / 1024);
-              resolve(dataUrl);
             } else {
               console.log(`Compressed image size: ${(size / 1024).toFixed(2)}kb, quality: ${quality}`);
-              updateCompressionStatus('success', size / 1024);
+              updateCompressionStatus(size <= maxSizeBytes ? 'success' : 'failed', size / 1024);
               resolve(dataUrl);
             }
           };
@@ -409,7 +405,11 @@
 
       if (maskImage.complete && maskImage.naturalWidth !== 0) {
         ctx.globalCompositeOperation = 'destination-in';
-        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+        ctx.save();
+        ctx.translate(-canvasWidth / 2, -canvasHeight / 2);
+        ctx.rotate(Math.PI); // 旋转 180 度以修复蒙版方向
+        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight, -canvasWidth, -canvasHeight, canvasWidth, canvasHeight);
+        ctx.restore();
       } else {
         console.warn('Mask image not loaded, skipping mask application.');
       }
@@ -447,7 +447,11 @@
 
       if (maskImage.complete && maskImage.naturalWidth !== 0) {
         printCtx.globalCompositeOperation = 'destination-in';
-        printCtx.drawImage(maskImage, 0, 0, 874, 1251);
+        printCtx.save();
+        printCtx.translate(-874 / 2, -1251 / 2);
+        printCtx.rotate(Math.PI); // 旋转 180 度以修复蒙版方向
+        printCtx.drawImage(maskImage, 0, 0, 874, 1251, -874, -1251, 874, 1251);
+        printCtx.restore();
       }
 
       printCtx.restore();
@@ -475,7 +479,7 @@
         }
       } catch (error) {
         console.error('Print photo error:', error);
-        alert(translations[currentLang].network_error);
+        alert(`${translations[currentLang].network_error} (${error.message})`);
       }
     }
   </script>
