@@ -309,7 +309,7 @@
     };
     maskImage.src = maskUrl;
 
-    // Process the mask image to make white areas transparent and ensure black areas are opaque
+    // Process the mask image to make white areas opaque (where photo shows) and black areas transparent (where photo is cropped)
     function processMaskImage() {
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
@@ -326,18 +326,18 @@
         console.log(`Pixel ${i/4}: R=${data[i]}, G=${data[i+1]}, B=${data[i+2]}, A=${data[i+3]}`);
       }
 
-      // Convert white areas to transparent, ensure black areas are opaque
+      // Convert white areas to opaque (where the photo should show), black areas to transparent (where the photo should be cropped)
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i];
         const g = data[i + 1];
         const b = data[i + 2];
-        // If the pixel is white or near white (background), make it transparent
+        // If the pixel is white or near white (background), make it opaque
         if (r > 200 && g > 200 && b > 200) {
-          data[i + 3] = 0; // Set alpha to 0 (transparent)
-        }
-        // If the pixel is black or near black (mask shape), make it fully opaque
-        else if (r < 50 && g < 50 && b < 50) {
           data[i + 3] = 255; // Set alpha to 255 (opaque)
+        }
+        // If the pixel is black or near black (mask shape), make it transparent
+        else if (r < 50 && g < 50 && b < 50) {
+          data[i + 3] = 0; // Set alpha to 0 (transparent)
         }
       }
 
@@ -520,15 +520,10 @@
 
       // Apply mask to keep photo within mask area
       if (processedMaskImage && processedMaskImage.complete && processedMaskImage.naturalWidth !== 0) {
-        // Use source-in to ensure the photo only shows where the mask is transparent
-        ctx.globalCompositeOperation = 'source-in';
+        // Use destination-in to ensure the photo only shows where the mask is opaque (white areas)
+        ctx.globalCompositeOperation = 'destination-in';
         ctx.drawImage(processedMaskImage, 0, 0, canvasWidth, canvasHeight);
         ctx.globalCompositeOperation = 'source-over';
-
-        // Add black border around the mask
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 2;
-        ctx.drawImage(processedMaskImage, 0, 0, canvasWidth, canvasHeight);
         console.log('Mask applied successfully');
       } else {
         console.warn('Processed mask image not loaded, skipping mask application.');
@@ -571,13 +566,9 @@
       printCtx.drawImage(image, drawX, drawY, scaledWidth, scaledHeight);
 
       if (processedMaskImage && processedMaskImage.complete && processedMaskImage.naturalWidth !== 0) {
-        printCtx.globalCompositeOperation = 'source-in';
+        printCtx.globalCompositeOperation = 'destination-in';
         printCtx.drawImage(processedMaskImage, 0, 0, 874, 1251);
         printCtx.globalCompositeOperation = 'source-over';
-
-        printCtx.strokeStyle = 'black';
-        printCtx.lineWidth = 2;
-        printCtx.drawImage(processedMaskImage, 0, 0, 874, 1251);
       }
 
       printCtx.restore();
