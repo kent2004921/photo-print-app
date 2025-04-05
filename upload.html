@@ -260,6 +260,9 @@
     let canvasWidth = 437;
     let canvasHeight = 625.5;
 
+    const PRINT_WIDTH = 874;
+    const PRINT_HEIGHT = 1251;
+
     let isDragging = false;
     let startX = 0;
     let startY = 0;
@@ -289,6 +292,7 @@
       canvas.height = canvasHeight * dpr;
       ctx.scale(dpr, dpr);
 
+      processMaskImage();
       drawImage();
     }
 
@@ -335,7 +339,7 @@
       processedMaskImage = new Image();
       processedMaskImage.src = tempCanvas.toDataURL();
       processedMaskImage.onload = () => {
-        console.log('Processed mask image created');
+        console.log('Processed mask image created for display');
         drawImage();
       };
     }
@@ -526,8 +530,8 @@
       const printCanvas = document.createElement('canvas');
       const printCtx = printCanvas.getContext('2d');
       const printDpr = window.devicePixelRatio || 1;
-      printCanvas.width = 874 * printDpr;
-      printCanvas.height = 1251 * printDpr;
+      printCanvas.width = PRINT_WIDTH * printDpr;
+      printCanvas.height = PRINT_HEIGHT * printDpr;
       printCtx.scale(printDpr, printDpr);
 
       printCtx.clearRect(0, 0, printCanvas.width, printCanvas.height);
@@ -535,17 +539,19 @@
 
       printCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
 
-      const printScale = photoScale * (874 / canvasWidth);
+      const scaleFactorX = PRINT_WIDTH / canvasWidth;
+      const scaleFactorY = PRINT_HEIGHT / canvasHeight;
+      const printScale = photoScale * scaleFactorX;
       const scaledWidth = image.width * printScale;
       const scaledHeight = image.height * printScale;
-      const drawX = photoOffsetX * (874 / canvasWidth);
-      const drawY = photoOffsetY * (1251 / canvasHeight);
+      const drawX = photoOffsetX * scaleFactorX;
+      const drawY = photoOffsetY * scaleFactorY;
 
       printCtx.drawImage(image, drawX, drawY, scaledWidth, scaledHeight);
 
-      if (processedMaskImage && processedMaskImage.complete && processedMaskImage.naturalWidth !== 0) {
+      if (maskImage && maskImage.complete && maskImage.naturalWidth !== 0) {
         printCtx.globalCompositeOperation = 'destination-in';
-        printCtx.drawImage(processedMaskImage, 0, 0, 874, 1251);
+        printCtx.drawImage(maskImage, 0, 0, PRINT_WIDTH, PRINT_HEIGHT);
         printCtx.globalCompositeOperation = 'source-over';
       }
 
