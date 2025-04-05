@@ -245,6 +245,7 @@
 
     let image = new Image();
     let maskImage = new Image();
+    let processedMaskImage = null; // To store the processed mask
     let photoScale = 1;
     let photoOffsetX = 0;
     let photoOffsetY = 0;
@@ -297,7 +298,8 @@
     const maskUrl = 'https://photo-print-app.netlify.app/assets/mask.png';
     maskImage.onload = () => {
       console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
-      drawImage();
+      // Process the mask to ensure white areas are transparent
+      processMaskImage();
     };
     maskImage.onerror = () => {
       console.error('Failed to load mask image, trying fallback URL');
@@ -307,6 +309,37 @@
       };
     };
     maskImage.src = maskUrl;
+
+    // Process the mask image to make white areas transparent
+    function processMaskImage() {
+      const tempCanvas = document.createElement('canvas');
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCanvas.width = maskImage.width;
+      tempCanvas.height = maskImage.height;
+      tempCtx.drawImage(maskImage, 0, 0);
+
+      const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+      const data = imageData.data;
+
+      // Convert white areas to transparent
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        // If the pixel is white (or near white), make it transparent
+        if (r > 200 && g > 200 && b > 200) {
+          data[i + 3] = 0; // Set alpha to 0 (transparent)
+        }
+      }
+
+      tempCtx.putImageData(imageData, 0, 0);
+      processedMaskImage = new Image();
+      processedMaskImage.src = tempCanvas.toDataURL();
+      processedMaskImage.onload = () => {
+        console.log('Processed mask image created');
+        drawImage();
+      };
+    }
 
     async function compressImage(file, maxSizeKB = 500) {
       return new Promise((resolve, reject) => {
@@ -473,18 +506,18 @@
       }
 
       // Apply mask to keep photo within mask area
-      if (maskImage.complete && maskImage.naturalWidth !== 0) {
-        // Use source-in to ensure the photo only shows where the mask is transparent
-        ctx.globalCompositeOperation = 'source-in';
-        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+      if (processedMaskImage && processedMaskImage.complete && processedMaskImage.naturalWidth !== 0) {
+        // Use destination-in to ensure the photo only shows where the mask is opaque
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(processedMaskImage, 0, 0, canvasWidth, canvasHeight);
         ctx.globalCompositeOperation = 'source-over';
 
         // Add black border around the mask
         ctx.strokeStyle = 'black';
         ctx.lineWidth = 2;
-        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+        ctx.drawImage(processedMaskImage, 0, 0, canvasWidth, canvasHeight);
       } else {
-        console.warn('Mask image not loaded, skipping mask application.');
+        console.warn('Processed mask image not loaded, skipping mask application.');
       }
 
       ctx.restore();
@@ -523,14 +556,14 @@
 
       printCtx.drawImage(image, drawX, drawY, scaledWidth, scaledHeight);
 
-      if (maskImage.complete && maskImage.naturalWidth !== 0) {
-        printCtx.globalCompositeOperation = 'source-in';
-        printCtx.drawImage(maskImage, 0, 0, 874, 1251);
+      if (processedMaskImage && processedMaskImage.complete && processedMaskImage.naturalWidth !== 0) {
+        printCtx.globalCompositeOperation = 'destination-in';
+        printCtx.drawImage(processedMaskImage, 0, 0, 874, 1251);
         printCtx.globalCompositeOperation = 'source-over';
 
         printCtx.strokeStyle = 'black';
         printCtx.lineWidth = 2;
-        printCtx.drawImage(maskImage, 0, 0, 874, 1251);
+        printCtx.drawImage(processedMaskImage, 0, 0, 874, 1251);
       }
 
       printCtx.restore();
