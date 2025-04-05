@@ -20,7 +20,6 @@
       border-radius: 15px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.2);
       width: 90%;
-      max-width: 400px;
       margin: 5px auto;
       text-align: center;
       height: auto;
@@ -51,8 +50,6 @@
       border-radius: 8px;
       display: block;
       margin: 0 auto;
-      width: 400px;
-      height: 572px;
     }
     input[type="file"] {
       width: 100%;
@@ -248,12 +245,42 @@
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    const canvasWidth = 400;
-    const canvasHeight = 572;
-    canvas.width = canvasWidth * dpr;
-    canvas.height = canvasHeight * dpr;
+    const aspectRatio = 874 / 1251; // 宽高比 ≈ 0.6988
+    let canvasWidth = 437; // 默认实际宽度
+    let canvasHeight = 625.5; // 默认实际高度
 
-    ctx.scale(dpr, dpr);
+    function adjustCanvasDisplaySize() {
+      // 获取可用宽度和高度
+      const maxWidth = window.innerWidth * 0.9;
+      const maxHeight = window.innerHeight * 0.7; // 预留空间给其他元素
+
+      // 基于宽度计算显示尺寸
+      let displayWidth = maxWidth;
+      let displayHeight = displayWidth / aspectRatio;
+
+      // 如果高度超过最大高度，基于高度反算宽度
+      if (displayHeight > maxHeight) {
+        displayHeight = maxHeight;
+        displayWidth = displayHeight * aspectRatio;
+      }
+
+      // 设置画布的显示尺寸
+      canvas.style.width = `${displayWidth}px`;
+      canvas.style.height = `${displayHeight}px`;
+
+      // 设置画布的实际尺寸（保持比例）
+      canvasWidth = displayWidth;
+      canvasHeight = displayHeight;
+      canvas.width = canvasWidth * dpr;
+      canvas.height = canvasHeight * dpr;
+      ctx.scale(dpr, dpr);
+
+      // 重新绘制
+      drawImage();
+    }
+
+    adjustCanvasDisplaySize();
+    window.addEventListener('resize', adjustCanvasDisplaySize);
 
     const maskUrl = 'https://photo-print-app.netlify.app/assets/mask.png';
     console.log('Attempting to load mask image from:', maskUrl);
@@ -331,34 +358,35 @@
 
     const photoInput = document.getElementById('photoInput');
     photoInput.addEventListener('change', async (e) => {
-      console.log('Photo input change event triggered');
+      console.log('Photo input changed, event:', e);
       const file = e.target.files[0];
-      if (file) {
-        console.log('Photo selected:', file.name, `Original size: ${(file.size / 1024).toFixed(2)}kb`);
-        updateCompressionStatus('compressing');
-        try {
-          const compressedDataUrl = await compressImage(file, 500);
-          if (image.src) {
-            URL.revokeObjectURL(image.src);
-          }
-          image.src = compressedDataUrl;
-          image.onload = () => {
-            console.log('Compressed photo loaded successfully, dimensions:', image.width, 'x', image.height);
-            photoScale = Math.min(canvasWidth / image.width, canvasHeight / image.height);
-            drawImage();
-          };
-          image.onerror = () => {
-            console.error('Failed to load compressed photo');
-            updateCompressionStatus('failed');
-            alert('Failed to load compressed photo, please try another one!');
-          };
-        } catch (error) {
-          console.error('Image compression failed:', error);
-          updateCompressionStatus('failed');
-          alert('Image compression failed, please try another photo!');
-        }
-      } else {
+      if (!file) {
         console.log('No file selected');
+        return;
+      }
+      console.log('Photo selected:', file.name, `Original size: ${(file.size / 1024).toFixed(2)}kb`);
+      updateCompressionStatus('compressing');
+      try {
+        const compressedDataUrl = await compressImage(file, 500);
+        if (image.src) {
+          URL.revokeObjectURL(image.src);
+        }
+        image.src = compressedDataUrl;
+        image.onload = () => {
+          console.log('Compressed photo loaded successfully, dimensions:', image.width, 'x', image.height);
+          photoScale = Math.min(canvasWidth / image.width, canvasHeight / image.height);
+          drawImage();
+          adjustCanvasDisplaySize();
+        };
+        image.onerror = (error) => {
+          console.error('Failed to load compressed photo, error:', error);
+          updateCompressionStatus('failed');
+          alert('Failed to load compressed photo, please try another one!');
+        };
+      } catch (error) {
+        console.error('Image compression failed:', error);
+        updateCompressionStatus('failed');
+        alert('Image compression failed, please try another photo!');
       }
     });
 
@@ -412,7 +440,7 @@
 
       printCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
       printCtx.translate(874 / 2, 1251 / 2);
-      printCtx.scale(photoScale * (874 / canvasWidth), photoScale * (1251 / canvasHeight));
+      printCtx.scale(photoScale * 2, photoScale * 2);
       printCtx.drawImage(image, -image.width / 2, -image.height / 2);
 
       if (maskImage.complete && maskImage.naturalWidth !== 0) {
