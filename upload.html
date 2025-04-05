@@ -245,7 +245,8 @@
 
     let image = new Image();
     let maskImage = new Image();
-    let processedMaskImage = null;
+    let displayMaskImage = null; // For display (resized to canvas size)
+    let printMaskImage = null;   // For printing (original size 874x1251)
     let photoScale = 1;
     let photoOffsetX = 0;
     let photoOffsetY = 0;
@@ -292,7 +293,7 @@
       canvas.height = canvasHeight * dpr;
       ctx.scale(dpr, dpr);
 
-      processMaskImage();
+      processMaskImages();
       drawImage();
     }
 
@@ -302,7 +303,7 @@
     const maskUrl = 'https://photo-print-app.netlify.app/assets/mask.png';
     maskImage.onload = () => {
       console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
-      processMaskImage();
+      processMaskImages();
     };
     maskImage.onerror = () => {
       console.error('Failed to load mask image, trying fallback URL');
@@ -313,34 +314,65 @@
     };
     maskImage.src = maskUrl;
 
-    function processMaskImage() {
-      const tempCanvas = document.createElement('canvas');
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCanvas.width = canvasWidth;
-      tempCanvas.height = canvasHeight;
-      tempCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+    function processMaskImages() {
+      // Process mask for display (resized to canvas size)
+      const displayCanvas = document.createElement('canvas');
+      const displayCtx = displayCanvas.getContext('2d');
+      displayCanvas.width = canvasWidth;
+      displayCanvas.height = canvasHeight;
+      displayCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
 
-      const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-      const data = imageData.data;
+      const displayImageData = displayCtx.getImageData(0, 0, displayCanvas.width, displayCanvas.height);
+      const displayData = displayImageData.data;
 
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
+      for (let i = 0; i < displayData.length; i += 4) {
+        const r = displayData[i];
+        const g = displayData[i + 1];
+        const b = displayData[i + 2];
         const brightness = (r + g + b) / 3;
-        if (brightness > 127) {
-          data[i + 3] = 255; // Opaque (where photo should show)
-        } else {
-          data[i + 3] = 0; // Transparent (where photo should be hidden)
+        // Assuming the ellipse is white (or near white) and the background is black (or near black)
+        if (brightness > 200) { // White or near white (ellipse area)
+          displayData[i + 3] = 255; // Fully opaque
+        } else { // Black or near black (outside ellipse)
+          displayData[i + 3] = 0; // Fully transparent
         }
       }
 
-      tempCtx.putImageData(imageData, 0, 0);
-      processedMaskImage = new Image();
-      processedMaskImage.src = tempCanvas.toDataURL();
-      processedMaskImage.onload = () => {
-        console.log('Processed mask image created for display');
+      displayCtx.putImageData(displayImageData, 0, 0);
+      displayMaskImage = new Image();
+      displayMaskImage.src = displayCanvas.toDataURL();
+      displayMaskImage.onload = () => {
+        console.log('Processed display mask image created');
         drawImage();
+      };
+
+      // Process mask for printing (original size 874x1251)
+      const printCanvas = document.createElement('canvas');
+      const printCtx = printCanvas.getContext('2d');
+      printCanvas.width = PRINT_WIDTH;
+      printCanvas.height = PRINT_HEIGHT;
+      printCtx.drawImage(maskImage, 0, 0, PRINT_WIDTH, PRINT_HEIGHT);
+
+      const printImageData = printCtx.getImageData(0, 0, printCanvas.width, printCanvas.height);
+      const printData = printImageData.data;
+
+      for (let i = 0; i < printData.length; i += 4) {
+        const r = printData[i];
+        const g = printData[i + 1];
+        const b = printData[i + 2];
+        const brightness = (r + g + b) / 3;
+        if (brightness > 200) { // White or near white (ellipse area)
+          printData[i + 3] = 255; // Fully opaque
+        } else { // Black or near black (outside ellipse)
+          printData[i + 3] = 0; // Fully transparent
+        }
+      }
+
+      printCtx.putImageData(printImageData, 0, 0);
+      printMaskImage = new Image();
+      printMaskImage.src = printCanvas.toDataURL();
+      printMaskImage.onload = () => {
+        console.log('Processed print mask image created');
       };
     }
 
@@ -502,9 +534,9 @@
         const drawY = photoOffsetY;
         tempCtx.drawImage(image, drawX, drawY, scaledWidth, scaledHeight);
 
-        if (processedMaskImage && processedMaskImage.complete && processedMaskImage.naturalWidth !== 0) {
+        if (displayMaskImage && displayMaskImage.complete && displayMaskImage.naturalWidth !== 0) {
           tempCtx.globalCompositeOperation = 'destination-in';
-          tempCtx.drawImage(processedMaskImage, 0, 0, canvasWidth, canvasHeight);
+          tempCtx.drawImage(displayMaskImage, 0, 0, canvasWidth, canvasHeight);
           tempCtx.globalCompositeOperation = 'source-over';
         }
 
@@ -549,9 +581,9 @@
 
       printCtx.drawImage(image, drawX, drawY, scaledWidth, scaledHeight);
 
-      if (maskImage && maskImage.complete && maskImage.naturalWidth !== 0) {
+      if (printMaskImage && printMaskImage.complete && printMaskImage.naturalWidth !== 0) {
         printCtx.globalCompositeOperation = 'destination-in';
-        printCtx.drawImage(maskImage, 0, 0, PRINT_WIDTH, PRINT_HEIGHT);
+        printCtx.drawImage(printMaskImage, 0, 0, PRINT_WIDTH, PRINT_HEIGHT);
         printCtx.globalCompositeOperation = 'source-over';
       }
 
