@@ -372,7 +372,14 @@
         image.src = compressedDataUrl;
         image.onload = () => {
           console.log('Compressed photo loaded successfully, dimensions:', image.width, 'x', image.height);
-          photoScale = Math.min(canvasWidth / image.width, canvasHeight / image.height);
+          // 调整缩放比例，确保照片覆盖蒙版区域
+          const maskAspectRatio = 874 / 1251;
+          const imageAspectRatio = image.width / image.height;
+          if (imageAspectRatio > maskAspectRatio) {
+            photoScale = canvasHeight / image.height; // 以高度为基准缩放
+          } else {
+            photoScale = canvasWidth / image.width; // 以宽度为基准缩放
+          }
           drawImage();
           adjustCanvasDisplaySize();
         };
@@ -398,18 +405,22 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
 
+      // 应用颜色调整
       ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-      ctx.translate(canvasWidth / 2, canvasHeight / 2);
-      ctx.scale(photoScale, photoScale);
-      ctx.drawImage(image, -image.width / 2, -image.height / 2);
 
+      // 计算照片的绘制位置，使其居中并覆盖蒙版区域
+      const scaledWidth = image.width * photoScale;
+      const scaledHeight = image.height * photoScale;
+      const offsetX = (canvasWidth - scaledWidth) / 2;
+      const offsetY = (canvasHeight - scaledHeight) / 2;
+
+      // 绘制照片
+      ctx.drawImage(image, offsetX, offsetY, scaledWidth, scaledHeight);
+
+      // 应用蒙版
       if (maskImage.complete && maskImage.naturalWidth !== 0) {
         ctx.globalCompositeOperation = 'destination-in';
-        ctx.save();
-        ctx.translate(-canvasWidth / 2, -canvasHeight / 2);
-        ctx.rotate(Math.PI); // 旋转 180 度以修复蒙版方向
-        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight, -canvasWidth, -canvasHeight, canvasWidth, canvasHeight);
-        ctx.restore();
+        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
       } else {
         console.warn('Mask image not loaded, skipping mask application.');
       }
@@ -440,18 +451,23 @@
       printCtx.clearRect(0, 0, printCanvas.width, printCanvas.height);
       printCtx.save();
 
+      // 应用颜色调整
       printCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-      printCtx.translate(874 / 2, 1251 / 2);
-      printCtx.scale(photoScale * 2, photoScale * 2);
-      printCtx.drawImage(image, -image.width / 2, -image.height / 2);
 
+      // 计算照片的绘制位置，使其居中并覆盖蒙版区域
+      const printScale = Math.max(874 / image.width, 1251 / image.height); // 确保照片覆盖蒙版区域
+      const scaledWidth = image.width * printScale;
+      const scaledHeight = image.height * printScale;
+      const offsetX = (874 - scaledWidth) / 2;
+      const offsetY = (1251 - scaledHeight) / 2;
+
+      // 绘制照片
+      printCtx.drawImage(image, offsetX, offsetY, scaledWidth, scaledHeight);
+
+      // 应用蒙版
       if (maskImage.complete && maskImage.naturalWidth !== 0) {
         printCtx.globalCompositeOperation = 'destination-in';
-        printCtx.save();
-        printCtx.translate(-874 / 2, -1251 / 2);
-        printCtx.rotate(Math.PI); // 旋转 180 度以修复蒙版方向
-        printCtx.drawImage(maskImage, 0, 0, 874, 1251, -874, -1251, 874, 1251);
-        printCtx.restore();
+        printCtx.drawImage(maskImage, 0, 0, 874, 1251);
       }
 
       printCtx.restore();
