@@ -322,8 +322,25 @@
       displayCanvas.height = canvasHeight;
       displayCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
 
-      // Since the mask is already transparent except for the ellipse,
-      // we don't need to modify the alpha channel, just use it as is
+      // Verify and correct the alpha channel
+      const displayImageData = displayCtx.getImageData(0, 0, displayCanvas.width, displayCanvas.height);
+      const displayData = displayImageData.data;
+
+      let opaquePixels = 0;
+      let transparentPixels = 0;
+      for (let i = 0; i < displayData.length; i += 4) {
+        const alpha = displayData[i + 3];
+        if (alpha > 128) {
+          displayData[i + 3] = 255; // Ensure fully opaque
+          opaquePixels++;
+        } else {
+          displayData[i + 3] = 0; // Ensure fully transparent
+          transparentPixels++;
+        }
+      }
+      console.log('Display mask: Opaque pixels:', opaquePixels, 'Transparent pixels:', transparentPixels);
+
+      displayCtx.putImageData(displayImageData, 0, 0);
       displayMaskImage = new Image();
       displayMaskImage.src = displayCanvas.toDataURL();
       displayMaskImage.onload = () => {
@@ -338,6 +355,24 @@
       printCanvas.height = PRINT_HEIGHT;
       printCtx.drawImage(maskImage, 0, 0, PRINT_WIDTH, PRINT_HEIGHT);
 
+      const printImageData = printCtx.getImageData(0, 0, printCanvas.width, printCanvas.height);
+      const printData = printImageData.data;
+
+      opaquePixels = 0;
+      transparentPixels = 0;
+      for (let i = 0; i < printData.length; i += 4) {
+        const alpha = printData[i + 3];
+        if (alpha > 128) {
+          printData[i + 3] = 255; // Ensure fully opaque
+          opaquePixels++;
+        } else {
+          printData[i + 3] = 0; // Ensure fully transparent
+          transparentPixels++;
+        }
+      }
+      console.log('Print mask: Opaque pixels:', opaquePixels, 'Transparent pixels:', transparentPixels);
+
+      printCtx.putImageData(printImageData, 0, 0);
       printMaskImage = new Image();
       printMaskImage.src = printCanvas.toDataURL();
       printMaskImage.onload = () => {
@@ -507,6 +542,8 @@
           tempCtx.globalCompositeOperation = 'destination-in';
           tempCtx.drawImage(displayMaskImage, 0, 0, canvasWidth, canvasHeight);
           tempCtx.globalCompositeOperation = 'source-over';
+        } else {
+          console.warn('Display mask image not ready or failed to load');
         }
 
         ctx.drawImage(tempCanvas, 0, 0);
@@ -554,6 +591,8 @@
         printCtx.globalCompositeOperation = 'destination-in';
         printCtx.drawImage(printMaskImage, 0, 0, PRINT_WIDTH, PRINT_HEIGHT);
         printCtx.globalCompositeOperation = 'source-over';
+      } else {
+        console.warn('Print mask image not ready or failed to load');
       }
 
       printCtx.restore();
