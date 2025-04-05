@@ -353,15 +353,16 @@
         if (image.src) URL.revokeObjectURL(image.src);
         image.src = compressedDataUrl;
         image.onload = () => {
-          const maskAspectRatio = 874 / 1251;
+          // Initialize scale to cover the canvas
           const imageAspectRatio = image.width / image.height;
-          if (imageAspectRatio > maskAspectRatio) {
+          if (imageAspectRatio > aspectRatio) {
             photoScale = canvasHeight / image.height;
           } else {
             photoScale = canvasWidth / image.width;
           }
-          photoOffsetX = 0;
-          photoOffsetY = 0;
+          // Center the photo
+          photoOffsetX = (canvasWidth - image.width * photoScale) / 2;
+          photoOffsetY = (canvasHeight - image.height * photoScale) / 2;
           drawImage();
           adjustCanvasDisplaySize();
         };
@@ -450,7 +451,10 @@
     });
 
     function drawImage() {
-      if (!image.src || !image.complete) return;
+      if (!image.src || !image.complete) {
+        console.log('Image not loaded, skipping draw.');
+        return;
+      }
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
@@ -469,13 +473,9 @@
       if (maskImage.complete && maskImage.naturalWidth !== 0) {
         ctx.globalCompositeOperation = 'destination-in';
         ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
-
-        // Add black border around the mask
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 2;
-        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight); // Re-draw mask for border effect
-        ctx.strokeRect(0, 0, canvasWidth, canvasHeight); // Simplified border; adjust for irregular shape if needed
+        ctx.globalCompositeOperation = 'source-over'; // Reset to default
+      } else {
+        console.warn('Mask image not loaded, skipping mask application.');
       }
 
       ctx.restore();
@@ -517,12 +517,7 @@
       if (maskImage.complete && maskImage.naturalWidth !== 0) {
         printCtx.globalCompositeOperation = 'destination-in';
         printCtx.drawImage(maskImage, 0, 0, 874, 1251);
-
         printCtx.globalCompositeOperation = 'source-over';
-        printCtx.strokeStyle = 'black';
-        printCtx.lineWidth = 2;
-        printCtx.drawImage(maskImage, 0, 0, 874, 1251);
-        printCtx.strokeRect(0, 0, 874, 1251); // Simplified border
       }
 
       printCtx.restore();
