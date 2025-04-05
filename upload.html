@@ -252,7 +252,7 @@
     function adjustCanvasDisplaySize() {
       // 获取可用宽度和高度
       const maxWidth = window.innerWidth * 0.9;
-      const maxHeight = window.innerHeight * 0.7; // 预留空间给其他元素
+      const maxHeight = window.innerHeight * 0.85; // 调整为 0.85 以占用更多空间
 
       // 基于宽度计算显示尺寸
       let displayWidth = maxWidth;
@@ -294,6 +294,8 @@
     maskImage.onerror = (error) => {
       console.error('Failed to load mask image, error:', error);
       alert(translations[currentLang].mask_load_failed);
+      // 尝试加载备用蒙版（如果有本地路径）
+      // maskImage.src = '/assets/mask.png';
     };
     maskImage.src = maskUrl;
 
