@@ -322,19 +322,30 @@
       displayCanvas.height = canvasHeight;
       displayCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
 
-      // Verify and correct the alpha channel
+      // Verify the alpha channel and correct it based on color
       const displayImageData = displayCtx.getImageData(0, 0, displayCanvas.width, displayCanvas.height);
       const displayData = displayImageData.data;
 
       let opaquePixels = 0;
       let transparentPixels = 0;
       for (let i = 0; i < displayData.length; i += 4) {
+        const r = displayData[i];
+        const g = displayData[i + 1];
+        const b = displayData[i + 2];
         const alpha = displayData[i + 3];
-        if (alpha > 128) {
+        const brightness = (r + g + b) / 3;
+
+        if (alpha === 0) {
+          // Fully transparent pixel (outside the ellipse)
+          displayData[i + 3] = 0;
+          transparentPixels++;
+        } else if (brightness < 50 && alpha > 0) {
+          // Black pixel with some opacity (inside the ellipse)
           displayData[i + 3] = 255; // Ensure fully opaque
           opaquePixels++;
         } else {
-          displayData[i + 3] = 0; // Ensure fully transparent
+          // Any other case, make it transparent
+          displayData[i + 3] = 0;
           transparentPixels++;
         }
       }
@@ -361,12 +372,20 @@
       opaquePixels = 0;
       transparentPixels = 0;
       for (let i = 0; i < printData.length; i += 4) {
+        const r = printData[i];
+        const g = printData[i + 1];
+        const b = printData[i + 2];
         const alpha = printData[i + 3];
-        if (alpha > 128) {
-          printData[i + 3] = 255; // Ensure fully opaque
+        const brightness = (r + g + b) / 3;
+
+        if (alpha === 0) {
+          printData[i + 3] = 0;
+          transparentPixels++;
+        } else if (brightness < 50 && alpha > 0) {
+          printData[i + 3] = 255;
           opaquePixels++;
         } else {
-          printData[i + 3] = 0; // Ensure fully transparent
+          printData[i + 3] = 0;
           transparentPixels++;
         }
       }
