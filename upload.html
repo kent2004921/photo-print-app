@@ -296,9 +296,11 @@
 
     const maskUrl = 'https://photo-print-app.netlify.app/assets/mask.png';
     maskImage.onload = () => {
+      console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
       drawImage();
     };
     maskImage.onerror = () => {
+      console.error('Failed to load mask image, trying fallback URL');
       maskImage.src = '/assets/mask.png';
       maskImage.onerror = () => {
         alert(translations[currentLang].mask_load_failed);
@@ -353,18 +355,22 @@
         if (image.src) URL.revokeObjectURL(image.src);
         image.src = compressedDataUrl;
         image.onload = () => {
-          // Initialize scale to cover the canvas
+          console.log('Photo loaded successfully, dimensions:', image.width, 'x', image.height);
           const imageAspectRatio = image.width / image.height;
           if (imageAspectRatio > aspectRatio) {
             photoScale = canvasHeight / image.height;
           } else {
             photoScale = canvasWidth / image.width;
           }
-          // Center the photo
           photoOffsetX = (canvasWidth - image.width * photoScale) / 2;
           photoOffsetY = (canvasHeight - image.height * photoScale) / 2;
           drawImage();
           adjustCanvasDisplaySize();
+        };
+        image.onerror = () => {
+          console.error('Failed to load photo');
+          updateCompressionStatus('failed');
+          alert('Failed to load photo, please try another one!');
         };
       } catch (error) {
         updateCompressionStatus('failed');
@@ -451,29 +457,32 @@
     });
 
     function drawImage() {
-      if (!image.src || !image.complete) {
-        console.log('Image not loaded, skipping draw.');
-        return;
-      }
-
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
 
-      // Apply color adjustments
-      ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-
-      // Draw the photo
-      const scaledWidth = image.width * photoScale;
-      const scaledHeight = image.height * photoScale;
-      const drawX = photoOffsetX;
-      const drawY = photoOffsetY;
-      ctx.drawImage(image, drawX, drawY, scaledWidth, scaledHeight);
+      // Draw the photo if loaded
+      if (image.src && image.complete && image.naturalWidth !== 0) {
+        ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
+        const scaledWidth = image.width * photoScale;
+        const scaledHeight = image.height * photoScale;
+        const drawX = photoOffsetX;
+        const drawY = photoOffsetY;
+        ctx.drawImage(image, drawX, drawY, scaledWidth, scaledHeight);
+      } else {
+        console.log('Photo not loaded or invalid, skipping photo draw.');
+      }
 
       // Apply mask to keep photo within mask area
       if (maskImage.complete && maskImage.naturalWidth !== 0) {
-        ctx.globalCompositeOperation = 'destination-in';
+        // Use source-in to ensure the photo only shows where the mask is transparent
+        ctx.globalCompositeOperation = 'source-in';
         ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
-        ctx.globalCompositeOperation = 'source-over'; // Reset to default
+        ctx.globalCompositeOperation = 'source-over';
+
+        // Add black border around the mask
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 2;
+        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
       } else {
         console.warn('Mask image not loaded, skipping mask application.');
       }
@@ -515,9 +524,13 @@
       printCtx.drawImage(image, drawX, drawY, scaledWidth, scaledHeight);
 
       if (maskImage.complete && maskImage.naturalWidth !== 0) {
-        printCtx.globalCompositeOperation = 'destination-in';
+        printCtx.globalCompositeOperation = 'source-in';
         printCtx.drawImage(maskImage, 0, 0, 874, 1251);
         printCtx.globalCompositeOperation = 'source-over';
+
+        printCtx.strokeStyle = 'black';
+        printCtx.lineWidth = 2;
+        printCtx.drawImage(maskImage, 0, 0, 874, 1251);
       }
 
       printCtx.restore();
