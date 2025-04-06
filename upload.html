@@ -173,7 +173,8 @@
         print_failed: "打印失败！",
         network_error: "网络错误，请稍后再试！",
         language_btn: "English",
-        loading: "加载中..."
+        loading: "加载中...",
+        mask_load_failed: "无法加载蒙版图像，请联系管理员！"
       },
       en: {
         upload_title: "Upload Photo to Print",
@@ -188,7 +189,8 @@
         print_failed: "Print failed!",
         network_error: "Network error, please try again later!",
         language_btn: "中文",
-        loading: "Loading..."
+        loading: "Loading...",
+        mask_load_failed: "Failed to load mask image, please contact the administrator!"
       }
     };
 
@@ -283,6 +285,27 @@
       console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
       if (maskImage.width !== 874 || maskImage.height !== 1251) {
         console.warn('Mask image dimensions do not match expected (874x1251), resizing may affect quality.');
+      }
+      // 调试mask图像的透明区域
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = maskImage.width;
+      tempCanvas.height = maskImage.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.drawImage(maskImage, 0, 0);
+      const imageData = tempCtx.getImageData(0, 0, maskImage.width, maskImage.height);
+      const data = imageData.data;
+      let transparentPixels = 0;
+      let opaquePixels = 0;
+      for (let i = 3; i < data.length; i += 4) {
+        if (data[i] === 0) transparentPixels++;
+        else if (data[i] === 255) opaquePixels++;
+      }
+      console.log('Mask image transparency analysis:');
+      console.log(`- Transparent pixels (alpha = 0): ${transparentPixels}`);
+      console.log(`- Opaque pixels (alpha = 255): ${opaquePixels}`);
+      console.log(`- Total pixels: ${data.length / 4}`);
+      if (transparentPixels === 0) {
+        console.error('Mask image has no transparent areas! The elliptical region should be transparent (alpha = 0).');
       }
       processBorderImage();
       drawImage();
@@ -399,6 +422,22 @@
 
         // 将裁剪后的照片绘制到主画布
         ctx.drawImage(photoCanvas, 0, 0);
+
+        // 调试：检查裁剪后的图像是否为空白
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        let nonTransparentPixels = 0;
+        for (let i = 3; i < data.length; i += 4) {
+          if (data[i] > 0) {
+            nonTransparentPixels++;
+            break; // 只要找到一个非透明像素即可
+          }
+        }
+        if (nonTransparentPixels === 0) {
+          console.error('After applying mask, the canvas is completely transparent. This indicates the mask may not have the correct transparent region.');
+        } else {
+          console.log('After applying mask, the canvas contains visible content.');
+        }
 
         // 绘制红色边框以标记椭圆形区域
         if (borderImage && borderImage.complete) {
