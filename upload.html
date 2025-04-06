@@ -20,7 +20,7 @@
       border-radius: 15px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.2);
       width: 90%;
-      max-width: 437px;
+      max-width: 874px;
       margin: 20px 0;
       text-align: center;
       position: relative;
@@ -225,29 +225,25 @@
     let initialRotation = 0;
 
     const dpr = window.devicePixelRatio || 1;
-    const displayCanvas = document.getElementById('photoCanvas');
-    const displayCtx = displayCanvas.getContext('2d');
-    displayCanvas.width = 437 * dpr;
-    displayCanvas.height = 625 * dpr;
-    displayCanvas.style.width = '437px';
-    displayCanvas.style.height = '625px';
-    displayCtx.scale(dpr, dpr);
+    const canvas = document.getElementById('photoCanvas');
+    const ctx = canvas.getContext('2d');
 
-    const printCanvas = document.createElement('canvas');
-    printCanvas.width = 874 * dpr;
-    printCanvas.height = 1251 * dpr;
-    const printCtx = printCanvas.getContext('2d');
-    printCtx.scale(dpr, dpr);
+    // 动态设置画布尺寸，自适应手机屏幕
+    const canvasWidth = Math.min(window.innerWidth * 0.9, 874);
+    const canvasHeight = canvasWidth * (1251 / 874);
+    canvas.width = canvasWidth * dpr;
+    canvas.height = canvasHeight * dpr;
+    canvas.style.width = `${canvasWidth}px`;
+    canvas.style.height = `${canvasHeight}px`;
+    ctx.scale(dpr, dpr);
 
+    // 加载蒙版
     const maskUrl = 'https://photo-print-app.netlify.app/assets/mask.png';
     maskImage.src = maskUrl;
-    maskImage.onload = () => {
-      console.log('Mask loaded successfully:', maskImage.width, 'x', maskImage.height);
-      drawImage();
-    };
+    maskImage.onload = () => drawImage();
     maskImage.onerror = () => {
       console.error('Failed to load mask image');
-      alert('Failed to load mask image. Please check the URL or file.');
+      alert('蒙版加载失败，请检查网络或文件路径！');
     };
 
     document.getElementById('photoInput').addEventListener('change', (e) => {
@@ -257,82 +253,42 @@
         image.src = URL.createObjectURL(file);
         image.onload = () => {
           // 调整初始缩放比例以适应画布
-          const canvasAspect = 437 / 625;
+          const canvasAspect = canvasWidth / canvasHeight;
           const imageAspect = image.width / image.height;
-          if (imageAspect > canvasAspect) {
-            photoScale = 437 / image.width;
-          } else {
-            photoScale = 625 / image.height;
-          }
+          photoScale = imageAspect > canvasAspect ? canvasWidth / image.width : canvasHeight / image.height;
           drawImage();
         };
       }
     });
 
     let lastDrawTime = 0;
-    const throttleInterval = 16;
+    const throttleInterval = 16; // 约60fps
 
     function drawImage() {
       const now = performance.now();
       if (now - lastDrawTime < throttleInterval) return;
       lastDrawTime = now;
 
-      displayCtx.clearRect(0, 0, displayCanvas.width, displayCanvas.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (image.src && maskImage.complete) {
-        displayCtx.save();
-        // 先绘制蒙版
-        displayCtx.drawImage(maskImage, 0, 0, 437, 625);
-        // 设置合成模式
-        displayCtx.globalCompositeOperation = 'source-in';
+        ctx.save();
         // 绘制照片
-        displayCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-        displayCtx.translate(437 / 2 + posX, 625 / 2 + posY);
-        displayCtx.rotate((photoRotation * Math.PI) / 180);
-        displayCtx.scale(photoScale, photoScale);
-        displayCtx.drawImage(image, -image.width / 2, -image.height / 2);
-        displayCtx.restore();
+        ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
+        ctx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
+        ctx.rotate((photoRotation * Math.PI) / 180);
+        ctx.scale(photoScale, photoScale);
+        ctx.drawImage(image, -image.width / 2, -image.height / 2);
+        ctx.restore();
+
+        // 使用高效的蒙版合成
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+        ctx.globalCompositeOperation = 'source-over';
       }
     }
 
-    function drawPrintImage() {
-      printCtx.clearRect(0, 0, printCanvas.width, printCanvas.height);
-      if (image.src && maskImage.complete) {
-        printCtx.save();
-        printCtx.drawImage(maskImage, 0, 0, 874, 1251);
-        printCtx.globalCompositeOperation = 'source-in';
-        printCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-        printCtx.translate(874 / 2 + posX * 2, 1251 / 2 + posY * 2);
-        printCtx.rotate((photoRotation * Math.PI) / 180);
-        printCtx.scale(photoScale * 2, photoScale * 2);
-        printCtx.drawImage(image, -image.width / 2, -image.height / 2);
-        printCtx.restore();
-      }
-    }
-
-    displayCanvas.addEventListener('mousedown', (e) => {
-      const rect = displayCanvas.getBoundingClientRect();
-      isDraggingImage = true;
-      startX = e.clientX;
-      startY = e.clientY;
-    });
-
-    displayCanvas.addEventListener('mousemove', (e) => {
-      if (isDraggingImage) {
-        const dx = (e.clientX - startX) * (437 / displayCanvas.getBoundingClientRect().width);
-        const dy = (e.clientY - startY) * (625 / displayCanvas.getBoundingClientRect().height);
-        posX += dx;
-        posY += dy;
-        startX = e.clientX;
-        startY = e.clientY;
-        drawImage();
-      }
-    });
-
-    displayCanvas.addEventListener('mouseup', () => {
-      isDraggingImage = false;
-    });
-
-    displayCanvas.addEventListener('touchstart', (e) => {
+    // 触摸事件处理
+    canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
       const touches = e.touches;
       if (touches.length === 1) {
@@ -351,16 +307,17 @@
       }
     });
 
-    displayCanvas.addEventListener('touchmove', (e) => {
+    canvas.addEventListener('touchmove', (e) => {
       e.preventDefault();
       const now = performance.now();
       if (now - lastDrawTime < throttleInterval) return;
       lastDrawTime = now;
 
       const touches = e.touches;
+      const rect = canvas.getBoundingClientRect();
       if (touches.length === 1 && isDraggingImage) {
-        const dx = (touches[0].clientX - startX) * (437 / displayCanvas.getBoundingClientRect().width);
-        const dy = (touches[0].clientY - startY) * (625 / displayCanvas.getBoundingClientRect().height);
+        const dx = (touches[0].clientX - startX) * (canvasWidth / rect.width);
+        const dy = (touches[0].clientY - startY) * (canvasHeight / rect.height);
         posX += dx;
         posY += dy;
         startX = touches[0].clientX;
@@ -377,10 +334,34 @@
       }
     });
 
-    displayCanvas.addEventListener('touchend', (e) => {
+    canvas.addEventListener('touchend', (e) => {
       e.preventDefault();
       isDraggingImage = false;
       isPinching = false;
+    });
+
+    // 鼠标事件（保持电脑兼容性）
+    canvas.addEventListener('mousedown', (e) => {
+      isDraggingImage = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isDraggingImage) {
+        const rect = canvas.getBoundingClientRect();
+        const dx = (e.clientX - startX) * (canvasWidth / rect.width);
+        const dy = (e.clientY - startY) * (canvasHeight / rect.height);
+        posX += dx;
+        posY += dy;
+        startX = e.clientX;
+        startY = e.clientY;
+        drawImage();
+      }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      isDraggingImage = false;
     });
 
     function adjustColor() {
@@ -395,12 +376,35 @@
         alert(translations[currentLang].no_photo);
         return;
       }
-      drawPrintImage();
+
+      // 为打印生成高分辨率图像
+      const printCanvas = document.createElement('canvas');
+      printCanvas.width = 874 * dpr;
+      printCanvas.height = 1251 * dpr;
+      const printCtx = printCanvas.getContext('2d');
+      printCtx.scale(dpr, dpr);
+
+      printCtx.clearRect(0, 0, printCanvas.width, printCanvas.height);
+      if (image.src && maskImage.complete) {
+        printCtx.save();
+        printCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
+        printCtx.translate(874 / 2 + posX * (874 / canvasWidth), 1251 / 2 + posY * (1251 / canvasHeight));
+        printCtx.rotate((photoRotation * Math.PI) / 180);
+        printCtx.scale(photoScale * (874 / canvasWidth), photoScale * (1251 / canvasHeight));
+        printCtx.drawImage(image, -image.width / 2, -image.height / 2);
+        printCtx.restore();
+
+        printCtx.globalCompositeOperation = 'destination-in';
+        printCtx.drawImage(maskImage, 0, 0, 874, 1251);
+        printCtx.globalCompositeOperation = 'source-over';
+      }
+
       const dataUrl = printCanvas.toDataURL('image/jpeg');
       if (!username || !dataUrl) {
         alert(translations[currentLang].missing_data);
         return;
       }
+
       try {
         const response = await fetch('/.netlify/functions/print', {
           method: 'POST',
@@ -410,6 +414,7 @@
           },
           body: JSON.stringify({ username, dataUrl })
         });
+
         const data = await response.json();
         if (data.success) {
           alert(translations[currentLang].print_success);
