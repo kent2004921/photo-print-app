@@ -222,6 +222,7 @@
 
     let image = new Image();
     let maskImage = new Image();
+    let invertedMaskImage = null; // 反转后的mask图像
     let borderImage = null; // 预处理的边框图像
     let photoScale = 1;
     let photoRotation = 0;
@@ -286,7 +287,7 @@
       if (maskImage.width !== 874 || maskImage.height !== 1251) {
         console.warn('Mask image dimensions do not match expected (874x1251), resizing may affect quality.');
       }
-      // 调试mask图像的透明区域
+      // 反转mask图像的透明区域
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = maskImage.width;
       tempCanvas.height = maskImage.height;
@@ -294,21 +295,35 @@
       tempCtx.drawImage(maskImage, 0, 0);
       const imageData = tempCtx.getImageData(0, 0, maskImage.width, maskImage.height);
       const data = imageData.data;
-      let transparentPixels = 0;
-      let opaquePixels = 0;
       for (let i = 3; i < data.length; i += 4) {
-        if (data[i] === 0) transparentPixels++;
-        else if (data[i] === 255) opaquePixels++;
+        // 反转alpha值：透明变为不透明，不透明变为透明
+        data[i] = data[i] === 0 ? 255 : 0;
       }
-      console.log('Mask image transparency analysis:');
-      console.log(`- Transparent pixels (alpha = 0): ${transparentPixels}`);
-      console.log(`- Opaque pixels (alpha = 255): ${opaquePixels}`);
-      console.log(`- Total pixels: ${data.length / 4}`);
-      if (transparentPixels === 0) {
-        console.error('Mask image has no transparent areas! The elliptical region should be transparent (alpha = 0).');
-      }
-      processBorderImage();
-      drawImage();
+      tempCtx.putImageData(imageData, 0, 0);
+      invertedMaskImage = new Image();
+      invertedMaskImage.src = tempCanvas.toDataURL();
+      invertedMaskImage.onload = () => {
+        console.log('Inverted mask image created successfully');
+        // 调试反转后的mask图像
+        const debugCanvas = document.createElement('canvas');
+        debugCanvas.width = invertedMaskImage.width;
+        debugCanvas.height = invertedMaskImage.height;
+        const debugCtx = debugCanvas.getContext('2d');
+        debugCtx.drawImage(invertedMaskImage, 0, 0);
+        const debugData = debugCtx.getImageData(0, 0, invertedMaskImage.width, invertedMaskImage.height).data;
+        let transparentPixels = 0;
+        let opaquePixels = 0;
+        for (let i = 3; i < debugData.length; i += 4) {
+          if (debugData[i] === 0) transparentPixels++;
+          else if (debugData[i] === 255) opaquePixels++;
+        }
+        console.log('Inverted mask image transparency analysis:');
+        console.log(`- Transparent pixels (alpha = 0): ${transparentPixels}`);
+        console.log(`- Opaque pixels (alpha = 255): ${opaquePixels}`);
+        console.log(`- Total pixels: ${debugData.length / 4}`);
+        processBorderImage();
+        drawImage();
+      };
     };
     maskImage.onerror = () => {
       console.error('Failed to load mask image, trying fallback URL');
@@ -398,7 +413,7 @@
     function drawImage() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if (image.src && image.complete && maskImage.complete) {
+      if (image.src && image.complete && invertedMaskImage && invertedMaskImage.complete) {
         document.getElementById('loadingMessage').style.display = 'none';
         ctx.save();
 
@@ -415,9 +430,9 @@
         photoCtx.scale(photoScale, photoScale);
         photoCtx.drawImage(image, -image.width / 2, -image.height / 2);
 
-        // 使用 destination-in 裁剪照片，只显示椭圆形区域内的内容
+        // 使用反转后的mask裁剪照片，只显示椭圆形区域内的内容
         photoCtx.globalCompositeOperation = 'destination-in';
-        photoCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+        photoCtx.drawImage(invertedMaskImage, 0, 0, canvasWidth, canvasHeight);
         photoCtx.globalCompositeOperation = 'source-over';
 
         // 将裁剪后的照片绘制到主画布
@@ -434,9 +449,9 @@
           }
         }
         if (nonTransparentPixels === 0) {
-          console.error('After applying mask, the canvas is completely transparent. This indicates the mask may not have the correct transparent region.');
+          console.error('After applying inverted mask, the canvas is completely transparent. This indicates the mask inversion may have failed.');
         } else {
-          console.log('After applying mask, the canvas contains visible content.');
+          console.log('After applying inverted mask, the canvas contains visible content.');
         }
 
         // 绘制红色边框以标记椭圆形区域
@@ -447,7 +462,7 @@
         ctx.restore();
       } else {
         document.getElementById('loadingMessage').style.display = 'block';
-        console.log('Cannot draw image: image.src=', image.src, 'image.complete=', image.complete, 'maskImage.complete=', maskImage.complete);
+        console.log('Cannot draw image: image.src=', image.src, 'image.complete=', image.complete, 'invertedMaskImage=', invertedMaskImage);
       }
     }
 
@@ -524,7 +539,7 @@
         drawImage();
       } else if (touches.length === 2 && isPinching) {
         const dx = touches[0].clientX - touches[1].clientX;
-        const dy = touches[0].clientY - touches[1].clientY;
+        const dy = (touches[0].clientY - rect.top) * scaleY - (touches[1].clientY - rect.top) * scaleY;
         const distance = Math.sqrt(dx * dx + dy * dy);
         const angle = Math.atan2(dy, dx);
 
@@ -573,9 +588,9 @@
       printCtx.scale(photoScale * (PRINT_WIDTH / canvasWidth), photoScale * (PRINT_HEIGHT / canvasHeight));
       printCtx.drawImage(image, -image.width / 2, -image.height / 2);
 
-      // 使用 destination-in 裁剪照片，只保留椭圆形区域内的内容
+      // 使用反转后的mask裁剪照片，只保留椭圆形区域内的内容
       printCtx.globalCompositeOperation = 'destination-in';
-      printCtx.drawImage(maskImage, 0, 0, PRINT_WIDTH, PRINT_HEIGHT);
+      printCtx.drawImage(invertedMaskImage, 0, 0, PRINT_WIDTH, PRINT_HEIGHT);
       printCtx.globalCompositeOperation = 'source-over';
 
       printCtx.restore();
