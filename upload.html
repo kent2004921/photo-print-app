@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>上传照片打印</title>
+  <title>上传照片打印（无蒙版）</title>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -82,7 +82,7 @@
 </head>
 <body>
   <div class="container">
-    <h2>上传照片打印</h2>
+    <h2>上传照片打印（无蒙版）</h2>
     <input type="file" id="photoInput" accept="image/*">
     <canvas id="photoCanvas"></canvas>
     <button class="print-btn" onclick="printPhoto()">打印</button>
@@ -97,7 +97,6 @@
     }
 
     let image = new Image();
-    let maskImage = new Image();
     let photoScale = 1;
     let photoRotation = 0;
     let posX = 0;
@@ -123,31 +122,6 @@
     canvas.style.height = `${canvasHeight}px`;
     ctx.scale(dpr, dpr);
 
-    // 生成一个简单的圆形蒙版
-    function generateDefaultMask() {
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvasWidth * dpr;
-      tempCanvas.height = canvasHeight * dpr;
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCtx.scale(dpr, dpr);
-      tempCtx.fillStyle = 'black';
-      tempCtx.fillRect(0, 0, canvasWidth, canvasHeight);
-      tempCtx.globalCompositeOperation = 'destination-out';
-      tempCtx.beginPath();
-      tempCtx.arc(canvasWidth / 2, canvasHeight / 2, Math.min(canvasWidth, canvasHeight) / 3, 0, Math.PI * 2);
-      tempCtx.fillStyle = 'white';
-      tempCtx.fill();
-      tempCtx.globalCompositeOperation = 'source-over';
-      maskImage.src = tempCanvas.toDataURL('image/png');
-      maskImage.onload = () => {
-        console.log('Default mask generated successfully.');
-        drawImage();
-      };
-    }
-
-    // 加载蒙版（暂时使用默认蒙版）
-    generateDefaultMask();
-
     document.getElementById('photoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
@@ -171,46 +145,13 @@
       lastDrawTime = now;
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (image.src && maskImage.complete) {
-        // 创建离屏画布绘制照片
-        const photoCanvas = document.createElement('canvas');
-        photoCanvas.width = canvasWidth * dpr;
-        photoCanvas.height = canvasHeight * dpr;
-        const photoCtx = photoCanvas.getContext('2d');
-        photoCtx.scale(dpr, dpr);
-
-        // 绘制照片
-        photoCtx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
-        photoCtx.rotate((photoRotation * Math.PI) / 180);
-        photoCtx.scale(photoScale, photoScale);
-        photoCtx.drawImage(image, -image.width / 2, -image.height / 2);
-
-        // 创建离屏画布绘制蒙版
-        const maskCanvas = document.createElement('canvas');
-        maskCanvas.width = canvasWidth * dpr;
-        maskCanvas.height = canvasHeight * dpr;
-        const maskCtx = maskCanvas.getContext('2d');
-        maskCtx.scale(dpr, dpr);
-        maskCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
-
-        // 获取照片和蒙版的像素数据
-        const photoData = photoCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
-        const maskData = maskCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
-        const photoPixels = photoData.data;
-        const maskPixels = maskData.data;
-
-        // 手动应用蒙版：根据蒙版的 alpha 通道调整照片的透明度
-        for (let i = 0; i < photoPixels.length; i += 4) {
-          const maskAlpha = maskPixels[i + 3];
-          if (maskAlpha > 0) {
-            photoPixels[i + 3] = 0; // 非透明区域隐藏照片
-          } else {
-            photoPixels[i + 3] = 255; // 透明区域显示照片
-          }
-        }
-
-        // 将处理后的照片绘制到主画布
-        ctx.putImageData(photoData, 0, 0);
+      if (image.src) {
+        ctx.save();
+        ctx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
+        ctx.rotate((photoRotation * Math.PI) / 180);
+        ctx.scale(photoScale, photoScale);
+        ctx.drawImage(image, -image.width / 2, -image.height / 2);
+        ctx.restore();
       }
     }
 
@@ -364,36 +305,13 @@
       printCtx.scale(dpr, dpr);
 
       printCtx.clearRect(0, 0, printCanvas.width, printCanvas.height);
-      if (image.src && maskImage.complete) {
+      if (image.src) {
         printCtx.save();
         printCtx.translate(874 / 2 + posX * (874 / canvasWidth), 1251 / 2 + posY * (1251 / canvasHeight));
         printCtx.rotate((photoRotation * Math.PI) / 180);
         printCtx.scale(photoScale * (874 / canvasWidth), photoScale * (1251 / canvasHeight));
         printCtx.drawImage(image, -image.width / 2, -image.height / 2);
         printCtx.restore();
-
-        const maskCanvas = document.createElement('canvas');
-        maskCanvas.width = 874 * dpr;
-        maskCanvas.height = 1251 * dpr;
-        const maskCtx = maskCanvas.getContext('2d');
-        maskCtx.scale(dpr, dpr);
-        maskCtx.drawImage(maskImage, 0, 0, 874, 1251);
-
-        const photoData = printCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
-        const maskData = maskCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
-        const photoPixels = photoData.data;
-        const maskPixels = maskData.data;
-
-        for (let i = 0; i < photoPixels.length; i += 4) {
-          const maskAlpha = maskPixels[i + 3];
-          if (maskAlpha > 0) {
-            photoPixels[i + 3] = 0;
-          } else {
-            photoPixels[i + 3] = 255;
-          }
-        }
-
-        printCtx.putImageData(photoData, 0, 0);
       }
 
       const dataUrl = printCanvas.toDataURL('image/jpeg');
