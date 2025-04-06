@@ -385,19 +385,17 @@
         const photoCtx = photoCanvas.getContext('2d');
         photoCtx.scale(dpr, dpr);
 
+        // 绘制完整照片
         photoCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
         photoCtx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
         photoCtx.rotate((photoRotation * Math.PI) / 180);
         photoCtx.scale(photoScale, photoScale);
         photoCtx.drawImage(image, -image.width / 2, -image.height / 2);
 
-        // 使用 destination-in 使照片只显示在mask的不透明区域（椭圆形区域内）
-        photoCtx.globalCompositeOperation = 'destination-in';
-        photoCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
-        photoCtx.globalCompositeOperation = 'source-over';
-
+        // 将照片绘制到主画布
         ctx.drawImage(photoCanvas, 0, 0);
 
+        // 绘制红色边框以标记椭圆形区域
         if (borderImage && borderImage.complete) {
           ctx.drawImage(borderImage, 0, 0, canvasWidth, canvasHeight);
         }
@@ -524,12 +522,14 @@
       printCtx.clearRect(0, 0, printCanvas.width, printCanvas.height);
       printCtx.save();
 
+      // 绘制完整照片
       printCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
       printCtx.translate(PRINT_WIDTH / 2 + posX * (PRINT_WIDTH / canvasWidth), PRINT_HEIGHT / 2 + posY * (PRINT_HEIGHT / canvasHeight));
       printCtx.rotate((photoRotation * Math.PI) / 180);
       printCtx.scale(photoScale * (PRINT_WIDTH / canvasWidth), photoScale * (PRINT_HEIGHT / canvasHeight));
       printCtx.drawImage(image, -image.width / 2, -image.height / 2);
 
+      // 使用 destination-in 裁剪照片，只保留椭圆形区域内的内容
       printCtx.globalCompositeOperation = 'destination-in';
       printCtx.drawImage(maskImage, 0, 0, PRINT_WIDTH, PRINT_HEIGHT);
       printCtx.globalCompositeOperation = 'source-over';
