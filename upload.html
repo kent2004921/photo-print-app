@@ -309,7 +309,7 @@
 
       borderCtx.clearRect(0, 0, borderCanvas.width, borderCanvas.height);
       borderCtx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-      borderCtx.lineWidth = 2 / dpr; // 调整线宽以适配设备像素比
+      borderCtx.lineWidth = 2 / dpr;
 
       for (let y = 0; y < borderCanvas.height; y++) {
         for (let x = 0; x < borderCanvas.width; x++) {
@@ -391,7 +391,8 @@
         photoCtx.scale(photoScale, photoScale);
         photoCtx.drawImage(image, -image.width / 2, -image.height / 2);
 
-        photoCtx.globalCompositeOperation = 'destination-in';
+        // 使用 destination-out 使照片在mask的透明区域（椭圆形区域内）变成透明
+        photoCtx.globalCompositeOperation = 'destination-out';
         photoCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
         photoCtx.globalCompositeOperation = 'source-over';
 
@@ -529,7 +530,7 @@
       printCtx.scale(photoScale * (PRINT_WIDTH / canvasWidth), photoScale * (PRINT_HEIGHT / canvasHeight));
       printCtx.drawImage(image, -image.width / 2, -image.height / 2);
 
-      printCtx.globalCompositeOperation = 'destination-in';
+      printCtx.globalCompositeOperation = 'destination-out';
       printCtx.drawImage(maskImage, 0, 0, PRINT_WIDTH, PRINT_HEIGHT);
       printCtx.globalCompositeOperation = 'source-over';
 
