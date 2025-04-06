@@ -3,133 +3,459 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Upload Photo to Print</title>
+  <title data-i18n="upload_title">上传照片打印</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', Arial, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
-      background-color: #fff;
+      min-height: 100vh;
       margin: 0;
-      padding: 20px;
+      background: linear-gradient(135deg, #74ebd5, #acb6e5);
     }
-    h1 {
-      font-size: 24px;
-      color: #000;
-      margin-bottom: 20px;
-    }
-    .upload-section {
-      margin-bottom: 20px;
-    }
-    .preview-container {
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      width: 90%;
+      max-width: 874px;
+      margin: 20px 0;
+      text-align: center;
       position: relative;
-      width: 300px;
-      height: 300px;
-      border: 1px solid #ccc;
       overflow: hidden;
     }
-    .mask {
+    .container::before {
+      content: '';
       position: absolute;
+      top: 0;
+      left: 0;
       width: 100%;
-      height: 100%;
-      background: url('mask.png') no-repeat center; /* 假设蒙版是一个PNG图片 */
-      background-size: contain;
-      z-index: 5; /* 蒙版层级较低 */
-      pointer-events: none; /* 确保蒙版不干扰鼠标/触摸事件 */
+      height: 5px;
+      background: linear-gradient(to right, #ff6b6b, #feca57);
     }
-    .photo {
-      position: absolute;
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    h2 {
+      color: #333;
+      font-size: 24px;
+      margin: 0;
+    }
+    canvas {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      max-width: 100%;
+      margin: 10px 0;
+      touch-action: none;
+    }
+    input[type="file"] {
       width: 100%;
-      height: 100%;
-      object-fit: cover;
-      z-index: 10; /* 照片层级高于蒙版 */
-      cursor: move;
-      user-select: none;
+      padding: 12px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-sizing: border-box;
+      font-size: 16px;
+      background-color: #f9f9f9;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: transform 0.1s, background 0.3s;
+    }
+    button:hover {
+      transform: scale(1.02);
     }
     .print-btn {
-      margin-top: 20px;
-      padding: 10px 20px;
-      background-color: #007bff;
-      color: #fff;
-      border: none;
-      cursor: pointer;
+      background: linear-gradient(to right, #007bff, #00c4ff);
+      color: white;
     }
     .print-btn:hover {
-      background-color: #0056b3;
+      background: linear-gradient(to right, #0056b3, #0099cc);
+    }
+    .language-btn {
+      background: linear-gradient(to right, #28a745, #34d058);
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      transition: transform 0.1s, background 0.3s;
+    }
+    .language-btn:hover {
+      background: linear-gradient(to right, #218838, #28a745);
+      transform: scale(1.1);
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      justify-content: center;
+    }
+    .control-group {
+      margin: 15px 0;
+      padding: 10px;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .control-group label {
+      display: block;
+      margin-bottom: 8px;
+      color: #444;
+      font-size: 16px;
+    }
+    .control-group input[type="range"] {
+      width: 100%;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <h1>Upload Photo to Print</h1>
-  <div class="upload-section">
+  <div class="container">
+    <div class="header">
+      <h2 data-i18n="upload_title">上传照片打印</h2>
+      <button class="language-btn" onclick="toggleLanguage()">🌐</button>
+    </div>
     <input type="file" id="photoInput" accept="image/*">
-    <span id="fileName"></span>
+    <canvas id="photoCanvas"></canvas>
+    <div class="controls">
+      <button class="print-btn" onclick="printPhoto()" data-i18n="print">打印</button>
+    </div>
+    <div class="control-group">
+      <label data-i18n="brightness">亮度</label>
+      <input type="range" id="brightness" min="0" max="2" step="0.1" value="1" oninput="adjustColor()">
+    </div>
+    <div class="control-group">
+      <label data-i18n="contrast">对比度</label>
+      <input type="range" id="contrast" min="0" max="2" step="0.1" value="1" oninput="adjustColor()">
+    </div>
+    <div class="control-group">
+      <label data-i18n="saturation">饱和度</label>
+      <input type="range" id="saturation" min="0" max="2" step="0.1" value="1" oninput="adjustColor()">
+    </div>
   </div>
-  <div class="preview-container" id="previewContainer">
-    <img class="mask" src="mask.png" alt="Mask">
-    <img class="photo" id="photo" alt="Uploaded Photo">
-  </div>
-  <button class="print-btn" onclick="alert('打印功能待实现')">Print</button>
 
   <script>
-    const photoInput = document.getElementById('photoInput');
-    const fileName = document.getElementById('fileName');
-    const photo = document.getElementById('photo');
-    let isDragging = false;
-    let startX, startY;
+    const translations = {
+      zh: {
+        upload_title: "上传照片打印",
+        print: "打印",
+        brightness: "亮度",
+        contrast: "对比度",
+        saturation: "饱和度",
+        invalid_qr: "无效的二维码，请重新扫描！",
+        no_photo: "请先上传照片！",
+        missing_data: "缺少用户名或照片数据，请刷新页面重试！",
+        print_success: "打印成功！",
+        print_failed: "打印失败！",
+        network_error: "网络错误，请稍后再试！",
+        language_btn: "English"
+      },
+      en: {
+        upload_title: "Upload Photo to Print",
+        print: "Print",
+        brightness: "Brightness",
+        contrast: "Contrast",
+        saturation: "Saturation",
+        invalid_qr: "Invalid QR code, please scan again!",
+        no_photo: "Please upload a photo first!",
+        missing_data: "Missing username or photo data, please refresh and try again!",
+        print_success: "Print successful!",
+        print_failed: "Print failed!",
+        network_error: "Network error, please try again later!",
+        language_btn: "中文"
+      }
+    };
 
-    // 上传照片
-    photoInput.addEventListener('change', (e) => {
+    let currentLang = localStorage.getItem('language') || 'zh';
+    updateLanguage();
+
+    function toggleLanguage() {
+      currentLang = currentLang === 'zh' ? 'en' : 'zh';
+      localStorage.setItem('language', currentLang);
+      updateLanguage();
+    }
+
+    function updateLanguage() {
+      document.querySelectorAll('[data-i18n]').forEach(element => {
+        const key = element.getAttribute('data-i18n');
+        element.textContent = translations[currentLang][key];
+      });
+      document.title = translations[currentLang].upload_title;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const username = urlParams.get('username');
+    if (!username) {
+      alert(translations[currentLang].invalid_qr);
+      window.location.href = '/index.html';
+    }
+
+    let image = new Image();
+    let maskImage = new Image();
+    let photoScale = 1;
+    let photoRotation = 0;
+    let posX = 0;
+    let posY = 0;
+    let isDraggingImage = false;
+    let startX, startY;
+    let brightness = 1;
+    let contrast = 1;
+    let saturation = 1;
+    let isPinching = false;
+    let initialDistance = 0;
+    let initialAngle = 0;
+    let initialScale = 1;
+    let initialRotation = 0;
+
+    const dpr = window.devicePixelRatio || 1;
+    const canvas = document.getElementById('photoCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // 动态设置画布尺寸，自适应手机屏幕
+    const canvasWidth = Math.min(window.innerWidth * 0.9, 874);
+    const canvasHeight = canvasWidth * (1251 / 874);
+    canvas.width = canvasWidth * dpr;
+    canvas.height = canvasHeight * dpr;
+    canvas.style.width = `${canvasWidth}px`;
+    canvas.style.height = `${canvasHeight}px`;
+    ctx.scale(dpr, dpr);
+
+    // 加载蒙版
+    const maskUrl = 'https://photo-print-app.netlify.app/assets/mask.png';
+    maskImage.src = maskUrl;
+    maskImage.onload = () => {
+      console.log('Mask loaded successfully:', maskImage.width, 'x', maskImage.height);
+      // 验证蒙版透明区域
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvasWidth * dpr;
+      tempCanvas.height = canvasHeight * dpr;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.scale(dpr, dpr);
+      tempCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+      const imageData = tempCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
+      const data = imageData.data;
+      let hasFullyTransparent = false;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] === 0) {
+          hasFullyTransparent = true;
+          break;
+        }
+      }
+      if (!hasFullyTransparent) {
+        console.error('Mask image has no fully transparent areas!');
+        alert('蒙版图片没有完全透明区域，请检查蒙版文件！');
+      }
+      drawImage();
+    };
+    maskImage.onerror = () => {
+      console.error('Failed to load mask image');
+      alert('蒙版加载失败，请检查网络或文件路径！');
+    };
+
+    document.getElementById('photoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
-        fileName.textContent = file.name;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          photo.src = event.target.result;
-          photo.style.display = 'block';
+        if (image.src) URL.revokeObjectURL(image.src);
+        image.src = URL.createObjectURL(file);
+        image.onload = () => {
+          const canvasAspect = canvasWidth / canvasHeight;
+          const imageAspect = image.width / image.height;
+          photoScale = imageAspect > canvasAspect ? canvasWidth / image.width : canvasHeight / image.height;
+          drawImage();
         };
-        reader.readAsDataURL(file);
       }
     });
 
-    // 电脑版鼠标事件
-    photo.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      startX = e.clientX - (parseInt(photo.style.left) || 0);
-      startY = e.clientY - (parseInt(photo.style.top) || 0);
-    });
+    let lastDrawTime = 0;
+    const throttleInterval = 16;
 
-    document.addEventListener('mousemove', (e) => {
-      if (isDragging) {
-        e.preventDefault();
-        photo.style.left = `${e.clientX - startX}px`;
-        photo.style.top = `${e.clientY - startY}px`;
+    function drawImage() {
+      const now = performance.now();
+      if (now - lastDrawTime < throttleInterval) return;
+      lastDrawTime = now;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (image.src && maskImage.complete) {
+        // 创建离屏画布来绘制照片
+        const photoCanvas = document.createElement('canvas');
+        photoCanvas.width = canvasWidth * dpr;
+        photoCanvas.height = canvasHeight * dpr;
+        const photoCtx = photoCanvas.getContext('2d');
+        photoCtx.scale(dpr, dpr);
+
+        // 绘制照片
+        photoCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
+        photoCtx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
+        photoCtx.rotate((photoRotation * Math.PI) / 180);
+        photoCtx.scale(photoScale, photoScale);
+        photoCtx.drawImage(image, -image.width / 2, -image.height / 2);
+
+        // 绘制蒙版到主画布
+        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+
+        // 使用 source-in 合成模式，将照片限制在蒙版透明区域内
+        ctx.globalCompositeOperation = 'source-in';
+        ctx.drawImage(photoCanvas, 0, 0);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+    }
+
+    // 触摸事件
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const touches = e.touches;
+      const rect = canvas.getBoundingClientRect();
+      if (touches.length === 1) {
+        isDraggingImage = true;
+        startX = touches[0].clientX;
+        startY = touches[0].clientY;
+      } else if (touches.length === 2) {
+        isPinching = true;
+        isDraggingImage = false;
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        initialDistance = Math.sqrt(dx * dx + dy * dy);
+        initialAngle = Math.atan2(dy, dx);
+        initialScale = photoScale;
+        initialRotation = photoRotation;
       }
     });
 
-    document.addEventListener('mouseup', () => {
-      isDragging = false;
-    });
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const now = performance.now();
+      if (now - lastDrawTime < throttleInterval) return;
+      lastDrawTime = now;
 
-    // 手机版触摸事件
-    photo.addEventListener('touchstart', (e) => {
-      isDragging = true;
-      startX = e.touches[0].clientX - (parseInt(photo.style.left) || 0);
-      startY = e.touches[0].clientY - (parseInt(photo.style.top) || 0);
-    });
-
-    photo.addEventListener('touchmove', (e) => {
-      if (isDragging) {
-        e.preventDefault();
-        photo.style.left = `${e.touches[0].clientX - startX}px`;
-        photo.style.top = `${e.touches[0].clientY - startY}px`;
+      const touches = e.touches;
+      const rect = canvas.getBoundingClientRect();
+      if (touches.length === 1 && isDraggingImage) {
+        const dx = (touches[0].clientX - startX) * (canvasWidth / rect.width);
+        const dy = (touches[0].clientY - startY) * (canvasHeight / rect.height);
+        posX += dx;
+        posY += dy;
+        startX = touches[0].clientX;
+        startY = touches[0].clientY;
+        drawImage();
+      } else if (touches.length === 2 && isPinching) {
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+        photoScale = initialScale * (distance / initialDistance);
+        photoRotation = initialRotation + (angle - initialAngle) * (180 / Math.PI);
+        drawImage();
       }
     });
 
-    photo.addEventListener('touchend', () => {
-      isDragging = false;
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      isDraggingImage = false;
+      isPinching = false;
     });
+
+    // 鼠标事件
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      isDraggingImage = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isDraggingImage) {
+        const rect = canvas.getBoundingClientRect();
+        const dx = (e.clientX - startX) * (canvasWidth / rect.width);
+        const dy = (e.clientY - startY) * (canvasHeight / rect.height);
+        posX += dx;
+        posY += dy;
+        startX = e.clientX;
+        startY = e.clientY;
+        drawImage();
+      }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      isDraggingImage = false;
+    });
+
+    function adjustColor() {
+      brightness = document.getElementById('brightness').value;
+      contrast = document.getElementById('contrast').value;
+      saturation = document.getElementById('saturation').value;
+      drawImage();
+    }
+
+    async function printPhoto() {
+      if (!image.src) {
+        alert(translations[currentLang].no_photo);
+        return;
+      }
+
+      const printCanvas = document.createElement('canvas');
+      printCanvas.width = 874 * dpr;
+      printCanvas.height = 1251 * dpr;
+      const printCtx = printCanvas.getContext('2d');
+      printCtx.scale(dpr, dpr);
+
+      printCtx.clearRect(0, 0, printCanvas.width, printCanvas.height);
+      if (image.src && maskImage.complete) {
+        printCtx.save();
+        printCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
+        printCtx.translate(874 / 2 + posX * (874 / canvasWidth), 1251 / 2 + posY * (1251 / canvasHeight));
+        printCtx.rotate((photoRotation * Math.PI) / 180);
+        printCtx.scale(photoScale * (874 / canvasWidth), photoScale * (1251 / canvasHeight));
+        printCtx.drawImage(image, -image.width / 2, -image.height / 2);
+        printCtx.restore();
+
+        printCtx.globalCompositeOperation = 'destination-in';
+        printCtx.drawImage(maskImage, 0, 0, 874, 1251);
+        printCtx.globalCompositeOperation = 'source-over';
+      }
+
+      const dataUrl = printCanvas.toDataURL('image/jpeg');
+      if (!username || !dataUrl) {
+        alert(translations[currentLang].missing_data);
+        return;
+      }
+
+      try {
+        const response = await fetch('/.netlify/functions/print', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ username, dataUrl })
+        });
+        const data = await response.json();
+        if (data.success) {
+          alert(translations[currentLang].print_success);
+        } else {
+          alert(data.message || translations[currentLang].print_failed);
+        }
+      } catch (error) {
+        console.error('Print photo error:', error);
+        alert(translations[currentLang].network_error);
+      }
+    }
   </script>
 </body>
 </html>
