@@ -13,6 +13,7 @@
       min-height: 100vh;
       margin: 0;
       background: linear-gradient(135deg, #74ebd5, #acb6e5);
+      overscroll-behavior: none; /* 防止页面滚动 */
     }
     .container {
       background: white;
@@ -45,7 +46,7 @@
       border-radius: 8px;
       max-width: 100%;
       margin: 10px 0;
-      touch-action: none;
+      touch-action: none; /* 禁用默认触摸行为 */
     }
     input[type="file"] {
       width: 100%;
@@ -214,14 +215,14 @@
     }
 
     // 触摸事件
-    canvas.addEventListener('touchstart', (e) => {
+    function handleTouchStart(e) {
       e.preventDefault();
       const touches = e.touches;
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvasWidth / rect.width;
       const scaleY = canvasHeight / rect.height;
 
-      console.log('Touchstart triggered', touches.length, 'touches');
+      console.log('Touchstart triggered:', touches.length, 'touches at', touches[0].clientX, touches[0].clientY);
 
       if (touches.length === 1) {
         isDraggingImage = true;
@@ -239,11 +240,11 @@
         initialAngle = Math.atan2(dy, dx);
         initialScale = photoScale;
         initialRotation = photoRotation;
-        console.log('Start pinching, initial distance:', initialDistance);
+        console.log('Start pinching, initial distance:', initialDistance, 'initial angle:', initialAngle);
       }
-    }, { passive: false });
+    }
 
-    canvas.addEventListener('touchmove', (e) => {
+    function handleTouchMove(e) {
       e.preventDefault();
       const now = performance.now();
       if (now - lastDrawTime < throttleInterval) return;
@@ -254,7 +255,7 @@
       const scaleX = canvasWidth / rect.width;
       const scaleY = canvasHeight / rect.height;
 
-      console.log('Touchmove triggered', touches.length, 'touches');
+      console.log('Touchmove triggered:', touches.length, 'touches at', touches[0].clientX, touches[0].clientY);
 
       if (touches.length === 1 && isDraggingImage) {
         const currentX = (touches[0].clientX - rect.left) * scaleX;
@@ -280,13 +281,23 @@
         console.log('Pinching, new distance:', distance, 'new scale:', photoScale, 'new rotation:', photoRotation);
         drawImage();
       }
-    }, { passive: false });
+    }
 
-    canvas.addEventListener('touchend', (e) => {
+    function handleTouchEnd(e) {
       e.preventDefault();
       isDraggingImage = false;
       isPinching = false;
       console.log('Touchend triggered');
+    }
+
+    // 绑定触摸事件
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+    // 防止页面滚动
+    document.addEventListener('touchmove', (e) => {
+      e.preventDefault();
     }, { passive: false });
 
     // 鼠标事件
