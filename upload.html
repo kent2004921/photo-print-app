@@ -221,10 +221,13 @@
       const scaleX = canvasWidth / rect.width;
       const scaleY = canvasHeight / rect.height;
 
+      console.log('Touchstart triggered', touches.length, 'touches');
+
       if (touches.length === 1) {
         isDraggingImage = true;
         startX = (touches[0].clientX - rect.left) * scaleX;
         startY = (touches[0].clientY - rect.top) * scaleY;
+        console.log('Start dragging at:', startX, startY);
       } else if (touches.length >= 2) {
         isPinching = true;
         isDraggingImage = false;
@@ -236,6 +239,7 @@
         initialAngle = Math.atan2(dy, dx);
         initialScale = photoScale;
         initialRotation = photoRotation;
+        console.log('Start pinching, initial distance:', initialDistance);
       }
     }, { passive: false });
 
@@ -250,6 +254,8 @@
       const scaleX = canvasWidth / rect.width;
       const scaleY = canvasHeight / rect.height;
 
+      console.log('Touchmove triggered', touches.length, 'touches');
+
       if (touches.length === 1 && isDraggingImage) {
         const currentX = (touches[0].clientX - rect.left) * scaleX;
         const currentY = (touches[0].clientY - rect.top) * scaleY;
@@ -259,6 +265,7 @@
         posY += dy;
         startX = currentX;
         startY = currentY;
+        console.log('Dragging to:', currentX, currentY, 'dx:', dx, 'dy:', dy, 'new pos:', posX, posY);
         drawImage();
       } else if (touches.length >= 2 && isPinching) {
         const touch1 = touches[0];
@@ -270,6 +277,7 @@
         photoScale = initialScale * (distance / initialDistance);
         photoScale = Math.max(0.1, photoScale); // 防止缩放过小
         photoRotation = initialRotation + (angle - initialAngle) * (180 / Math.PI);
+        console.log('Pinching, new distance:', distance, 'new scale:', photoScale, 'new rotation:', photoRotation);
         drawImage();
       }
     }, { passive: false });
@@ -278,6 +286,7 @@
       e.preventDefault();
       isDraggingImage = false;
       isPinching = false;
+      console.log('Touchend triggered');
     }, { passive: false });
 
     // 鼠标事件
