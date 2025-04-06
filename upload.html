@@ -20,7 +20,7 @@
       border-radius: 15px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.2);
       width: 90%;
-      max-width: 437px; /* 显示尺寸减半 */
+      max-width: 437px;
       margin: 20px 0;
       text-align: center;
       position: relative;
@@ -227,24 +227,27 @@
     const dpr = window.devicePixelRatio || 1;
     const displayCanvas = document.getElementById('photoCanvas');
     const displayCtx = displayCanvas.getContext('2d');
-    displayCanvas.width = 437 * dpr; // 低分辨率显示
+    displayCanvas.width = 437 * dpr;
     displayCanvas.height = 625 * dpr;
     displayCanvas.style.width = '437px';
     displayCanvas.style.height = '625px';
     displayCtx.scale(dpr, dpr);
 
-    // 高分辨率打印画布（仅在打印时使用）
     const printCanvas = document.createElement('canvas');
     printCanvas.width = 874 * dpr;
     printCanvas.height = 1251 * dpr;
     const printCtx = printCanvas.getContext('2d');
     printCtx.scale(dpr, dpr);
 
-    // 预加载蒙版
     const maskUrl = 'https://photo-print-app.netlify.app/assets/mask.png';
     maskImage.src = maskUrl;
     maskImage.onload = () => {
+      console.log('Mask loaded successfully:', maskImage.width, 'x', maskImage.height);
       drawImage();
+    };
+    maskImage.onerror = () => {
+      console.error('Failed to load mask image');
+      alert('Failed to load mask image. Please check the URL or file.');
     };
 
     document.getElementById('photoInput').addEventListener('change', (e) => {
@@ -252,12 +255,22 @@
       if (file) {
         if (image.src) URL.revokeObjectURL(image.src);
         image.src = URL.createObjectURL(file);
-        image.onload = () => drawImage();
+        image.onload = () => {
+          // 调整初始缩放比例以适应画布
+          const canvasAspect = 437 / 625;
+          const imageAspect = image.width / image.height;
+          if (imageAspect > canvasAspect) {
+            photoScale = 437 / image.width;
+          } else {
+            photoScale = 625 / image.height;
+          }
+          drawImage();
+        };
       }
     });
 
     let lastDrawTime = 0;
-    const throttleInterval = 16; // 60fps
+    const throttleInterval = 16;
 
     function drawImage() {
       const now = performance.now();
@@ -267,13 +280,16 @@
       displayCtx.clearRect(0, 0, displayCanvas.width, displayCanvas.height);
       if (image.src && maskImage.complete) {
         displayCtx.save();
+        // 先绘制蒙版
+        displayCtx.drawImage(maskImage, 0, 0, 437, 625);
+        // 设置合成模式
+        displayCtx.globalCompositeOperation = 'source-in';
+        // 绘制照片
         displayCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
         displayCtx.translate(437 / 2 + posX, 625 / 2 + posY);
         displayCtx.rotate((photoRotation * Math.PI) / 180);
         displayCtx.scale(photoScale, photoScale);
         displayCtx.drawImage(image, -image.width / 2, -image.height / 2);
-        displayCtx.globalCompositeOperation = 'destination-in';
-        displayCtx.drawImage(maskImage, -437 / 2 - posX, -625 / 2 - posY, 437, 625);
         displayCtx.restore();
       }
     }
@@ -282,13 +298,13 @@
       printCtx.clearRect(0, 0, printCanvas.width, printCanvas.height);
       if (image.src && maskImage.complete) {
         printCtx.save();
+        printCtx.drawImage(maskImage, 0, 0, 874, 1251);
+        printCtx.globalCompositeOperation = 'source-in';
         printCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-        printCtx.translate(874 / 2 + posX * 2, 1251 / 2 + posY * 2); // 坐标放大两倍
+        printCtx.translate(874 / 2 + posX * 2, 1251 / 2 + posY * 2);
         printCtx.rotate((photoRotation * Math.PI) / 180);
-        printCtx.scale(photoScale * 2, photoScale * 2); // 缩放放大两倍
+        printCtx.scale(photoScale * 2, photoScale * 2);
         printCtx.drawImage(image, -image.width / 2, -image.height / 2);
-        printCtx.globalCompositeOperation = 'destination-in';
-        printCtx.drawImage(maskImage, -874 / 2 - posX * 2, -1251 / 2 - posY * 2, 874, 1251);
         printCtx.restore();
       }
     }
@@ -379,7 +395,7 @@
         alert(translations[currentLang].no_photo);
         return;
       }
-      drawPrintImage(); // 生成高分辨率图像
+      drawPrintImage();
       const dataUrl = printCanvas.toDataURL('image/jpeg');
       if (!username || !dataUrl) {
         alert(translations[currentLang].missing_data);
