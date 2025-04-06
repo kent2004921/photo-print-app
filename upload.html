@@ -238,8 +238,7 @@
     ctx.scale(dpr, dpr);
 
     // 加载蒙版
-    const maskUrl = 'https://photo-print-app.netlify.app/assets/mask.png'; // 尝试使用 mask.png
-    // 如果需要使用 mask1.png，可以改为：const maskUrl = 'https://photo-print-app.netlify.app/assets/mask1.png';
+    const maskUrl = 'https://photo-print-app.netlify.app/assets/mask.png';
     maskImage.src = maskUrl;
     maskImage.onload = () => {
       console.log('Mask loaded successfully:', maskImage.width, 'x', maskImage.height);
@@ -255,9 +254,11 @@
       let hasFullyTransparent = false;
       let hasFullyOpaque = false;
       let alphaValues = new Set();
+      let alphaHistogram = {};
       for (let i = 0; i < data.length; i += 4) {
         const alpha = data[i + 3];
         alphaValues.add(alpha);
+        alphaHistogram[alpha] = (alphaHistogram[alpha] || 0) + 1;
         if (alpha === 0) {
           hasFullyTransparent = true;
         } else if (alpha === 255) {
@@ -265,10 +266,13 @@
         }
       }
       console.log('Alpha values in mask:', Array.from(alphaValues));
+      console.log('Alpha histogram:', alphaHistogram);
       if (!hasFullyTransparent) {
         console.error('Mask image has no fully transparent areas!');
         alert('蒙版图片没有完全透明区域，请检查蒙版文件！');
-        // 尝试生成一个简单的圆形蒙版作为备用
+        // 临时绘制蒙版到画布，检查其内容
+        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+        // 生成一个简单的圆形蒙版作为备用
         generateFallbackMask();
       } else if (!hasFullyOpaque) {
         console.warn('Mask image has no fully opaque areas, surrounding areas may not mask correctly.');
@@ -280,7 +284,7 @@
     maskImage.onerror = () => {
       console.error('Failed to load mask image from:', maskUrl);
       alert('蒙版加载失败，请检查网络或文件路径！');
-      // 尝试生成一个简单的圆形蒙版作为备用
+      // 生成一个简单的圆形蒙版作为备用
       generateFallbackMask();
     };
 
@@ -361,10 +365,11 @@
         // 手动应用蒙版：根据蒙版的 alpha 通道调整照片的透明度
         for (let i = 0; i < photoPixels.length; i += 4) {
           const maskAlpha = maskPixels[i + 3];
-          if (maskAlpha === 0) {
-            photoPixels[i + 3] = 255; // 透明区域显示照片
-          } else {
+          // 反转逻辑：蒙版透明区域（alpha = 0）显示照片，非透明区域（alpha > 0）隐藏照片
+          if (maskAlpha > 0) {
             photoPixels[i + 3] = 0; // 非透明区域隐藏照片
+          } else {
+            photoPixels[i + 3] = 255; // 透明区域显示照片
           }
         }
 
@@ -524,10 +529,10 @@
 
         for (let i = 0; i < photoPixels.length; i += 4) {
           const maskAlpha = maskPixels[i + 3];
-          if (maskAlpha === 0) {
-            photoPixels[i + 3] = 255;
-          } else {
+          if (maskAlpha > 0) {
             photoPixels[i + 3] = 0;
+          } else {
+            photoPixels[i + 3] = 255;
           }
         }
 
