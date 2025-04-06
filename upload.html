@@ -51,7 +51,7 @@
       border-radius: 8px;
       max-width: 100%;
       margin: 10px 0;
-      touch-action: none; /* 防止触摸时触发默认行为 */
+      touch-action: none;
     }
     input[type="file"] {
       width: 100%;
@@ -205,8 +205,6 @@
     if (!username) {
       alert(translations[currentLang].invalid_qr);
       window.location.href = '/index.html';
-    } else {
-      console.log('Username from URL:', username);
     }
 
     let image = new Image();
@@ -220,149 +218,134 @@
     let brightness = 1;
     let contrast = 1;
     let saturation = 1;
-
-    // 触摸手势相关变量
     let isPinching = false;
     let initialDistance = 0;
     let initialAngle = 0;
     let initialScale = 1;
     let initialRotation = 0;
 
+    const dpr = window.devicePixelRatio || 1;
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = 874 * dpr; // 宽度 874px
-    canvas.height = 1251 * dpr; // 高度 1251px
-    canvas.style.width = '874px';
-    canvas.style.height = '1251px';
+
+    // 动态设置画布尺寸，自适应手机屏幕
+    const canvasWidth = Math.min(window.innerWidth * 0.9, 874);
+    const canvasHeight = canvasWidth * (1251 / 874);
+    canvas.width = canvasWidth * dpr;
+    canvas.height = canvasHeight * dpr;
+    canvas.style.width = `${canvasWidth}px`;
+    canvas.style.height = `${canvasHeight}px`;
     ctx.scale(dpr, dpr);
 
-    // 加载蒙版图片（PNG 格式，椭圆形区域透明）
+    // 加载蒙版
     const maskUrl = 'https://photo-print-app.netlify.app/assets/mask.png';
-    console.log('Attempting to load mask image from:', maskUrl);
     maskImage.src = maskUrl;
     maskImage.onload = () => {
-      console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
-      // 验证蒙版尺寸
-      if (maskImage.width !== 874 || maskImage.height !== 1251) {
-        console.warn('Mask image dimensions do not match canvas (874x1251), resizing may affect quality.');
-      }
-      // 增强蒙版透明区域验证
+      console.log('Mask loaded successfully:', maskImage.width, 'x', maskImage.height);
+      // 验证蒙版透明区域
       const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = 874 * dpr;
-      tempCanvas.height = 1251 * dpr;
+      tempCanvas.width = canvasWidth * dpr;
+      tempCanvas.height = canvasHeight * dpr;
       const tempCtx = tempCanvas.getContext('2d');
       tempCtx.scale(dpr, dpr);
-      tempCtx.drawImage(maskImage, 0, 0, 874, 1251);
-      const imageData = tempCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
+      tempCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+      const imageData = tempCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
       const data = imageData.data;
       let hasFullyTransparent = false;
-      let hasFullyOpaque = false;
       for (let i = 0; i < data.length; i += 4) {
-        const alpha = data[i + 3];
-        if (alpha === 0) {
+        if (data[i + 3] === 0) {
           hasFullyTransparent = true;
-        } else if (alpha === 255) {
-          hasFullyOpaque = true;
+          break;
         }
       }
       if (!hasFullyTransparent) {
-        console.error('Mask image has no fully transparent areas (alpha = 0), it will not work as a mask!');
-        alert('Mask image has no fully transparent areas! Please ensure the mask has a fully transparent elliptical region (alpha = 0).');
-      } else if (!hasFullyOpaque) {
-        console.warn('Mask image has no fully opaque areas (alpha = 255), surrounding areas may not mask correctly.');
-      } else {
-        console.log('Mask image has fully transparent and opaque areas, should work as a mask.');
+        console.error('Mask image has no fully transparent areas!');
+        alert('蒙版图片没有完全透明区域，请检查蒙版文件！');
       }
       drawImage();
     };
-    maskImage.onerror = (error) => {
-      console.error('Failed to load mask image, error:', error);
-      console.log('Please verify the mask image URL by opening it in a browser:', maskUrl);
-      alert('Failed to load mask image from ' + maskUrl + ', please check the path, filename case, or deployment!');
+    maskImage.onerror = () => {
+      console.error('Failed to load mask image');
+      alert('蒙版加载失败，请检查网络或文件路径！');
     };
 
     document.getElementById('photoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
-        console.log('Photo selected:', file.name);
-        // 清理之前的照片 URL
-        if (image.src) {
-          URL.revokeObjectURL(image.src);
-        }
+        if (image.src) URL.revokeObjectURL(image.src);
         image.src = URL.createObjectURL(file);
         image.onload = () => {
-          console.log('Photo loaded successfully, dimensions:', image.width, 'x', image.height);
+          const canvasAspect = canvasWidth / canvasHeight;
+          const imageAspect = image.width / image.height;
+          photoScale = imageAspect > canvasAspect ? canvasWidth / image.width : canvasHeight / image.height;
           drawImage();
-        };
-        image.onerror = () => {
-          console.error('Failed to load photo');
-          alert('Failed to load photo, please try another one!');
         };
       }
     });
 
+    let lastDrawTime = 0;
+    const throttleInterval = 16;
+
     function drawImage() {
+      const now = performance.now();
+      if (now - lastDrawTime < throttleInterval) return;
+      lastDrawTime = now;
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
       if (image.src && maskImage.complete) {
-        // 保存上下文状态
-        ctx.save();
-
-        // 创建一个离屏画布来绘制照片
+        // 创建离屏画布绘制照片
         const photoCanvas = document.createElement('canvas');
-        photoCanvas.width = 874 * dpr;
-        photoCanvas.height = 1251 * dpr;
+        photoCanvas.width = canvasWidth * dpr;
+        photoCanvas.height = canvasHeight * dpr;
         const photoCtx = photoCanvas.getContext('2d');
         photoCtx.scale(dpr, dpr);
 
         // 绘制照片
         photoCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-        photoCtx.translate((canvas.width / dpr) / 2 + posX, (canvas.height / dpr) / 2 + posY);
+        photoCtx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
         photoCtx.rotate((photoRotation * Math.PI) / 180);
         photoCtx.scale(photoScale, photoScale);
         photoCtx.drawImage(image, -image.width / 2, -image.height / 2);
 
-        // 创建一个离屏画布来绘制蒙版
+        // 创建离屏画布绘制蒙版
         const maskCanvas = document.createElement('canvas');
-        maskCanvas.width = 874 * dpr;
-        maskCanvas.height = 1251 * dpr;
+        maskCanvas.width = canvasWidth * dpr;
+        maskCanvas.height = canvasHeight * dpr;
         const maskCtx = maskCanvas.getContext('2d');
         maskCtx.scale(dpr, dpr);
-        maskCtx.drawImage(maskImage, 0, 0, 874, 1251);
+        maskCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
 
         // 获取照片和蒙版的像素数据
-        const photoData = photoCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
-        const maskData = maskCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
+        const photoData = photoCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
+        const maskData = maskCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
         const photoPixels = photoData.data;
         const maskPixels = maskData.data;
 
         // 手动应用蒙版：根据蒙版的 alpha 通道调整照片的透明度
         for (let i = 0; i < photoPixels.length; i += 4) {
           const maskAlpha = maskPixels[i + 3];
-          if (maskAlpha !== 0) {
-            // 如果蒙版像素不完全透明（alpha != 0），将照片像素设为透明
-            photoPixels[i + 3] = 0;
+          if (maskAlpha === 0) {
+            photoPixels[i + 3] = 0; // 完全透明
           }
         }
 
         // 将处理后的照片绘制到主画布
         ctx.putImageData(photoData, 0, 0);
 
-        // 绘制蒙版边框（使用蒙版图片的透明区域边界）
+        // 绘制蒙版边框
         ctx.save();
-        ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)'; // 红色半透明边框
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
         ctx.lineWidth = 2;
-        for (let y = 0; y < 1251 * dpr; y++) {
-          for (let x = 0; x < 874 * dpr; x++) {
-            const idx = (y * 874 * dpr + x) * 4;
+        for (let y = 0; y < canvasHeight * dpr; y++) {
+          for (let x = 0; x < canvasWidth * dpr; x++) {
+            const idx = (y * canvasWidth * dpr + x) * 4;
             const alpha = maskPixels[idx + 3];
             if (alpha === 0) {
               const neighbors = [
-                (y - 1) * 874 * dpr + x, // 上
-                (y + 1) * 874 * dpr + x, // 下
-                y * 874 * dpr + (x - 1), // 左
-                y * 874 * dpr + (x + 1)  // 右
+                (y - 1) * canvasWidth * dpr + x,
+                (y + 1) * canvasWidth * dpr + x,
+                y * canvasWidth * dpr + (x - 1),
+                y * canvasWidth * dpr + (x + 1)
               ];
               for (const n of neighbors) {
                 if (n >= 0 && n < maskPixels.length / 4) {
@@ -377,62 +360,21 @@
           }
         }
         ctx.restore();
-
-        // 恢复主画布上下文状态
-        ctx.restore();
-      } else {
-        console.log('Cannot draw image: image.src=', image.src, 'maskImage.complete=', maskImage.complete);
       }
     }
 
-    // 鼠标事件：拖动照片
-    canvas.addEventListener('mousedown', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
-      const y = (e.clientY - rect.top) * (canvas.height / dpr / rect.height);
-
-      isDraggingImage = true;
-      startX = e.clientX;
-      startY = e.clientY;
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-      if (isDraggingImage) {
-        const dx = (e.clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
-        const dy = (e.clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
-
-        posX += dx;
-        posY += dy;
-
-        startX = e.clientX;
-        startY = e.clientY;
-        drawImage();
-      }
-    });
-
-    canvas.addEventListener('mouseup', () => {
-      isDraggingImage = false;
-    });
-
-    // 触摸事件：双指缩放和旋转照片
+    // 触摸事件
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
       const touches = e.touches;
-
+      const rect = canvas.getBoundingClientRect();
       if (touches.length === 1) {
-        // 单指拖动照片
-        const x = (touches[0].clientX - rect.left) * (canvas.width / dpr / rect.width);
-        const y = (touches[0].clientY - rect.top) * (canvas.height / dpr / rect.height);
-
         isDraggingImage = true;
         startX = touches[0].clientX;
         startY = touches[0].clientY;
       } else if (touches.length === 2) {
-        // 双指缩放和旋转照片
         isPinching = true;
         isDraggingImage = false;
-
         const dx = touches[0].clientX - touches[1].clientX;
         const dy = touches[0].clientY - touches[1].clientY;
         initialDistance = Math.sqrt(dx * dx + dy * dy);
@@ -444,32 +386,27 @@
 
     canvas.addEventListener('touchmove', (e) => {
       e.preventDefault();
+      const now = performance.now();
+      if (now - lastDrawTime < throttleInterval) return;
+      lastDrawTime = now;
+
       const touches = e.touches;
-
+      const rect = canvas.getBoundingClientRect();
       if (touches.length === 1 && isDraggingImage) {
-        const dx = (touches[0].clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
-        const dy = (touches[0].clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
-
+        const dx = (touches[0].clientX - startX) * (canvasWidth / rect.width);
+        const dy = (touches[0].clientY - startY) * (canvasHeight / rect.height);
         posX += dx;
         posY += dy;
-
         startX = touches[0].clientX;
         startY = touches[0].clientY;
         drawImage();
       } else if (touches.length === 2 && isPinching) {
         const dx = touches[0].clientX - touches[1].clientX;
-        const dy = (touches[0].clientY - touches[1].clientY);
+        const dy = touches[0].clientY - touches[1].clientY;
         const distance = Math.sqrt(dx * dx + dy * dy);
         const angle = Math.atan2(dy, dx);
-
-        // 计算缩放比例（无限制）
-        const scaleFactor = distance / initialDistance;
-        photoScale = initialScale * scaleFactor;
-
-        // 计算旋转角度
-        const angleDiff = (angle - initialAngle) * (180 / Math.PI);
-        photoRotation = initialRotation + angleDiff;
-
+        photoScale = initialScale * (distance / initialDistance);
+        photoRotation = initialRotation + (angle - initialAngle) * (180 / Math.PI);
         drawImage();
       }
     });
@@ -478,6 +415,31 @@
       e.preventDefault();
       isDraggingImage = false;
       isPinching = false;
+    });
+
+    // 鼠标事件
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      isDraggingImage = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isDraggingImage) {
+        const rect = canvas.getBoundingClientRect();
+        const dx = (e.clientX - startX) * (canvasWidth / rect.width);
+        const dy = (e.clientY - startY) * (canvasHeight / rect.height);
+        posX += dx;
+        posY += dy;
+        startX = e.clientX;
+        startY = e.clientY;
+        drawImage();
+      }
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      isDraggingImage = false;
     });
 
     function adjustColor() {
@@ -493,7 +455,45 @@
         return;
       }
 
-      const dataUrl = canvas.toDataURL('image/jpeg');
+      const printCanvas = document.createElement('canvas');
+      printCanvas.width = 874 * dpr;
+      printCanvas.height = 1251 * dpr;
+      const printCtx = printCanvas.getContext('2d');
+      printCtx.scale(dpr, dpr);
+
+      printCtx.clearRect(0, 0, printCanvas.width, printCanvas.height);
+      if (image.src && maskImage.complete) {
+        printCtx.save();
+        printCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
+        printCtx.translate(874 / 2 + posX * (874 / canvasWidth), 1251 / 2 + posY * (1251 / canvasHeight));
+        printCtx.rotate((photoRotation * Math.PI) / 180);
+        printCtx.scale(photoScale * (874 / canvasWidth), photoScale * (1251 / canvasHeight));
+        printCtx.drawImage(image, -image.width / 2, -image.height / 2);
+        printCtx.restore();
+
+        const maskCanvas = document.createElement('canvas');
+        maskCanvas.width = 874 * dpr;
+        maskCanvas.height = 1251 * dpr;
+        const maskCtx = maskCanvas.getContext('2d');
+        maskCtx.scale(dpr, dpr);
+        maskCtx.drawImage(maskImage, 0, 0, 874, 1251);
+
+        const photoData = printCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
+        const maskData = maskCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
+        const photoPixels = photoData.data;
+        const maskPixels = maskData.data;
+
+        for (let i = 0; i < photoPixels.length; i += 4) {
+          const maskAlpha = maskPixels[i + 3];
+          if (maskAlpha === 0) {
+            photoPixels[i + 3] = 0;
+          }
+        }
+
+        printCtx.putImageData(photoData, 0, 0);
+      }
+
+      const dataUrl = printCanvas.toDataURL('image/jpeg');
       if (!username || !dataUrl) {
         alert(translations[currentLang].missing_data);
         return;
@@ -508,7 +508,6 @@
           },
           body: JSON.stringify({ username, dataUrl })
         });
-
         const data = await response.json();
         if (data.success) {
           alert(translations[currentLang].print_success);
