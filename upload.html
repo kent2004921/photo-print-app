@@ -247,15 +247,20 @@
       e.preventDefault();
       const touches = e.touches;
       const rect = canvas.getBoundingClientRect();
+      const scaleX = canvasWidth / rect.width;
+      const scaleY = canvasHeight / rect.height;
+
       if (touches.length === 1) {
         isDraggingImage = true;
-        startX = touches[0].clientX;
-        startY = touches[0].clientY;
+        startX = touches[0].clientX * scaleX - rect.left * scaleX;
+        startY = touches[0].clientY * scaleY - rect.top * scaleY;
       } else if (touches.length === 2) {
         isPinching = true;
         isDraggingImage = false;
-        const dx = touches[0].clientX - touches[1].clientX;
-        const dy = touches[0].clientY - touches[1].clientY;
+        const touch1 = touches[0];
+        const touch2 = touches[1];
+        const dx = (touch1.clientX - touch2.clientX) * scaleX;
+        const dy = (touch1.clientY - touch2.clientY) * scaleY;
         initialDistance = Math.sqrt(dx * dx + dy * dy);
         initialAngle = Math.atan2(dy, dx);
         initialScale = photoScale;
@@ -271,17 +276,24 @@
 
       const touches = e.touches;
       const rect = canvas.getBoundingClientRect();
+      const scaleX = canvasWidth / rect.width;
+      const scaleY = canvasHeight / rect.height;
+
       if (touches.length === 1 && isDraggingImage) {
-        const dx = (touches[0].clientX - startX) * (canvasWidth / rect.width);
-        const dy = (touches[0].clientY - startY) * (canvasHeight / rect.height);
+        const currentX = touches[0].clientX * scaleX - rect.left * scaleX;
+        const currentY = touches[0].clientY * scaleY - rect.top * scaleY;
+        const dx = currentX - startX;
+        const dy = currentY - startY;
         posX += dx;
         posY += dy;
-        startX = touches[0].clientX;
-        startY = touches[0].clientY;
+        startX = currentX;
+        startY = currentY;
         drawImage();
       } else if (touches.length === 2 && isPinching) {
-        const dx = touches[0].clientX - touches[1].clientX;
-        const dy = touches[0].clientY - touches[1].clientY;
+        const touch1 = touches[0];
+        const touch2 = touches[1];
+        const dx = (touch1.clientX - touch2.clientX) * scaleX;
+        const dy = (touch1.clientY - touch2.clientY) * scaleY;
         const distance = Math.sqrt(dx * dx + dy * dy);
         const angle = Math.atan2(dy, dx);
         photoScale = initialScale * (distance / initialDistance);
@@ -299,20 +311,26 @@
     // 鼠标事件
     canvas.addEventListener('mousedown', (e) => {
       const rect = canvas.getBoundingClientRect();
+      const scaleX = canvasWidth / rect.width;
+      const scaleY = canvasHeight / rect.height;
       isDraggingImage = true;
-      startX = e.clientX;
-      startY = e.clientY;
+      startX = (e.clientX - rect.left) * scaleX;
+      startY = (e.clientY - rect.top) * scaleY;
     });
 
     canvas.addEventListener('mousemove', (e) => {
       if (isDraggingImage) {
         const rect = canvas.getBoundingClientRect();
-        const dx = (e.clientX - startX) * (canvasWidth / rect.width);
-        const dy = (e.clientY - startY) * (canvasHeight / rect.height);
+        const scaleX = canvasWidth / rect.width;
+        const scaleY = canvasHeight / rect.height;
+        const currentX = (e.clientX - rect.left) * scaleX;
+        const currentY = (e.clientY - rect.top) * scaleY;
+        const dx = currentX - startX;
+        const dy = currentY - startY;
         posX += dx;
         posY += dy;
-        startX = e.clientX;
-        startY = e.clientY;
+        startX = currentX;
+        startY = currentY;
         drawImage();
       }
     });
