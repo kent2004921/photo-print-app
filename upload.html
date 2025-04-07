@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>上传照片打印（使用自定义SVG形状）</title>
+  <title>上传照片打印（设备分离逻辑）</title>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -82,7 +82,7 @@
 </head>
 <body>
   <div class="container">
-    <h2>上传照片打印（使用自定义SVG形状）</h2>
+    <h2>上传照片打印（设备分离逻辑）</h2>
     <input type="file" id="photoInput" accept="image/*">
     <canvas id="photoCanvas"></canvas>
     <button class="print-btn" onclick="printPhoto()">打印</button>
@@ -96,7 +96,11 @@
       window.location.href = '/index.html';
     }
 
+    // 设备检测
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
     let image = new Image();
+    let maskImage = new Image();
     let photoScale = 1;
     let photoRotation = 0;
     let posX = 0;
@@ -108,6 +112,7 @@
     let initialAngle = 0;
     let initialScale = 1;
     let initialRotation = 0;
+    let maskTopY = 0; // 蒙版的顶端位置
 
     const dpr = window.devicePixelRatio || 1;
     const canvas = document.getElementById('photoCanvas');
@@ -122,11 +127,32 @@
     canvas.style.height = `${canvasHeight}px`;
     ctx.scale(dpr, dpr);
 
-    // SVG 尺寸
-    const svgWidth = 460;
-    const svgHeight = 200;
-    const scaleX = canvasWidth / svgWidth;
-    const scaleY = canvasHeight / svgHeight;
+    // 加载蒙版图像（假设蒙版图像为 mask.png）
+    maskImage.src = '/path/to/mask.png'; // 请替换为实际的蒙版图像路径
+    maskImage.onload = () => {
+      // 扫描蒙版图像，找到透明区域的最顶端
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvasWidth * dpr;
+      tempCanvas.height = canvasHeight * dpr;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.drawImage(maskImage, 0, 0, canvasWidth * dpr, canvasHeight * dpr);
+      const imageData = tempCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
+      const data = imageData.data;
+
+      for (let y = 0; y < canvasHeight * dpr; y++) {
+        let found = false;
+        for (let x = 0; x < canvasWidth * dpr; x++) {
+          const index = (y * canvasWidth * dpr + x) * 4;
+          if (data[index + 3] > 0) { // 找到第一个非透明像素
+            maskTopY = y / dpr; // 转换为画布坐标
+            found = true;
+            break;
+          }
+        }
+        if (found) break;
+      }
+      drawImage();
+    };
 
     document.getElementById('photoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -137,6 +163,8 @@
           const canvasAspect = canvasWidth / canvasHeight;
           const imageAspect = image.width / image.height;
           photoScale = imageAspect > canvasAspect ? canvasWidth / image.width : canvasHeight / image.height;
+          // 初始位置：照片顶端对齐蒙版顶端
+          posY = maskTopY - canvasHeight / 2;
           drawImage();
         };
       }
@@ -145,191 +173,162 @@
     let lastDrawTime = 0;
     const throttleInterval = 16;
 
-    // 绘制不规则形状（从SVG路径转换）
-    function drawShapes() {
-      ctx.beginPath();
-      // 路径 1
-      ctx.moveTo(185.76 * scaleX, 193.75 * scaleY);
-      ctx.bezierCurveTo(167.54 * scaleX, 191.87 * scaleY, 145.39 * scaleX, 185.95 * scaleY, 126.62 * scaleX, 173.38 * scaleY);
-      ctx.bezierCurveTo(106.6 * scaleX, 160.04 * scaleY, 93.14 * scaleX, 139.77 * scaleY, 86.1 * scaleX, 115.96 * scaleY);
-      ctx.bezierCurveTo(79.99 * scaleX, 95.28 * scaleY, 80.68 * scaleX, 74.3 * scaleY, 84.64 * scaleX, 56.91 * scaleY);
-      ctx.bezierCurveTo(87.91 * scaleX, 42.84 * scaleY, 94.21 * scaleX, 29.17 * scaleY, 102.99 * scaleX, 18.69 * scaleY);
-      ctx.bezierCurveTo(111.26 * scaleX, 8.84 * scaleY, 122.84 * scaleX, 0.94 * scaleY, 135.87 * scaleX, 0.13 * scaleY);
-      ctx.bezierCurveTo(148.38 * scaleX, -0.66 * scaleY, 159.6 * scaleX, 5.39 * scaleY, 167.49 * scaleX, 13.23 * scaleY);
-      ctx.bezierCurveTo(175.17 * scaleX, 20.85 * scaleY, 179.72 * scaleX, 30.39 * scaleY, 182.45 * scaleX, 40.37 * scaleY);
-      ctx.bezierCurveTo(185.37 * scaleX, 51.07 * scaleY, 186.34 * scaleX, 62.43 * scaleY, 185.6 * scaleX, 73.14 * scaleY);
-      ctx.bezierCurveTo(184.67 * scaleX, 86.65 * scaleY, 180.7 * scaleX, 100.12 * scaleY, 174.89 * scaleX, 111.55 * scaleY);
-      ctx.bezierCurveTo(168.46 * scaleX, 123.99 * scaleY, 159.12 * scaleX, 134.2 * scaleY, 148.06 * scaleX, 142.07 * scaleY);
-      ctx.bezierCurveTo(137.65 * scaleX, 149.47 * scaleY, 125.84 * scaleX, 154.52 * scaleY, 113.98 * scaleX, 157.13 * scaleY);
-      ctx.bezierCurveTo(104.53 * scaleX, 159.14 * scaleY, 94.4 * scaleX, 159.95 * scaleY, 85.16 * scaleX, 158.44 * scaleY);
-      ctx.closePath();
-
-      // 路径 2
-      ctx.moveTo(185.76 * scaleX, 193.75 * scaleY);
-      ctx.lineTo(268.55 * scaleX, 193.75 * scaleY);
-      ctx.bezierCurveTo(286.77 * scaleX, 191.87 * scaleY, 308.92 * scaleX, 185.95 * scaleY, 327.69 * scaleX, 173.38 * scaleY);
-      ctx.bezierCurveTo(347.71 * scaleX, 160.04 * scaleY, 361.17 * scaleX, 139.77 * scaleY, 368.21 * scaleX, 115.96 * scaleY);
-      ctx.bezierCurveTo(374.32 * scaleX, 95.28 * scaleY, 373.63 * scaleX, 74.3 * scaleY, 369.67 * scaleX, 56.91 * scaleY);
-      ctx.bezierCurveTo(366.4 * scaleX, 42.84 * scaleY, 360.1 * scaleX, 29.17 * scaleY, 351.32 * scaleX, 18.69 * scaleY);
-      ctx.bezierCurveTo(343.05 * scaleX, 8.84 * scaleY, 331.47 * scaleX, 0.94 * scaleY, 318.44 * scaleX, 0.13 * scaleY);
-      ctx.bezierCurveTo(305.93 * scaleX, -0.66 * scaleY, 294.71 * scaleX, 5.39 * scaleY, 286.82 * scaleX, 13.23 * scaleY);
-      ctx.bezierCurveTo(279.14 * scaleX, 20.85 * scaleY, 274.59 * scaleX, 30.39 * scaleY, 271.86 * scaleX, 40.37 * scaleY);
-      ctx.bezierCurveTo(268.94 * scaleX, 51.07 * scaleY, 267.97 * scaleX, 62.43 * scaleY, 268.71 * scaleX, 73.14 * scaleY);
-      ctx.bezierCurveTo(269.64 * scaleX, 86.65 * scaleY, 273.61 * scaleX, 100.12 * scaleY, 279.42 * scaleX, 111.55 * scaleY);
-      ctx.bezierCurveTo(285.85 * scaleX, 123.99 * scaleY, 295.19 * scaleX, 134.2 * scaleY, 306.25 * scaleX, 142.07 * scaleY);
-      ctx.bezierCurveTo(316.66 * scaleX, 149.47 * scaleY, 328.47 * scaleX, 154.52 * scaleY, 340.33 * scaleX, 157.13 * scaleY);
-      ctx.bezierCurveTo(349.78 * scaleX, 159.14 * scaleY, 359.91 * scaleX, 159.95 * scaleY, 369.15 * scaleX, 158.44 * scaleY);
-      ctx.closePath();
-
-      // 路径 3
-      ctx.moveTo(369.15 * scaleX, 158.44 * scaleY);
-      ctx.lineTo(460 * scaleX, 158.44 * scaleY);
-      ctx.lineTo(460 * scaleX, 200 * scaleY);
-      ctx.lineTo(0 * scaleX, 200 * scaleY);
-      ctx.lineTo(0 * scaleX, 158.44 * scaleY);
-      ctx.lineTo(85.16 * scaleX, 158.44 * scaleY);
-      ctx.closePath();
-    }
-
     function drawImage() {
       const now = performance.now();
       if (now - lastDrawTime < throttleInterval) return;
       lastDrawTime = now;
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (image.src) {
-        ctx.save();
-        // 应用不规则形状作为剪切区域
-        drawShapes();
-        ctx.clip();
-
+      if (image.src && maskImage.src) {
         // 绘制照片
-        ctx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
-        ctx.rotate((photoRotation * Math.PI) / 180);
-        ctx.scale(photoScale, photoScale);
-        ctx.drawImage(image, -image.width / 2, -image.height / 2);
-        ctx.restore();
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvasWidth * dpr;
+        tempCanvas.height = canvasHeight * dpr;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.scale(dpr, dpr);
 
-        // 绘制形状边框（用于调试）
-        ctx.save();
-        ctx.strokeStyle = 'red';
-        ctx.lineWidth = 2;
-        drawShapes();
-        ctx.stroke();
-        ctx.restore();
+        tempCtx.save();
+        tempCtx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
+        tempCtx.rotate((photoRotation * Math.PI) / 180);
+        tempCtx.scale(photoScale, photoScale);
+        tempCtx.drawImage(image, -image.width / 2, -image.height / 2);
+        tempCtx.restore();
+
+        // 获取照片的像素数据
+        const imageData = tempCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
+        const data = imageData.data;
+
+        // 获取蒙版的像素数据
+        tempCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+        tempCtx.drawImage(maskImage, 0, 0, canvasWidth * dpr, canvasHeight * dpr);
+        const maskData = tempCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr).data;
+
+        // 应用蒙版
+        for (let i = 0; i < data.length; i += 4) {
+          if (maskData[i + 3] === 0) { // 蒙版的透明区域
+            data[i + 3] = 0; // 将照片的对应像素设为透明
+          }
+        }
+
+        // 将处理后的图像绘制到主画布
+        ctx.putImageData(imageData, 0, 0);
       }
     }
 
-    // 触摸事件
-    canvas.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      const touches = e.touches;
-      const rect = canvas.getBoundingClientRect();
-
-      console.log('Touchstart triggered:', touches.length, 'touches at', touches[0].clientX, touches[0].clientY);
-
-      if (touches.length === 1) {
-        isDraggingImage = true;
-        startX = touches[0].clientX;
-        startY = touches[0].clientY;
-        console.log('Start dragging at:', startX, startY);
-      } else if (touches.length === 2) {
-        isPinching = true;
-        isDraggingImage = false;
-        const dx = touches[0].clientX - touches[1].clientX;
-        const dy = touches[0].clientY - touches[1].clientY;
-        initialDistance = Math.sqrt(dx * dx + dy * dy);
-        initialAngle = Math.atan2(dy, dx);
-        initialScale = photoScale;
-        initialRotation = photoRotation;
-        console.log('Start pinching, initial distance:', initialDistance, 'initial angle:', initialAngle);
-      }
-    });
-
-    canvas.addEventListener('touchmove', (e) => {
-      e.preventDefault();
-      const now = performance.now();
-      if (now - lastDrawTime < throttleInterval) return;
-      lastDrawTime = now;
-
-      const touches = e.touches;
-      const rect = canvas.getBoundingClientRect();
-
-      console.log('Touchmove triggered:', touches.length, 'touches at', touches[0].clientX, touches[0].clientY);
-
-      if (touches.length === 1 && isDraggingImage) {
-        const dx = (touches[0].clientX - startX) * (canvasWidth / rect.width);
-        const dy = (touches[0].clientY - startY) * (canvasHeight / rect.height);
-        posX += dx;
-        posY += dy;
-        startX = touches[0].clientX;
-        startY = touches[0].clientY;
-        console.log('Dragging, dx:', dx, 'dy:', dy, 'new pos:', posX, posY);
-        drawImage();
-      } else if (touches.length === 2 && isPinching) {
-        const dx = touches[0].clientX - touches[1].clientX;
-        const dy = touches[0].clientY - touches[1].clientY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const angle = Math.atan2(dy, dx);
-        photoScale = initialScale * (distance / initialDistance);
-        photoScale = Math.max(0.1, photoScale); // 防止缩放过小
-        photoRotation = initialRotation + (angle - initialAngle) * (180 / Math.PI);
-        console.log('Pinching, new distance:', distance, 'new scale:', photoScale, 'new rotation:', photoRotation);
-        drawImage();
-      }
-    });
-
-    canvas.addEventListener('touchend', (e) => {
-      e.preventDefault();
-      isDraggingImage = false;
-      isPinching = false;
-      console.log('Touchend triggered');
-    });
-
-    // 鼠标事件
-    canvas.addEventListener('mousedown', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      isDraggingImage = true;
-      startX = e.clientX;
-      startY = e.clientY;
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-      if (isDraggingImage) {
+    // 电脑端交互逻辑
+    if (!isMobile) {
+      canvas.addEventListener('mousedown', (e) => {
         const rect = canvas.getBoundingClientRect();
-        const dx = (e.clientX - startX) * (canvasWidth / rect.width);
-        const dy = (e.clientY - startY) * (canvasHeight / rect.height);
-        posX += dx;
-        posY += dy;
+        isDraggingImage = true;
         startX = e.clientX;
         startY = e.clientY;
-        drawImage();
-      }
-    });
+      });
 
-    canvas.addEventListener('mouseup', () => {
-      isDraggingImage = false;
-    });
+      canvas.addEventListener('mousemove', (e) => {
+        if (isDraggingImage) {
+          const rect = canvas.getBoundingClientRect();
+          const dx = (e.clientX - startX) * (canvasWidth / rect.width);
+          const dy = (e.clientY - startY) * (canvasHeight / rect.height);
+          posX += dx;
+          posY += dy;
+          startX = e.clientX;
+          startY = e.clientY;
+          drawImage();
+        }
+      });
 
-    // 鼠标滚轮事件（放大缩小）
-    canvas.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      photoScale += delta;
-      photoScale = Math.max(0.1, photoScale); // 防止缩放过小
-      drawImage();
-    });
+      canvas.addEventListener('mouseup', () => {
+        isDraggingImage = false;
+      });
 
-    // 键盘事件（调整角度）
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowLeft') {
-        photoRotation -= 5; // 向左旋转
+      // 鼠标滚轮事件（放大缩小）
+      canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -0.1 : 0.1;
+        photoScale += delta;
+        photoScale = Math.max(0.1, photoScale); // 防止缩放过小
         drawImage();
-      } else if (e.key === 'ArrowRight') {
-        photoRotation += 5; // 向右旋转
-        drawImage();
-      }
-    });
+      });
+
+      // 键盘事件（调整角度）
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') {
+          photoRotation -= 5; // 向左旋转
+          drawImage();
+        } else if (e.key === 'ArrowRight') {
+          photoRotation += 5; // 向右旋转
+          drawImage();
+        }
+      });
+    }
+
+    // 手机端交互逻辑
+    if (isMobile) {
+      canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touches = e.touches;
+        const rect = canvas.getBoundingClientRect();
+
+        console.log('Touchstart triggered:', touches.length, 'touches at', touches[0].clientX, touches[0].clientY);
+
+        if (touches.length === 1) {
+          isDraggingImage = true;
+          startX = touches[0].clientX;
+          startY = touches[0].clientY;
+          console.log('Start dragging at:', startX, startY);
+        } else if (touches.length === 2) {
+          isPinching = true;
+          isDraggingImage = false;
+          const dx = touches[0].clientX - touches[1].clientX;
+          const dy = touches[0].clientY - touches[1].clientY;
+          initialDistance = Math.sqrt(dx * dx + dy * dy);
+          initialAngle = Math.atan2(dy, dx);
+          initialScale = photoScale;
+          initialRotation = photoRotation;
+          console.log('Start pinching, initial distance:', initialDistance, 'initial angle:', initialAngle);
+        }
+      });
+
+      canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const now = performance.now();
+        if (now - lastDrawTime < throttleInterval) return;
+        lastDrawTime = now;
+
+        const touches = e.touches;
+        const rect = canvas.getBoundingClientRect();
+
+        console.log('Touchmove triggered:', touches.length, 'touches at', touches[0].clientX, touches[0].clientY);
+
+        if (touches.length === 1 && isDraggingImage) {
+          const dx = (touches[0].clientX - startX) * (canvasWidth / rect.width);
+          const dy = (touches[0].clientY - startY) * (canvasHeight / rect.height);
+          posX += dx;
+          posY += dy;
+          startX = touches[0].clientX;
+          startY = touches[0].clientY;
+          console.log('Dragging, dx:', dx, 'dy:', dy, 'new pos:', posX, posY);
+          drawImage();
+        } else if (touches.length === 2 && isPinching) {
+          const dx = touches[0].clientX - touches[1].clientX;
+          const dy = touches[0].clientY - touches[1].clientY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const angle = Math.atan2(dy, dx);
+          photoScale = initialScale * (distance / initialDistance);
+          photoScale = Math.max(0.1, photoScale); // 防止缩放过小
+          photoRotation = initialRotation + (angle - initialAngle) * (180 / Math.PI);
+          console.log('Pinching, new distance:', distance, 'new scale:', photoScale, 'new rotation:', photoRotation);
+          drawImage();
+        }
+      });
+
+      canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        isDraggingImage = false;
+        isPinching = false;
+        console.log('Touchend triggered');
+      });
+    }
 
     async function printPhoto() {
       if (!image.src) {
@@ -344,58 +343,33 @@
       printCtx.scale(dpr, dpr);
 
       printCtx.clearRect(0, 0, printCanvas.width, printCanvas.height);
-      if (image.src) {
+      if (image.src && maskImage.src) {
+        // 绘制照片
         printCtx.save();
-        // 应用不规则形状作为剪切区域（打印时也需要）
-        printCtx.beginPath();
-        // 路径 1
-        printCtx.moveTo(185.76 * (874 / svgWidth), 193.75 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(167.54 * (874 / svgWidth), 191.87 * (1251 / svgHeight), 145.39 * (874 / svgWidth), 185.95 * (1251 / svgHeight), 126.62 * (874 / svgWidth), 173.38 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(106.6 * (874 / svgWidth), 160.04 * (1251 / svgHeight), 93.14 * (874 / svgWidth), 139.77 * (1251 / svgHeight), 86.1 * (874 / svgWidth), 115.96 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(79.99 * (874 / svgWidth), 95.28 * (1251 / svgHeight), 80.68 * (874 / svgWidth), 74.3 * (1251 / svgHeight), 84.64 * (874 / svgWidth), 56.91 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(87.91 * (874 / svgWidth), 42.84 * (1251 / svgHeight), 94.21 * (874 / svgWidth), 29.17 * (1251 / svgHeight), 102.99 * (874 / svgWidth), 18.69 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(111.26 * (874 / svgWidth), 8.84 * (1251 / svgHeight), 122.84 * (874 / svgWidth), 0.94 * (1251 / svgHeight), 135.87 * (874 / svgWidth), 0.13 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(148.38 * (874 / svgWidth), -0.66 * (1251 / svgHeight), 159.6 * (874 / svgWidth), 5.39 * (1251 / svgHeight), 167.49 * (874 / svgWidth), 13.23 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(175.17 * (874 / svgWidth), 20.85 * (1251 / svgHeight), 179.72 * (874 / svgWidth), 30.39 * (1251 / svgHeight), 182.45 * (874 / svgWidth), 40.37 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(185.37 * (874 / svgWidth), 51.07 * (1251 / svgHeight), 186.34 * (874 / svgWidth), 62.43 * (1251 / svgHeight), 185.6 * (874 / svgWidth), 73.14 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(184.67 * (874 / svgWidth), 86.65 * (1251 / svgHeight), 180.7 * (874 / svgWidth), 100.12 * (1251 / svgHeight), 174.89 * (874 / svgWidth), 111.55 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(168.46 * (874 / svgWidth), 123.99 * (1251 / svgHeight), 159.12 * (874 / svgWidth), 134.2 * (1251 / svgHeight), 148.06 * (874 / svgWidth), 142.07 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(137.65 * (874 / svgWidth), 149.47 * (1251 / svgHeight), 125.84 * (874 / svgWidth), 154.52 * (1251 / svgHeight), 113.98 * (874 / svgWidth), 157.13 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(104.53 * (874 / svgWidth), 159.14 * (1251 / svgHeight), 94.4 * (874 / svgWidth), 159.95 * (1251 / svgHeight), 85.16 * (874 / svgWidth), 158.44 * (1251 / svgHeight));
-        printCtx.closePath();
-
-        // 路径 2
-        printCtx.moveTo(185.76 * (874 / svgWidth), 193.75 * (1251 / svgHeight));
-        printCtx.lineTo(268.55 * (874 / svgWidth), 193.75 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(286.77 * (874 / svgWidth), 191.87 * (1251 / svgHeight), 308.92 * (874 / svgWidth), 185.95 * (1251 / svgHeight), 327.69 * (874 / svgWidth), 173.38 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(347.71 * (874 / svgWidth), 160.04 * (1251 / svgHeight), 361.17 * (874 / svgWidth), 139.77 * (1251 / svgHeight), 368.21 * (874 / svgWidth), 115.96 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(374.32 * (874 / svgWidth), 95.28 * (1251 / svgHeight), 373.63 * (874 / svgWidth), 74.3 * (1251 / svgHeight), 369.67 * (874 / svgWidth), 56.91 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(366.4 * (874 / svgWidth), 42.84 * (1251 / svgHeight), 360.1 * (874 / svgWidth), 29.17 * (1251 / svgHeight), 351.32 * (874 / svgWidth), 18.69 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(343.05 * (874 / svgWidth), 8.84 * (1251 / svgHeight), 331.47 * (874 / svgWidth), 0.94 * (1251 / svgHeight), 318.44 * (874 / svgWidth), 0.13 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(305.93 * (874 / svgWidth), -0.66 * (1251 / svgHeight), 294.71 * (874 / svgWidth), 5.39 * (1251 / svgHeight), 286.82 * (874 / svgWidth), 13.23 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(279.14 * (874 / svgWidth), 20.85 * (1251 / svgHeight), 274.59 * (874 / svgWidth), 30.39 * (1251 / svgHeight), 271.86 * (874 / svgWidth), 40.37 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(268.94 * (874 / svgWidth), 51.07 * (1251 / svgHeight), 267.97 * (874 / svgWidth), 62.43 * (1251 / svgHeight), 268.71 * (874 / svgWidth), 73.14 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(269.64 * (874 / svgWidth), 86.65 * (1251 / svgHeight), 273.61 * (874 / svgWidth), 100.12 * (1251 / svgHeight), 279.42 * (874 / svgWidth), 111.55 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(285.85 * (874 / svgWidth), 123.99 * (1251 / svgHeight), 295.19 * (874 / svgWidth), 134.2 * (1251 / svgHeight), 306.25 * (874 / svgWidth), 142.07 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(316.66 * (874 / svgWidth), 149.47 * (1251 / svgHeight), 328.47 * (874 / svgWidth), 154.52 * (1251 / svgHeight), 340.33 * (874 / svgWidth), 157.13 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(349.78 * (874 / svgWidth), 159.14 * (1251 / svgHeight), 359.91 * (874 / svgWidth), 159.95 * (1251 / svgHeight), 369.15 * (874 / svgWidth), 158.44 * (1251 / svgHeight));
-        printCtx.closePath();
-
-        // 路径 3
-        printCtx.moveTo(369.15 * (874 / svgWidth), 158.44 * (1251 / svgHeight));
-        printCtx.lineTo(460 * (874 / svgWidth), 158.44 * (1251 / svgHeight));
-        printCtx.lineTo(460 * (874 / svgWidth), 200 * (1251 / svgHeight));
-        printCtx.lineTo(0 * (874 / svgWidth), 200 * (1251 / svgHeight));
-        printCtx.lineTo(0 * (874 / svgWidth), 158.44 * (1251 / svgHeight));
-        printCtx.lineTo(85.16 * (874 / svgWidth), 158.44 * (1251 / svgHeight));
-        printCtx.closePath();
-        printCtx.clip();
-
         printCtx.translate(874 / 2 + posX * (874 / canvasWidth), 1251 / 2 + posY * (1251 / canvasHeight));
         printCtx.rotate((photoRotation * Math.PI) / 180);
         printCtx.scale(photoScale * (874 / canvasWidth), photoScale * (1251 / canvasHeight));
         printCtx.drawImage(image, -image.width / 2, -image.height / 2);
         printCtx.restore();
+
+        // 获取照片的像素数据
+        const imageData = printCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
+        const data = imageData.data;
+
+        // 获取蒙版的像素数据
+        printCtx.clearRect(0, 0, 874 * dpr, 1251 * dpr);
+        printCtx.drawImage(maskImage, 0, 0, 874 * dpr, 1251 * dpr);
+        const maskData = printCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr).data;
+
+        // 应用蒙版
+        for (let i = 0; i < data.length; i += 4) {
+          if (maskData[i + 3] === 0) { // 蒙版的透明区域
+            data[i + 3] = 0; // 将照片的对应像素设为透明
+          }
+        }
+
+        // 将处理后的图像绘制到打印画布
+        printCtx.putImageData(imageData, 0, 0);
       }
 
       const dataUrl = printCanvas.toDataURL('image/jpeg');
