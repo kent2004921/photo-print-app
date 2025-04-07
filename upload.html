@@ -52,6 +52,7 @@
       border-radius: 8px;
       max-width: 100%;
       margin: 10px 0;
+      background: transparent; /* 确保画布背景透明 */
     }
     .file-input {
       width: 100%;
@@ -259,7 +260,7 @@
     canvas.style.height = `${Math.min(window.innerWidth * 0.9, canvasWidth) * (canvasHeight / canvasWidth)}px`;
     ctx.scale(dpr, dpr);
 
-    // 离屏画布用于预渲染照片
+    // 离屏画布用于预渲染照片和蒙版合成
     const offscreenCanvas = document.createElement('canvas');
     offscreenCanvas.width = canvasWidth * dpr;
     offscreenCanvas.height = canvasHeight * dpr;
@@ -273,9 +274,6 @@
       maskImage.onload = () => {
         console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
         isMaskLoaded = true;
-
-        // 绘制蒙版到画布（作为背景）
-        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
 
         if (image.src) {
           needsRedraw = true;
@@ -343,24 +341,21 @@
         offscreenCtx.drawImage(image, -image.width / 2, -image.height / 2);
         offscreenCtx.restore();
 
+        // 应用蒙版（在离屏画布上完成合成）
+        if (isMaskLoaded && maskImage.complete && maskImage.src) {
+          console.log('Applying mask on offscreen canvas...');
+          offscreenCtx.globalCompositeOperation = 'destination-in';
+          offscreenCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+          offscreenCtx.globalCompositeOperation = 'source-over'; // 恢复默认合成模式
+        }
+
         offscreenCtx.filter = 'none'; // 清除滤镜
         needsRedraw = false; // 重置标记
       }
 
-      // 将离屏画布内容绘制到主画布，并应用蒙版
+      // 将离屏画布内容直接绘制到主画布
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (isMaskLoaded && maskImage.complete && maskImage.src) {
-        // 重新绘制蒙版作为背景
-        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
-
-        // 使用 destination-in 合成模式，将照片限制在蒙版区域内
-        ctx.globalCompositeOperation = 'destination-in';
-        ctx.drawImage(offscreenCanvas, 0, 0);
-        ctx.globalCompositeOperation = 'source-over'; // 恢复默认合成模式
-      } else {
-        // 如果蒙版未加载，直接绘制照片
-        ctx.drawImage(offscreenCanvas, 0, 0);
-      }
+      ctx.drawImage(offscreenCanvas, 0, 0);
     }
 
     // 节流函数
