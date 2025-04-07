@@ -241,7 +241,6 @@
     let brightness = 1;
     let contrast = 1;
     let saturation = 1;
-    let useFallbackMask = false;
 
     const dpr = window.devicePixelRatio || 1;
     const canvas = document.getElementById('photoCanvas');
@@ -287,11 +286,11 @@
       return maskCanvas;
     }
 
-    // 加载蒙版图像
-    maskImage.src = 'https://photo-print-app.netlify.app/assets/mask.png';
+    // 强制使用回退蒙版
+    maskImage.src = generateFallbackMask().toDataURL();
     maskImage.onload = () => {
-      console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
-      // 验证蒙版是否有透明区域
+      console.log('Fallback mask loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
+      // 优化：只扫描中心列以找到蒙版顶端
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = canvasWidth * dpr;
       tempCanvas.height = canvasHeight * dpr;
@@ -300,45 +299,19 @@
       const imageData = tempCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
       const data = imageData.data;
 
-      let hasTransparent = false;
-      for (let i = 0; i < data.length; i += 4) {
-        if (data[i + 3] === 0) {
-          hasTransparent = true;
+      const centerX = Math.floor(canvasWidth * dpr / 2);
+      for (let y = 0; y < canvasHeight * dpr; y++) {
+        const index = (y * canvasWidth * dpr + centerX) * 4;
+        if (data[index + 3] > 0) { // 找到第一个非透明像素
+          maskTopY = y / dpr; // 转换为画布坐标
           break;
         }
-      }
-
-      if (!hasTransparent) {
-        console.warn('Mask image has no transparent areas, using fallback mask.');
-        useFallbackMask = true;
-        maskImage.src = generateFallbackMask().toDataURL();
-      }
-
-      // 找到蒙版顶端
-      for (let y = 0; y < canvasHeight * dpr; y++) {
-        let found = false;
-        for (let x = 0; x < canvasWidth * dpr; x++) {
-          const index = (y * canvasWidth * dpr + x) * 4;
-          if (data[index + 3] > 0) { // 找到第一个非透明像素
-            maskTopY = y / dpr; // 转换为画布坐标
-            found = true;
-            break;
-          }
-        }
-        if (found) break;
       }
       console.log('Mask top Y:', maskTopY);
       if (image.src) {
         posY = maskTopY - image.height * photoScale / 2; // 照片顶端对齐蒙版顶端
         drawImage();
       }
-    };
-    maskImage.onerror = () => {
-      console.error('Failed to load mask image from https://photo-print-app.netlify.app/assets/mask.png');
-      alert('无法加载蒙版图像，使用回退蒙版！');
-      useFallbackMask = true;
-      maskImage.src = generateFallbackMask().toDataURL();
-      maskImage.onload(); // 重新触发加载逻辑
     };
 
     document.getElementById('photoInput').addEventListener('change', (e) => {
@@ -365,7 +338,7 @@
     });
 
     let lastDrawTime = 0;
-    const throttleInterval = 16;
+    const throttleInterval = 50; // 增加防抖间隔
 
     function drawImage() {
       const now = performance.now();
@@ -397,41 +370,6 @@
         ctx.globalCompositeOperation = 'destination-in';
         ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
         ctx.globalCompositeOperation = 'source-over'; // 恢复默认合成模式
-
-        // 调试：绘制蒙版边框
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = canvasWidth * dpr;
-        tempCanvas.height = canvasHeight * dpr;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCtx.drawImage(maskImage, 0, 0, canvasWidth * dpr, canvasHeight * dpr);
-        const imageData = tempCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
-        const data = imageData.data;
-
-        ctx.strokeStyle = 'red';
-        ctx.lineWidth = 1;
-        for (let y = 0; y < canvasHeight * dpr; y++) {
-          for (let x = 0; x < canvasWidth * dpr; x++) {
-            const idx = (y * canvasWidth * dpr + x) * 4;
-            const alpha = data[idx + 3];
-            if (alpha > 0) {
-              const neighbors = [
-                (y - 1) * canvasWidth * dpr + x, // 上
-                (y + 1) * canvasWidth * dpr + x, // 下
-                y * canvasWidth * dpr + (x - 1), // 左
-                y * canvasWidth * dpr + (x + 1)  // 右
-              ];
-              for (const n of neighbors) {
-                if (n >= 0 && n < data.length / 4) {
-                  const nIdx = n * 4;
-                  if (data[nIdx + 3] === 0) {
-                    ctx.fillRect(x / dpr, y / dpr, 1, 1);
-                    break;
-                  }
-                }
-              }
-            }
-          }
-        }
       }
 
       ctx.filter = 'none'; // 清除滤镜
