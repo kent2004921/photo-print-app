@@ -268,9 +268,7 @@
         if (maskImage.width !== canvasWidth || maskImage.height !== canvasHeight) {
           console.warn('Mask image dimensions do not match canvas (874x1252), resizing may affect quality.');
         }
-        if (image.src) {
-          drawImage();
-        }
+        drawImage();
       };
       maskImage.onerror = () => {
         console.error('Failed to load mask image from', maskUrl);
@@ -310,11 +308,17 @@
       if (now - lastDrawTime < throttleInterval) return;
       lastDrawTime = now;
 
-      // 清空离屏画布
-      offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+      // 清空主画布
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      // 绘制蒙版到主画布
+      if (isMaskLoaded && maskImage.complete && maskImage.src) {
+        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+      }
+
+      // 清空离屏画布并绘制照片
+      offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
       if (image.src) {
-        // 应用滤镜并绘制照片到离屏画布
         offscreenCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
         offscreenCtx.save();
         offscreenCtx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
@@ -325,18 +329,10 @@
         offscreenCtx.filter = 'none';
       }
 
-      // 清空主画布
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // 将离屏画布内容绘制到主画布
-      if (image.src) {
+      // 使用蒙版裁剪照片
+      if (image.src && isMaskLoaded && maskImage.complete && maskImage.src) {
+        ctx.globalCompositeOperation = 'source-in';
         ctx.drawImage(offscreenCanvas, 0, 0);
-      }
-
-      // 应用蒙版
-      if (isMaskLoaded && maskImage.complete && maskImage.src) {
-        ctx.globalCompositeOperation = 'destination-in';
-        ctx.drawImage[maskImage, 0, 0, canvasWidth, canvasHeight];
         ctx.globalCompositeOperation = 'source-over';
       }
     }
@@ -517,6 +513,13 @@
       printCtx.scale(dpr, dpr);
 
       printCtx.clearRect(0, 0, printCanvas.width, printCanvas.height);
+
+      // 绘制蒙版
+      if (isMaskLoaded && maskImage.complete && maskImage.src) {
+        printCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+      }
+
+      // 绘制照片
       printCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
       printCtx.save();
       printCtx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
@@ -524,14 +527,14 @@
       printCtx.scale(photoScale, photoScale);
       printCtx.drawImage(image, -image.width / 2, -image.height / 2);
       printCtx.restore();
+      printCtx.filter = 'none';
 
+      // 应用蒙版
       if (isMaskLoaded && maskImage.complete && maskImage.src) {
-        printCtx.globalCompositeOperation = 'destination-in';
-        printCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+        printCtx.globalCompositeOperation = 'source-in';
+        printCtx.drawImage(offscreenCanvas, 0, 0);
         printCtx.globalCompositeOperation = 'source-over';
       }
-
-      printCtx.filter = 'none';
 
       const dataUrl = printCanvas.toDataURL('image/jpeg');
       if (!username || !dataUrl) {
