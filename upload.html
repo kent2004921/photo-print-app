@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>上传照片打印（修复显示和触摸问题）</title>
+  <title>上传照片打印（启用蒙版）</title>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -77,11 +77,21 @@
     .print-btn:hover {
       background: linear-gradient(to right, #0056b3, #0099cc);
     }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>上传照片打印（修复显示和触摸问题）</h2>
+    <h2>上传照片打印（启用蒙版）</h2>
     <label for="photoInput" class="sr-only">选择照片</label>
     <input type="file" id="photoInput" accept="image/*" class="file-input">
     <canvas id="photoCanvas"></canvas>
@@ -101,6 +111,7 @@
     console.log('Device detected:', isMobile ? 'Mobile' : 'Desktop');
 
     let image = new Image();
+    let maskImage = new Image();
     let photoScale = 1;
     let photoRotation = 0;
     let posX = 0;
@@ -112,6 +123,7 @@
     let initialAngle = 0;
     let initialScale = 1;
     let initialRotation = 0;
+    let maskTopY = 0; // 蒙版的顶端位置
 
     const dpr = window.devicePixelRatio || 1;
     const canvas = document.getElementById('photoCanvas');
@@ -126,6 +138,39 @@
     canvas.style.height = `${canvasHeight}px`;
     ctx.scale(dpr, dpr);
 
+    // 加载蒙版图像
+    maskImage.src = 'photo-print-app/assets/mask.png';
+    maskImage.onload = () => {
+      console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
+      // 扫描蒙版图像，找到非透明区域的最顶端
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvasWidth * dpr;
+      tempCanvas.height = canvasHeight * dpr;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.drawImage(maskImage, 0, 0, canvasWidth * dpr, canvasHeight * dpr);
+      const imageData = tempCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
+      const data = imageData.data;
+
+      for (let y = 0; y < canvasHeight * dpr; y++) {
+        let found = false;
+        for (let x = 0; x < canvasWidth * dpr; x++) {
+          const index = (y * canvasWidth * dpr + x) * 4;
+          if (data[index + 3] > 0) { // 找到第一个非透明像素
+            maskTopY = y / dpr; // 转换为画布坐标
+            found = true;
+            break;
+          }
+        }
+        if (found) break;
+      }
+      console.log('Mask top Y:', maskTopY);
+      if (image.src) drawImage();
+    };
+    maskImage.onerror = () => {
+      console.error('Failed to load mask image');
+      alert('无法加载蒙版图像，请检查路径 photo-print-app/assets/mask.png 是否正确！');
+    };
+
     document.getElementById('photoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
@@ -137,7 +182,9 @@
           const canvasAspect = canvasWidth / canvasHeight;
           const imageAspect = image.width / image.height;
           photoScale = imageAspect > canvasAspect ? canvasWidth / image.width : canvasHeight / image.height;
-          posY = 0; // 暂时移除蒙版对齐逻辑
+          // 初始位置：照片顶端对齐蒙版顶端
+          posY = maskTopY - canvasHeight / 2;
+          console.log('Initial posY:', posY);
           drawImage();
         };
         image.onerror = () => {
@@ -163,12 +210,21 @@
 
       console.log('Drawing image...');
 
+      // 绘制照片
       ctx.save();
       ctx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
       ctx.rotate((photoRotation * Math.PI) / 180);
       ctx.scale(photoScale, photoScale);
       ctx.drawImage(image, -image.width / 2, -image.height / 2);
       ctx.restore();
+
+      // 应用蒙版
+      if (maskImage.src) {
+        console.log('Applying mask...');
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+        ctx.globalCompositeOperation = 'source-over'; // 恢复默认合成模式
+      }
     }
 
     // 防抖函数
@@ -318,6 +374,13 @@
       printCtx.scale(photoScale * (874 / canvasWidth), photoScale * (1251 / canvasHeight));
       printCtx.drawImage(image, -image.width / 2, -image.height / 2);
       printCtx.restore();
+
+      // 应用蒙版
+      if (maskImage.src) {
+        printCtx.globalCompositeOperation = 'destination-in';
+        printCtx.drawImage(maskImage, 0, 0, 874, 1251);
+        printCtx.globalCompositeOperation = 'source-over';
+      }
 
       const dataUrl = printCanvas.toDataURL('image/jpeg');
       if (!username || !dataUrl) {
