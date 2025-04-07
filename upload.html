@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>上传照片打印（修复显示问题）</title>
+  <title>上传照片打印（修复显示和触摸问题）</title>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -46,9 +46,8 @@
       border-radius: 8px;
       max-width: 100%;
       margin: 10px 0;
-      touch-action: none; /* 禁用默认触摸行为 */
     }
-    input[type="file"] {
+    .file-input {
       width: 100%;
       padding: 12px;
       margin: 10px 0;
@@ -82,8 +81,9 @@
 </head>
 <body>
   <div class="container">
-    <h2>上传照片打印（修复显示问题）</h2>
-    <input type="file" id="photoInput" accept="image/*">
+    <h2>上传照片打印（修复显示和触摸问题）</h2>
+    <label for="photoInput" class="sr-only">选择照片</label>
+    <input type="file" id="photoInput" accept="image/*" class="file-input">
     <canvas id="photoCanvas"></canvas>
     <button class="print-btn" onclick="printPhoto()">打印</button>
   </div>
@@ -101,7 +101,6 @@
     console.log('Device detected:', isMobile ? 'Mobile' : 'Desktop');
 
     let image = new Image();
-    let maskImage = new Image();
     let photoScale = 1;
     let photoRotation = 0;
     let posX = 0;
@@ -113,7 +112,6 @@
     let initialAngle = 0;
     let initialScale = 1;
     let initialRotation = 0;
-    let maskTopY = 0; // 蒙版的顶端位置
 
     const dpr = window.devicePixelRatio || 1;
     const canvas = document.getElementById('photoCanvas');
@@ -128,55 +126,6 @@
     canvas.style.height = `${canvasHeight}px`;
     ctx.scale(dpr, dpr);
 
-    // 生成默认蒙版（用于调试）
-    function generateDefaultMask() {
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvasWidth * dpr;
-      tempCanvas.height = canvasHeight * dpr;
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCtx.fillStyle = 'black';
-      tempCtx.fillRect(0, 0, canvasWidth * dpr, canvasHeight * dpr);
-      tempCtx.globalCompositeOperation = 'destination-out';
-      tempCtx.fillStyle = 'white';
-      tempCtx.beginPath();
-      tempCtx.arc(canvasWidth * dpr / 2, canvasHeight * dpr / 2, 200 * dpr, 0, Math.PI * 2);
-      tempCtx.fill();
-      maskImage.src = tempCanvas.toDataURL('image/png');
-    }
-
-    // 加载蒙版图像
-    maskImage.src = '/path/to/mask.png'; // 请替换为实际的蒙版图像路径
-    maskImage.onload = () => {
-      console.log('Mask image loaded successfully');
-      // 扫描蒙版图像，找到透明区域的最顶端
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvasWidth * dpr;
-      tempCanvas.height = canvasHeight * dpr;
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCtx.drawImage(maskImage, 0, 0, canvasWidth * dpr, canvasHeight * dpr);
-      const imageData = tempCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
-      const data = imageData.data;
-
-      for (let y = 0; y < canvasHeight * dpr; y++) {
-        let found = false;
-        for (let x = 0; x < canvasWidth * dpr; x++) {
-          const index = (y * canvasWidth * dpr + x) * 4;
-          if (data[index + 3] > 0) { // 找到第一个非透明像素
-            maskTopY = y / dpr; // 转换为画布坐标
-            found = true;
-            break;
-          }
-        }
-        if (found) break;
-      }
-      console.log('Mask top Y:', maskTopY);
-      drawImage();
-    };
-    maskImage.onerror = () => {
-      console.error('Failed to load mask image, using default mask');
-      generateDefaultMask();
-    };
-
     document.getElementById('photoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
@@ -188,9 +137,7 @@
           const canvasAspect = canvasWidth / canvasHeight;
           const imageAspect = image.width / image.height;
           photoScale = imageAspect > canvasAspect ? canvasWidth / image.width : canvasHeight / image.height;
-          // 初始位置：照片顶端对齐蒙版顶端
-          posY = maskTopY - canvasHeight / 2;
-          console.log('Initial posY:', posY);
+          posY = 0; // 暂时移除蒙版对齐逻辑
           drawImage();
         };
         image.onerror = () => {
@@ -216,51 +163,24 @@
 
       console.log('Drawing image...');
 
-      // 调试：先直接绘制照片，不应用蒙版
       ctx.save();
       ctx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
       ctx.rotate((photoRotation * Math.PI) / 180);
       ctx.scale(photoScale, photoScale);
       ctx.drawImage(image, -image.width / 2, -image.height / 2);
       ctx.restore();
-
-      // 如果蒙版图像已加载，应用蒙版
-      if (maskImage.src) {
-        console.log('Applying mask...');
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = canvasWidth * dpr;
-        tempCanvas.height = canvasHeight * dpr;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCtx.scale(dpr, dpr);
-
-        tempCtx.save();
-        tempCtx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
-        tempCtx.rotate((photoRotation * Math.PI) / 180);
-        tempCtx.scale(photoScale, photoScale);
-        tempCtx.drawImage(image, -image.width / 2, -image.height / 2);
-        tempCtx.restore();
-
-        // 获取照片的像素数据
-        const imageData = tempCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
-        const data = imageData.data;
-
-        // 获取蒙版的像素数据
-        tempCtx.clearRect(0, 0, canvasWidth, canvasHeight);
-        tempCtx.drawImage(maskImage, 0, 0, canvasWidth * dpr, canvasHeight * dpr);
-        const maskData = tempCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr).data;
-
-        // 应用蒙版
-        for (let i = 0; i < data.length; i += 4) {
-          if (maskData[i + 3] === 0) { // 蒙版的透明区域
-            data[i + 3] = 0; // 将照片的对应像素设为透明
-          }
-        }
-
-        // 将处理后的图像绘制到主画布
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.putImageData(imageData, 0, 0);
-      }
     }
+
+    // 防抖函数
+    function debounce(func, wait) {
+      let timeout;
+      return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+      };
+    }
+
+    const debouncedDrawImage = debounce(drawImage, throttleInterval);
 
     // 电脑端交互逻辑
     if (!isMobile) {
@@ -269,6 +189,7 @@
         isDraggingImage = true;
         startX = e.clientX;
         startY = e.clientY;
+        console.log('Mouse down at:', startX, startY);
       });
 
       canvas.addEventListener('mousemove', (e) => {
@@ -280,12 +201,14 @@
           posY += dy;
           startX = e.clientX;
           startY = e.clientY;
-          drawImage();
+          console.log('Dragging, dx:', dx, 'dy:', dy, 'new pos:', posX, posY);
+          debouncedDrawImage();
         }
       });
 
       canvas.addEventListener('mouseup', () => {
         isDraggingImage = false;
+        console.log('Mouse up');
       });
 
       // 鼠标滚轮事件（放大缩小）
@@ -294,17 +217,20 @@
         const delta = e.deltaY > 0 ? -0.1 : 0.1;
         photoScale += delta;
         photoScale = Math.max(0.1, photoScale); // 防止缩放过小
-        drawImage();
+        console.log('Wheel scroll, new scale:', photoScale);
+        debouncedDrawImage();
       });
 
       // 键盘事件（调整角度）
       document.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowLeft') {
           photoRotation -= 5; // 向左旋转
-          drawImage();
+          console.log('Rotate left, new rotation:', photoRotation);
+          debouncedDrawImage();
         } else if (e.key === 'ArrowRight') {
           photoRotation += 5; // 向右旋转
-          drawImage();
+          console.log('Rotate right, new rotation:', photoRotation);
+          debouncedDrawImage();
         }
       });
     }
@@ -338,10 +264,6 @@
 
       canvas.addEventListener('touchmove', (e) => {
         e.preventDefault();
-        const now = performance.now();
-        if (now - lastDrawTime < throttleInterval) return;
-        lastDrawTime = now;
-
         const touches = e.touches;
         const rect = canvas.getBoundingClientRect();
 
@@ -355,7 +277,7 @@
           startX = touches[0].clientX;
           startY = touches[0].clientY;
           console.log('Dragging, dx:', dx, 'dy:', dy, 'new pos:', posX, posY);
-          drawImage();
+          debouncedDrawImage();
         } else if (touches.length === 2 && isPinching) {
           const dx = touches[0].clientX - touches[1].clientX;
           const dy = touches[0].clientY - touches[1].clientY;
@@ -365,7 +287,7 @@
           photoScale = Math.max(0.1, photoScale); // 防止缩放过小
           photoRotation = initialRotation + (angle - initialAngle) * (180 / Math.PI);
           console.log('Pinching, new distance:', distance, 'new scale:', photoScale, 'new rotation:', photoRotation);
-          drawImage();
+          debouncedDrawImage();
         }
       });
 
@@ -390,29 +312,12 @@
       printCtx.scale(dpr, dpr);
 
       printCtx.clearRect(0, 0, printCanvas.width, printCanvas.height);
-      if (image.src && maskImage.src) {
-        printCtx.save();
-        printCtx.translate(874 / 2 + posX * (874 / canvasWidth), 1251 / 2 + posY * (1251 / canvasHeight));
-        printCtx.rotate((photoRotation * Math.PI) / 180);
-        printCtx.scale(photoScale * (874 / canvasWidth), photoScale * (1251 / canvasHeight));
-        printCtx.drawImage(image, -image.width / 2, -image.height / 2);
-        printCtx.restore();
-
-        const imageData = printCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr);
-        const data = imageData.data;
-
-        printCtx.clearRect(0, 0, 874 * dpr, 1251 * dpr);
-        printCtx.drawImage(maskImage, 0, 0, 874 * dpr, 1251 * dpr);
-        const maskData = printCtx.getImageData(0, 0, 874 * dpr, 1251 * dpr).data;
-
-        for (let i = 0; i < data.length; i += 4) {
-          if (maskData[i + 3] === 0) {
-            data[i + 3] = 0;
-          }
-        }
-
-        printCtx.putImageData(imageData, 0, 0);
-      }
+      printCtx.save();
+      printCtx.translate(874 / 2 + posX * (874 / canvasWidth), 1251 / 2 + posY * (1251 / canvasHeight));
+      printCtx.rotate((photoRotation * Math.PI) / 180);
+      printCtx.scale(photoScale * (874 / canvasWidth), photoScale * (1251 / canvasHeight));
+      printCtx.drawImage(image, -image.width / 2, -image.height / 2);
+      printCtx.restore();
 
       const dataUrl = printCanvas.toDataURL('image/jpeg');
       if (!username || !dataUrl) {
