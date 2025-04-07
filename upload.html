@@ -3,28 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="upload_title">上传照片打印</title>
+  <title>上传照片打印（使用SVG形状）</title>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
       margin: 0;
       background: linear-gradient(135deg, #74ebd5, #acb6e5);
-      overflow-y: auto;
+      overscroll-behavior: none; /* 防止页面滚动 */
     }
     .container {
-      display: grid;
-      grid-template-rows: auto auto auto auto auto auto auto;
-      gap: 8px;
       background: white;
-      padding: 10px;
+      padding: 30px;
       border-radius: 15px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.2);
       width: 90%;
-      margin: 5px auto;
+      max-width: 874px;
+      margin: 20px 0;
       text-align: center;
-      height: auto;
-      min-height: 100vh;
-      overflow-y: auto;
+      position: relative;
+      overflow: hidden;
     }
     .container::before {
       content: '';
@@ -35,41 +36,36 @@
       height: 5px;
       background: linear-gradient(to right, #ff6b6b, #feca57);
     }
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
     h2 {
       color: #333;
-      font-size: 16px;
-      margin: 0;
+      font-size: 24px;
+      margin: 0 0 20px 0;
     }
     canvas {
       border: 1px solid #ddd;
       border-radius: 8px;
-      display: block;
-      margin: 0 auto;
-      cursor: move;
+      max-width: 100%;
+      margin: 10px 0;
+      touch-action: none; /* 禁用默认触摸行为 */
     }
     input[type="file"] {
       width: 100%;
-      padding: 5px;
-      margin: 0;
+      padding: 12px;
+      margin: 10px 0;
       border: 1px solid #ddd;
       border-radius: 8px;
       box-sizing: border-box;
-      font-size: 12px;
+      font-size: 16px;
       background-color: #f9f9f9;
     }
     button {
       width: 100%;
-      padding: 5px;
-      margin: 0;
+      padding: 12px;
+      margin: 10px 0;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 16px;
       transition: transform 0.1s, background 0.3s;
     }
     button:hover {
@@ -82,500 +78,257 @@
     .print-btn:hover {
       background: linear-gradient(to right, #0056b3, #0099cc);
     }
-    .language-btn {
-      background: linear-gradient(to right, #28a745, #34d058);
-      color: white;
-      width: 25px;
-      height: 25px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      font-size: 14px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      transition: transform 0.1s, background 0.3s;
-    }
-    .language-btn:hover {
-      background: linear-gradient(to right, #218838, #28a745);
-      transform: scale(1.1);
-    }
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-      justify-content: center;
-    }
-    .control-group {
-      margin: 5px 0;
-      padding: 5px;
-      background-color: #f9f9f9;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    .control-group label {
-      display: block;
-      margin-bottom: 3px;
-      color: #444;
-      font-size: 12px;
-    }
-    .control-group input[type="range"] {
-      width: 100%;
-      cursor: pointer;
-    }
-    .compression-status {
-      margin: 0;
-      font-size: 10px;
-      color: #555;
-    }
-    .instructions {
-      font-size: 12px;
-      color: #666;
-      margin: 5px 0;
-    }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="header">
-      <h2 data-i18n="upload_title">上传照片打印</h2>
-      <button class="language-btn" onclick="toggleLanguage()">🌐</button>
-    </div>
+    <h2>上传照片打印（使用SVG形状）</h2>
     <input type="file" id="photoInput" accept="image/*">
-    <div class="compression-status" id="compressionStatus"></div>
-    <div class="instructions" data-i18n="instructions">按住鼠标拖动照片，使用滚轮缩放（手机上使用双指捏合缩放）</div>
     <canvas id="photoCanvas"></canvas>
-    <div class="controls">
-      <button class="print-btn" onclick="printPhoto()" data-i18n="print">打印</button>
-    </div>
-    <div class="control-group">
-      <label data-i18n="brightness">亮度</label>
-      <input type="range" id="brightness" min="0" max="2" step="0.1" value="1" oninput="adjustColor()">
-    </div>
-    <div class="control-group">
-      <label data-i18n="contrast">对比度</label>
-      <input type="range" id="contrast" min="0" max="2" step="0.1" value="1" oninput="adjustColor()">
-    </div>
-    <div class="control-group">
-      <label data-i18n="saturation">饱和度</label>
-      <input type="range" id="saturation" min="0" max="2" step="0.1" value="1" oninput="adjustColor()">
-    </div>
+    <button class="print-btn" onclick="printPhoto()">打印</button>
   </div>
 
   <script>
-    const translations = {
-      zh: {
-        upload_title: "上传照片打印",
-        print: "打印",
-        brightness: "亮度",
-        contrast: "对比度",
-        saturation: "饱和度",
-        instructions: "按住鼠标拖动照片，使用滚轮缩放（手机上使用双指捏合缩放）",
-        invalid_qr: "无效的二维码，请重新扫描！",
-        no_photo: "请先上传照片！",
-        missing_data: "缺少用户名或照片数据，请刷新页面重试！",
-        print_success: "打印成功！",
-        print_failed: "打印失败！",
-        network_error: "网络错误，请稍后再试！",
-        language_btn: "English",
-        compressing: "正在压缩照片...",
-        compression_success: "照片压缩成功，大小：{size}kb",
-        compression_failed: "照片压缩失败，请重试！",
-        mask_load_failed: "蒙版加载失败，请检查网络或蒙版文件！"
-      },
-      en: {
-        upload_title: "Upload Photo to Print",
-        print: "Print",
-        brightness: "Brightness",
-        contrast: "Contrast",
-        saturation: "Saturation",
-        instructions: "Hold mouse to drag photo, use wheel to zoom (use two fingers to pinch zoom on mobile)",
-        invalid_qr: "Invalid QR code, please scan again!",
-        no_photo: "Please upload a photo first!",
-        missing_data: "Missing username or photo data, please refresh and try again!",
-        print_success: "Print successful!",
-        print_failed: "Print failed!",
-        network_error: "Network error, please try again later!",
-        language_btn: "中文",
-        compressing: "Compressing photo...",
-        compression_success: "Photo compressed successfully, size: {size}kb",
-        compression_failed: "Photo compression failed, please try again!",
-        mask_load_failed: "Failed to load mask image, please check network or mask file!"
-      }
-    };
-
-    let currentLang = localStorage.getItem('language') || 'zh';
-    updateLanguage();
-
-    function toggleLanguage() {
-      currentLang = currentLang === 'zh' ? 'en' : 'zh';
-      localStorage.setItem('language', currentLang);
-      updateLanguage();
-    }
-
-    function updateLanguage() {
-      document.querySelectorAll('[data-i18n]').forEach(element => {
-        const key = element.getAttribute('data-i18n');
-        element.textContent = translations[currentLang][key];
-      });
-      document.querySelector('.language-btn').textContent = translations[currentLang].language_btn;
-      document.title = translations[currentLang].upload_title;
-      updateCompressionStatus('');
-    }
-
-    function updateCompressionStatus(message, size) {
-      const statusElement = document.getElementById('compressionStatus');
-      if (message === 'compressing') {
-        statusElement.textContent = translations[currentLang].compressing;
-      } else if (message === 'success') {
-        statusElement.textContent = translations[currentLang].compression_success.replace('{size}', size.toFixed(2));
-      } else if (message === 'failed') {
-        statusElement.textContent = translations[currentLang].compression_failed;
-      } else {
-        statusElement.textContent = '';
-      }
-    }
-
     const urlParams = new URLSearchParams(window.location.search);
-    const username = urlParams.get('username')?.replace(/[^a-zA-Z0-9_-]/g, '');
+    const username = urlParams.get('username');
     if (!username) {
-      alert(translations[currentLang].invalid_qr);
+      alert('无效的二维码，请重新扫描！');
       window.location.href = '/index.html';
     }
 
     let image = new Image();
-    let maskImage = new Image();
-    let processedMaskImage = null; // To store the processed mask
     let photoScale = 1;
-    let photoOffsetX = 0;
-    let photoOffsetY = 0;
-    let brightness = 1;
-    let contrast = 1;
-    let saturation = 1;
+    let photoRotation = 0;
+    let posX = 0;
+    let posY = 0;
+    let isDraggingImage = false;
+    let startX, startY;
+    let isPinching = false;
+    let initialDistance = 0;
+    let initialAngle = 0;
+    let initialScale = 1;
+    let initialRotation = 0;
 
+    const dpr = window.devicePixelRatio || 1;
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    const aspectRatio = 874 / 1251;
-    let canvasWidth = 437;
-    let canvasHeight = 625.5;
 
-    let isDragging = false;
-    let startX = 0;
-    let startY = 0;
-    let initialDistance = 0;
-    let isPinching = false;
-    let touchStartScale = 1;
+    // 动态设置画布尺寸，自适应手机屏幕
+    const canvasWidth = Math.min(window.innerWidth * 0.9, 874);
+    const canvasHeight = canvasWidth * (1251 / 874);
+    canvas.width = canvasWidth * dpr;
+    canvas.height = canvasHeight * dpr;
+    canvas.style.width = `${canvasWidth}px`;
+    canvas.style.height = `${canvasHeight}px`;
+    ctx.scale(dpr, dpr);
 
-    function adjustCanvasDisplaySize() {
-      const container = document.querySelector('.container');
-      const maxWidth = container.clientWidth * 0.95;
-      const maxHeight = container.clientHeight * 0.9;
-
-      let displayWidth = maxWidth;
-      let displayHeight = displayWidth / aspectRatio;
-
-      if (displayHeight > maxHeight) {
-        displayHeight = maxHeight;
-        displayWidth = displayHeight * aspectRatio;
-      }
-
-      canvas.style.width = `${displayWidth}px`;
-      canvas.style.height = `${displayHeight}px`;
-
-      canvasWidth = displayWidth;
-      canvasHeight = displayHeight;
-      canvas.width = canvasWidth * dpr;
-      canvas.height = canvasHeight * dpr;
-      ctx.scale(dpr, dpr);
-
-      drawImage();
-    }
-
-    adjustCanvasDisplaySize();
-    window.addEventListener('resize', adjustCanvasDisplaySize);
-
-    const maskUrl = 'https://photo-print-app.netlify.app/assets/mask.png';
-    maskImage.onload = () => {
-      console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
-      processMaskImage();
-    };
-    maskImage.onerror = () => {
-      console.error('Failed to load mask image, trying fallback URL');
-      maskImage.src = '/assets/mask.png';
-      maskImage.onerror = () => {
-        alert(translations[currentLang].mask_load_failed);
-      };
-    };
-    maskImage.src = maskUrl;
-
-    // Process the mask image to make white areas opaque (where photo shows) and black areas transparent (where photo is cropped)
-    function processMaskImage() {
-      const tempCanvas = document.createElement('canvas');
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCanvas.width = maskImage.width;
-      tempCanvas.height = maskImage.height;
-      tempCtx.drawImage(maskImage, 0, 0);
-
-      const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-      const data = imageData.data;
-
-      // Log a sample of pixel data for debugging
-      console.log('Sample mask pixel data (first 5 pixels):');
-      for (let i = 0; i < 20; i += 4) {
-        console.log(`Pixel ${i/4}: R=${data[i]}, G=${data[i+1]}, B=${data[i+2]}, A=${data[i+3]}`);
-      }
-
-      // Convert white areas to opaque (where the photo should show), black areas to transparent (where the photo should be cropped)
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        // If the pixel is white or near white (background), make it opaque
-        if (r > 200 && g > 200 && b > 200) {
-          data[i + 3] = 255; // Set alpha to 255 (opaque)
-        }
-        // If the pixel is black or near black (mask shape), make it transparent
-        else if (r < 50 && g < 50 && b < 50) {
-          data[i + 3] = 0; // Set alpha to 0 (transparent)
-        }
-      }
-
-      tempCtx.putImageData(imageData, 0, 0);
-      processedMaskImage = new Image();
-      processedMaskImage.src = tempCanvas.toDataURL();
-      processedMaskImage.onload = () => {
-        console.log('Processed mask image created');
-        drawImage();
-      };
-      processedMaskImage.onerror = () => {
-        console.error('Failed to load processed mask image');
-      };
-    }
-
-    async function compressImage(file, maxSizeKB = 500) {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          img.src = e.target.result;
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx.drawImage(img, 0, 0);
-
-          let quality = 0.9;
-          const maxSizeBytes = maxSizeKB * 1024;
-          let dataUrl;
-          const compress = () => {
-            dataUrl = canvas.toDataURL('image/jpeg', quality);
-            const size = atob(dataUrl.split(',')[1]).length;
-            if (size > maxSizeBytes && quality > 0.1) {
-              quality -= 0.1;
-              setTimeout(compress, 0);
-            } else {
-              updateCompressionStatus(size <= maxSizeBytes ? 'success' : 'failed', size / 1024);
-              resolve(dataUrl);
-            }
-          };
-          compress();
-        };
-        img.onerror = reject;
-      });
-    }
-
-    const photoInput = document.getElementById('photoInput');
-    photoInput.addEventListener('change', async (e) => {
+    document.getElementById('photoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
-      if (!file) return;
-      updateCompressionStatus('compressing');
-      try {
-        const compressedDataUrl = await compressImage(file, 500);
+      if (file) {
         if (image.src) URL.revokeObjectURL(image.src);
-        image.src = compressedDataUrl;
+        image.src = URL.createObjectURL(file);
         image.onload = () => {
-          console.log('Photo loaded successfully, dimensions:', image.width, 'x', image.height);
-          const imageAspectRatio = image.width / image.height;
-          if (imageAspectRatio > aspectRatio) {
-            photoScale = canvasHeight / image.height;
-          } else {
-            photoScale = canvasWidth / image.width;
-          }
-          photoOffsetX = (canvasWidth - image.width * photoScale) / 2;
-          photoOffsetY = (canvasHeight - image.height * photoScale) / 2;
+          const canvasAspect = canvasWidth / canvasHeight;
+          const imageAspect = image.width / image.height;
+          photoScale = imageAspect > canvasAspect ? canvasWidth / image.width : canvasHeight / image.height;
           drawImage();
-          adjustCanvasDisplaySize();
         };
-        image.onerror = () => {
-          console.error('Failed to load photo');
-          updateCompressionStatus('failed');
-          alert('Failed to load photo, please try another one!');
-        };
-      } catch (error) {
-        updateCompressionStatus('failed');
-        alert('Image compression failed, please try another photo!');
       }
     });
 
-    // Mouse events (Desktop)
-    canvas.addEventListener('mousedown', (e) => {
-      if (!image.src || !image.complete) return;
-      isDragging = true;
-      const rect = canvas.getBoundingClientRect();
-      startX = e.clientX - rect.left - photoOffsetX;
-      startY = e.clientY - rect.top - photoOffsetY;
-    });
+    let lastDrawTime = 0;
+    const throttleInterval = 16;
 
-    canvas.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      const rect = canvas.getBoundingClientRect();
-      photoOffsetX = e.clientX - rect.left - startX;
-      photoOffsetY = e.clientY - rect.top - startY;
-      drawImage();
-    });
+    // 绘制不规则形状（从SVG路径转换）
+    function drawShape() {
+      ctx.beginPath();
+      // SVG路径：M200,100 Q300,50 400,100 T600,100 Q700,150 600,200 T400,200 Q300,150 200,100 Z
+      // 转换为Canvas路径
+      ctx.moveTo(200, 100);
+      ctx.quadraticCurveTo(300, 50, 400, 100);
+      ctx.quadraticCurveTo(500, 150, 600, 100);
+      ctx.quadraticCurveTo(700, 150, 600, 200);
+      ctx.quadraticCurveTo(500, 250, 400, 200);
+      ctx.quadraticCurveTo(300, 150, 200, 100);
+      ctx.closePath();
+    }
 
-    canvas.addEventListener('mouseup', () => {
-      isDragging = false;
-    });
+    function drawImage() {
+      const now = performance.now();
+      if (now - lastDrawTime < throttleInterval) return;
+      lastDrawTime = now;
 
-    canvas.addEventListener('mouseleave', () => {
-      isDragging = false;
-    });
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (image.src) {
+        ctx.save();
+        // 应用不规则形状作为剪切区域
+        drawShape();
+        ctx.clip();
 
-    canvas.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      if (!image.src || !image.complete) return;
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      photoScale += delta;
-      const minScale = Math.min(canvasWidth / image.width, canvasHeight / image.height) * 0.5;
-      const maxScale = minScale * 5;
-      photoScale = Math.max(minScale, Math.min(maxScale, photoScale));
-      drawImage();
-    });
+        // 绘制照片
+        ctx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
+        ctx.rotate((photoRotation * Math.PI) / 180);
+        ctx.scale(photoScale, photoScale);
+        ctx.drawImage(image, -image.width / 2, -image.height / 2);
+        ctx.restore();
 
-    // Touch events (Mobile)
+        // 可选：绘制形状边框（用于调试）
+        ctx.save();
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 2;
+        drawShape();
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // 触摸事件
     canvas.addEventListener('touchstart', (e) => {
-      if (!image.src || !image.complete) return;
-      if (e.touches.length === 1) {
-        isDragging = true;
-        const rect = canvas.getBoundingClientRect();
-        startX = e.touches[0].clientX - rect.left - photoOffsetX;
-        startY = e.touches[0].clientY - rect.top - photoOffsetY;
-      } else if (e.touches.length === 2) {
+      e.preventDefault();
+      const touches = e.touches;
+      const rect = canvas.getBoundingClientRect();
+
+      console.log('Touchstart triggered:', touches.length, 'touches at', touches[0].clientX, touches[0].clientY);
+
+      if (touches.length === 1) {
+        isDraggingImage = true;
+        startX = touches[0].clientX;
+        startY = touches[0].clientY;
+        console.log('Start dragging at:', startX, startY);
+      } else if (touches.length === 2) {
         isPinching = true;
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        isDraggingImage = false;
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
         initialDistance = Math.sqrt(dx * dx + dy * dy);
-        touchStartScale = photoScale;
+        initialAngle = Math.atan2(dy, dx);
+        initialScale = photoScale;
+        initialRotation = photoRotation;
+        console.log('Start pinching, initial distance:', initialDistance, 'initial angle:', initialAngle);
       }
     });
 
     canvas.addEventListener('touchmove', (e) => {
       e.preventDefault();
-      if (e.touches.length === 1 && isDragging) {
-        const rect = canvas.getBoundingClientRect();
-        photoOffsetX = e.touches[0].clientX - rect.left - startX;
-        photoOffsetY = e.touches[0].clientY - rect.top - startY;
+      const now = performance.now();
+      if (now - lastDrawTime < throttleInterval) return;
+      lastDrawTime = now;
+
+      const touches = e.touches;
+      const rect = canvas.getBoundingClientRect();
+
+      console.log('Touchmove triggered:', touches.length, 'touches at', touches[0].clientX, touches[0].clientY);
+
+      if (touches.length === 1 && isDraggingImage) {
+        const dx = (touches[0].clientX - startX) * (canvasWidth / rect.width);
+        const dy = (touches[0].clientY - startY) * (canvasHeight / rect.height);
+        posX += dx;
+        posY += dy;
+        startX = touches[0].clientX;
+        startY = touches[0].clientY;
+        console.log('Dragging, dx:', dx, 'dy:', dy, 'new pos:', posX, posY);
         drawImage();
-      } else if (e.touches.length === 2 && isPinching) {
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        const currentDistance = Math.sqrt(dx * dx + dy * dy);
-        const scaleChange = currentDistance / initialDistance;
-        photoScale = touchStartScale * scaleChange;
-        const minScale = Math.min(canvasWidth / image.width, canvasHeight / image.height) * 0.5;
-        const maxScale = minScale * 5;
-        photoScale = Math.max(minScale, Math.min(maxScale, photoScale));
+      } else if (touches.length === 2 && isPinching) {
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const angle = Math.atan2(dy, dx);
+        photoScale = initialScale * (distance / initialDistance);
+        photoScale = Math.max(0.1, photoScale); // 防止缩放过小
+        photoRotation = initialRotation + (angle - initialAngle) * (180 / Math.PI);
+        console.log('Pinching, new distance:', distance, 'new scale:', photoScale, 'new rotation:', photoRotation);
         drawImage();
       }
     });
 
-    canvas.addEventListener('touchend', () => {
-      isDragging = false;
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      isDraggingImage = false;
       isPinching = false;
+      console.log('Touchend triggered');
     });
 
-    function drawImage() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.save();
+    // 鼠标事件
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      isDraggingImage = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    });
 
-      // Draw the photo if loaded
-      if (image.src && image.complete && image.naturalWidth !== 0) {
-        ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-        const scaledWidth = image.width * photoScale;
-        const scaledHeight = image.height * photoScale;
-        const drawX = photoOffsetX;
-        const drawY = photoOffsetY;
-        ctx.drawImage(image, drawX, drawY, scaledWidth, scaledHeight);
-        console.log('Photo drawn at:', drawX, drawY, 'with size:', scaledWidth, 'x', scaledHeight);
-      } else {
-        console.log('Photo not loaded or invalid, skipping photo draw.');
+    canvas.addEventListener('mousemove', (e) => {
+      if (isDraggingImage) {
+        const rect = canvas.getBoundingClientRect();
+        const dx = (e.clientX - startX) * (canvasWidth / rect.width);
+        const dy = (e.clientY - startY) * (canvasHeight / rect.height);
+        posX += dx;
+        posY += dy;
+        startX = e.clientX;
+        startY = e.clientY;
+        drawImage();
       }
+    });
 
-      // Apply mask to keep photo within mask area
-      if (processedMaskImage && processedMaskImage.complete && processedMaskImage.naturalWidth !== 0) {
-        // Use destination-in to ensure the photo only shows where the mask is opaque (white areas)
-        ctx.globalCompositeOperation = 'destination-in';
-        ctx.drawImage(processedMaskImage, 0, 0, canvasWidth, canvasHeight);
-        ctx.globalCompositeOperation = 'source-over';
-        console.log('Mask applied successfully');
-      } else {
-        console.warn('Processed mask image not loaded, skipping mask application.');
-      }
+    canvas.addEventListener('mouseup', () => {
+      isDraggingImage = false;
+    });
 
-      ctx.restore();
-    }
-
-    function adjustColor() {
-      brightness = document.getElementById('brightness').value;
-      contrast = document.getElementById('contrast').value;
-      saturation = document.getElementById('saturation').value;
+    // 鼠标滚轮事件（放大缩小）
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      photoScale += delta;
+      photoScale = Math.max(0.1, photoScale); // 防止缩放过小
       drawImage();
-    }
+    });
+
+    // 键盘事件（调整角度）
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') {
+        photoRotation -= 5; // 向左旋转
+        drawImage();
+      } else if (e.key === 'ArrowRight') {
+        photoRotation += 5; // 向右旋转
+        drawImage();
+      }
+    });
 
     async function printPhoto() {
       if (!image.src) {
-        alert(translations[currentLang].no_photo);
+        alert('请先上传照片！');
         return;
       }
 
       const printCanvas = document.createElement('canvas');
+      printCanvas.width = 874 * dpr;
+      printCanvas.height = 1251 * dpr;
       const printCtx = printCanvas.getContext('2d');
-      const printDpr = window.devicePixelRatio || 1;
-      printCanvas.width = 874 * printDpr;
-      printCanvas.height = 1251 * printDpr;
-      printCtx.scale(printDpr, printDpr);
+      printCtx.scale(dpr, dpr);
 
       printCtx.clearRect(0, 0, printCanvas.width, printCanvas.height);
-      printCtx.save();
+      if (image.src) {
+        printCtx.save();
+        // 应用不规则形状作为剪切区域（打印时也需要）
+        printCtx.beginPath();
+        printCtx.moveTo(200 * (874 / canvasWidth), 100 * (1251 / canvasHeight));
+        printCtx.quadraticCurveTo(300 * (874 / canvasWidth), 50 * (1251 / canvasHeight), 400 * (874 / canvasWidth), 100 * (1251 / canvasHeight));
+        printCtx.quadraticCurveTo(500 * (874 / canvasWidth), 150 * (1251 / canvasHeight), 600 * (874 / canvasWidth), 100 * (1251 / canvasHeight));
+        printCtx.quadraticCurveTo(700 * (874 / canvasWidth), 150 * (1251 / canvasHeight), 600 * (874 / canvasWidth), 200 * (1251 / canvasHeight));
+        printCtx.quadraticCurveTo(500 * (874 / canvasWidth), 250 * (1251 / canvasHeight), 400 * (874 / canvasWidth), 200 * (1251 / canvasHeight));
+        printCtx.quadraticCurveTo(300 * (874 / canvasWidth), 150 * (1251 / canvasHeight), 200 * (874 / canvasWidth), 100 * (1251 / canvasHeight));
+        printCtx.closePath();
+        printCtx.clip();
 
-      printCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-
-      const printScale = photoScale * (874 / canvasWidth);
-      const scaledWidth = image.width * printScale;
-      const scaledHeight = image.height * printScale;
-      const drawX = photoOffsetX * (874 / canvasWidth);
-      const drawY = photoOffsetY * (1251 / canvasHeight);
-
-      printCtx.drawImage(image, drawX, drawY, scaledWidth, scaledHeight);
-
-      if (processedMaskImage && processedMaskImage.complete && processedMaskImage.naturalWidth !== 0) {
-        printCtx.globalCompositeOperation = 'destination-in';
-        printCtx.drawImage(processedMaskImage, 0, 0, 874, 1251);
-        printCtx.globalCompositeOperation = 'source-over';
+        printCtx.translate(874 / 2 + posX * (874 / canvasWidth), 1251 / 2 + posY * (1251 / canvasHeight));
+        printCtx.rotate((photoRotation * Math.PI) / 180);
+        printCtx.scale(photoScale * (874 / canvasWidth), photoScale * (1251 / canvasHeight));
+        printCtx.drawImage(image, -image.width / 2, -image.height / 2);
+        printCtx.restore();
       }
-
-      printCtx.restore();
 
       const dataUrl = printCanvas.toDataURL('image/jpeg');
       if (!username || !dataUrl) {
-        alert(translations[currentLang].missing_data);
+        alert('缺少用户名或照片数据，请刷新页面重试！');
         return;
       }
 
@@ -590,12 +343,13 @@
         });
         const data = await response.json();
         if (data.success) {
-          alert(translations[currentLang].print_success);
+          alert('打印成功！');
         } else {
-          alert(data.message || translations[currentLang].print_failed);
+          alert(data.message || '打印失败！');
         }
       } catch (error) {
-        alert(`${translations[currentLang].network_error} (${error.message})`);
+        console.error('Print photo error:', error);
+        alert('网络错误，请稍后再试！');
       }
     }
   </script>
