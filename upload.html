@@ -263,19 +263,84 @@
     offscreenCtx.scale(dpr, dpr);
     let needsRedraw = true; // 标记是否需要更新离屏画布
 
-    // 加载蒙版图像
+    // 生成回退蒙版（不规则椭圆形）
+    function generateFallbackMask() {
+      const maskCanvas = document.createElement('canvas');
+      maskCanvas.width = canvasWidth * dpr;
+      maskCanvas.height = canvasHeight * dpr;
+      const maskCtx = maskCanvas.getContext('2d');
+      maskCtx.scale(dpr, dpr);
+
+      // 绘制不规则椭圆形（模拟期望的形状）
+      maskCtx.beginPath();
+      const centerX = canvasWidth / 2;
+      const centerY = canvasHeight / 2;
+      const radiusX = canvasWidth * 0.4;
+      const radiusY = canvasHeight * 0.6;
+      for (let i = 0; i <= 360; i += 1) {
+        const angle = (i * Math.PI) / 180;
+        const x = centerX + radiusX * Math.cos(angle) * (1 + 0.1 * Math.sin(angle * 3));
+        const y = centerY + radiusY * Math.sin(angle) * (1 + 0.1 * Math.cos(angle * 2));
+        if (i === 0) {
+          maskCtx.moveTo(x, y);
+        } else {
+          maskCtx.lineTo(x, y);
+        }
+      }
+      maskCtx.closePath();
+      maskCtx.fillStyle = 'black';
+      maskCtx.fill();
+
+      return maskCanvas;
+    }
+
+    // 加载蒙版图像并处理透明性
     maskImage.src = 'https://photo-print-app.netlify.app/assets/mask.png';
     maskImage.onload = () => {
       console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
-      // 优化：只扫描中心列以找到蒙版顶端
+
+      // 创建临时画布以处理蒙版图像
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = canvasWidth * dpr;
       tempCanvas.height = canvasHeight * dpr;
       const tempCtx = tempCanvas.getContext('2d');
       tempCtx.drawImage(maskImage, 0, 0, canvasWidth * dpr, canvasHeight * dpr);
+
+      // 获取像素数据并处理白色背景
       const imageData = tempCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
       const data = imageData.data;
+      let hasTransparent = false;
 
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+
+        // 检查是否为白色（RGB: 255, 255, 255）
+        if (r === 255 && g === 255 && b === 255) {
+          data[i + 3] = 0; // 将白色背景设置为透明
+        }
+
+        // 检查是否有透明区域
+        if (a === 0) {
+          hasTransparent = true;
+        }
+      }
+
+      // 如果没有透明区域，说明蒙版图像可能有问题，切换到回退蒙版
+      if (!hasTransparent) {
+        console.warn('Mask image has no transparent areas, switching to fallback mask.');
+        maskImage.src = generateFallbackMask().toDataURL();
+        maskImage.onload(); // 重新触发加载逻辑
+        return;
+      }
+
+      // 将处理后的像素数据写回临时画布
+      tempCtx.putImageData(imageData, 0, 0);
+      maskImage.src = tempCanvas.toDataURL(); // 更新蒙版图像
+
+      // 找到蒙版顶端
       const centerX = Math.floor(canvasWidth * dpr / 2);
       for (let y = 0; y < canvasHeight * dpr; y++) {
         const index = (y * canvasWidth * dpr + centerX) * 4;
@@ -285,6 +350,7 @@
         }
       }
       console.log('Mask top Y:', maskTopY);
+
       if (image.src) {
         posY = maskTopY - image.height * photoScale / 2; // 照片顶端对齐蒙版顶端
         needsRedraw = true;
@@ -293,13 +359,9 @@
     };
     maskImage.onerror = () => {
       console.error('Failed to load mask image from https://photo-print-app.netlify.app/assets/mask.png');
-      alert('无法加载蒙版图像，请检查路径 https://photo-print-app.netlify.app/assets/mask.png 是否正确！');
-      maskTopY = 0; // 默认值
-      if (image.src) {
-        posY = maskTopY - image.height * photoScale / 2;
-        needsRedraw = true;
-        drawImage();
-      }
+      alert('无法加载蒙版图像，切换到回退蒙版！');
+      maskImage.src = generateFallbackMask().toDataURL();
+      maskImage.onload(); // 重新触发加载逻辑
     };
 
     document.getElementById('photoInput').addEventListener('change', (e) => {
@@ -327,7 +389,7 @@
     });
 
     let lastDrawTime = 0;
-    const throttleInterval = 100; // 增加防抖间隔
+    const throttleInterval = 100; // 防抖间隔
 
     function drawImage() {
       const now = performance.now();
