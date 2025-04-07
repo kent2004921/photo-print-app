@@ -16,7 +16,7 @@
       overscroll-behavior: none; /* 防止页面滚动 */
     }
     .container {
-      background: white;
+      background: transparent; /* 移除白色背景，确保透明 */
       padding: 30px;
       border-radius: 15px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.2);
@@ -260,14 +260,6 @@
     canvas.style.height = `${Math.min(window.innerWidth * 0.9, canvasWidth) * (canvasHeight / canvasWidth)}px`;
     ctx.scale(dpr, dpr);
 
-    // 离屏画布用于预渲染照片和蒙版合成
-    const offscreenCanvas = document.createElement('canvas');
-    offscreenCanvas.width = canvasWidth * dpr;
-    offscreenCanvas.height = canvasHeight * dpr;
-    const offscreenCtx = offscreenCanvas.getContext('2d');
-    offscreenCtx.scale(dpr, dpr);
-    let needsRedraw = true; // 标记是否需要更新离屏画布
-
     // 加载蒙版图像（只加载一次）
     if (!isMaskLoaded) {
       maskImage.src = 'https://photo-print-app.netlify.app/assets/mask.png';
@@ -276,7 +268,6 @@
         isMaskLoaded = true;
 
         if (image.src) {
-          needsRedraw = true;
           drawImage();
         }
       };
@@ -302,7 +293,6 @@
           posX = 0;
           posY = 0;
           console.log('Initial posX:', posX, 'posY:', posY);
-          needsRedraw = true;
           drawImage();
         };
         image.onerror = () => {
@@ -320,42 +310,35 @@
       if (now - lastDrawTime < throttleInterval) return;
       lastDrawTime = now;
 
-      // 如果需要更新离屏画布（例如变换或滤镜变化）
-      if (needsRedraw) {
-        offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
-        if (!image.src) {
-          console.log('No image source, skipping draw');
-          return;
-        }
-
-        console.log('Updating offscreen canvas...');
-
-        // 应用亮度、对比度、饱和度
-        offscreenCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-
-        // 绘制照片到离屏画布
-        offscreenCtx.save();
-        offscreenCtx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
-        offscreenCtx.rotate((photoRotation * Math.PI) / 180);
-        offscreenCtx.scale(photoScale, photoScale);
-        offscreenCtx.drawImage(image, -image.width / 2, -image.height / 2);
-        offscreenCtx.restore();
-
-        // 应用蒙版（在离屏画布上完成合成）
-        if (isMaskLoaded && maskImage.complete && maskImage.src) {
-          console.log('Applying mask on offscreen canvas...');
-          offscreenCtx.globalCompositeOperation = 'destination-in';
-          offscreenCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
-          offscreenCtx.globalCompositeOperation = 'source-over'; // 恢复默认合成模式
-        }
-
-        offscreenCtx.filter = 'none'; // 清除滤镜
-        needsRedraw = false; // 重置标记
+      // 清空主画布
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!image.src) {
+        console.log('No image source, skipping draw');
+        return;
       }
 
-      // 将离屏画布内容直接绘制到主画布
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(offscreenCanvas, 0, 0);
+      console.log('Drawing image...');
+
+      // 应用亮度、对比度、饱和度
+      ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
+
+      // 绘制照片到主画布
+      ctx.save();
+      ctx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
+      ctx.rotate((photoRotation * Math.PI) / 180);
+      ctx.scale(photoScale, photoScale);
+      ctx.drawImage(image, -image.width / 2, -image.height / 2);
+      ctx.restore();
+
+      // 应用蒙版
+      if (isMaskLoaded && maskImage.complete && maskImage.src) {
+        console.log('Applying mask on main canvas...');
+        ctx.globalCompositeOperation = 'destination-in'; // 只保留蒙版非透明区域对应的照片部分
+        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+        ctx.globalCompositeOperation = 'source-over'; // 恢复默认合成模式
+      }
+
+      ctx.filter = 'none'; // 清除滤镜
     }
 
     // 节流函数
@@ -380,12 +363,10 @@
     }
 
     const throttledDrawImage = throttle(() => {
-      needsRedraw = true;
       drawImage();
     }, 50); // 节流绘制，50ms 一次
 
     const debouncedDrawImage = debounce(() => {
-      needsRedraw = true;
       drawImage();
     }, throttleInterval);
 
@@ -525,7 +506,6 @@
       brightness = document.getElementById('brightness').value;
       contrast = document.getElementById('contrast').value;
       saturation = document.getElementById('saturation').value;
-      needsRedraw = true;
       drawImage();
     }
 
