@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>上传照片打印（使用SVG形状）</title>
+  <title>上传照片打印（使用自定义SVG形状）</title>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -82,7 +82,7 @@
 </head>
 <body>
   <div class="container">
-    <h2>上传照片打印（使用SVG形状）</h2>
+    <h2>上传照片打印（使用自定义SVG形状）</h2>
     <input type="file" id="photoInput" accept="image/*">
     <canvas id="photoCanvas"></canvas>
     <button class="print-btn" onclick="printPhoto()">打印</button>
@@ -122,6 +122,12 @@
     canvas.style.height = `${canvasHeight}px`;
     ctx.scale(dpr, dpr);
 
+    // SVG 尺寸
+    const svgWidth = 600;
+    const svgHeight = 800;
+    const scaleX = canvasWidth / svgWidth;
+    const scaleY = canvasHeight / svgHeight;
+
     document.getElementById('photoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
@@ -142,14 +148,13 @@
     // 绘制不规则形状（从SVG路径转换）
     function drawShape() {
       ctx.beginPath();
-      // SVG路径：M200,100 Q300,50 400,100 T600,100 Q700,150 600,200 T400,200 Q300,150 200,100 Z
-      // 转换为Canvas路径
-      ctx.moveTo(200, 100);
-      ctx.quadraticCurveTo(300, 50, 400, 100);
-      ctx.quadraticCurveTo(500, 150, 600, 100);
-      ctx.quadraticCurveTo(700, 150, 600, 200);
-      ctx.quadraticCurveTo(500, 250, 400, 200);
-      ctx.quadraticCurveTo(300, 150, 200, 100);
+      // SVG路径：M296.5,50 C312,85 335,210 335,400 C335,590 312,715 296.5,750 C281,715 257,590 257,400 C257,210 281,85 296.5,50 Z
+      // 转换为Canvas路径，并映射到画布尺寸
+      ctx.moveTo(296.5 * scaleX, 50 * scaleY);
+      ctx.bezierCurveTo(312 * scaleX, 85 * scaleY, 335 * scaleX, 210 * scaleY, 335 * scaleX, 400 * scaleY);
+      ctx.bezierCurveTo(335 * scaleX, 590 * scaleY, 312 * scaleX, 715 * scaleY, 296.5 * scaleX, 750 * scaleY);
+      ctx.bezierCurveTo(281 * scaleX, 715 * scaleY, 257 * scaleX, 590 * scaleY, 257 * scaleX, 400 * scaleY);
+      ctx.bezierCurveTo(257 * scaleX, 210 * scaleY, 281 * scaleX, 85 * scaleY, 296.5 * scaleX, 50 * scaleY);
       ctx.closePath();
     }
 
@@ -172,7 +177,7 @@
         ctx.drawImage(image, -image.width / 2, -image.height / 2);
         ctx.restore();
 
-        // 可选：绘制形状边框（用于调试）
+        // 绘制形状边框（用于调试）
         ctx.save();
         ctx.strokeStyle = 'red';
         ctx.lineWidth = 2;
@@ -310,12 +315,11 @@
         printCtx.save();
         // 应用不规则形状作为剪切区域（打印时也需要）
         printCtx.beginPath();
-        printCtx.moveTo(200 * (874 / canvasWidth), 100 * (1251 / canvasHeight));
-        printCtx.quadraticCurveTo(300 * (874 / canvasWidth), 50 * (1251 / canvasHeight), 400 * (874 / canvasWidth), 100 * (1251 / canvasHeight));
-        printCtx.quadraticCurveTo(500 * (874 / canvasWidth), 150 * (1251 / canvasHeight), 600 * (874 / canvasWidth), 100 * (1251 / canvasHeight));
-        printCtx.quadraticCurveTo(700 * (874 / canvasWidth), 150 * (1251 / canvasHeight), 600 * (874 / canvasWidth), 200 * (1251 / canvasHeight));
-        printCtx.quadraticCurveTo(500 * (874 / canvasWidth), 250 * (1251 / canvasHeight), 400 * (874 / canvasWidth), 200 * (1251 / canvasHeight));
-        printCtx.quadraticCurveTo(300 * (874 / canvasWidth), 150 * (1251 / canvasHeight), 200 * (874 / canvasWidth), 100 * (1251 / canvasHeight));
+        printCtx.moveTo(296.5 * (874 / svgWidth), 50 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(312 * (874 / svgWidth), 85 * (1251 / svgHeight), 335 * (874 / svgWidth), 210 * (1251 / svgHeight), 335 * (874 / svgWidth), 400 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(335 * (874 / svgWidth), 590 * (1251 / svgHeight), 312 * (874 / svgWidth), 715 * (1251 / svgHeight), 296.5 * (874 / svgWidth), 750 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(281 * (874 / svgWidth), 715 * (1251 / svgHeight), 257 * (874 / svgWidth), 590 * (1251 / svgHeight), 257 * (874 / svgWidth), 400 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(257 * (874 / svgWidth), 210 * (1251 / svgHeight), 281 * (874 / svgWidth), 85 * (1251 / svgHeight), 296.5 * (874 / svgWidth), 50 * (1251 / svgHeight));
         printCtx.closePath();
         printCtx.clip();
 
