@@ -226,6 +226,7 @@
 
     let image = new Image();
     let maskImage = new Image();
+    let isMaskLoaded = false; // 标志：蒙版是否已加载
     let photoScale = 1;
     let photoRotation = 0;
     let posX = 0;
@@ -237,7 +238,6 @@
     let initialAngle = 0;
     let initialScale = 1;
     let initialRotation = 0;
-    let maskTopY = 0; // 蒙版的顶端位置
     let brightness = 1;
     let contrast = 1;
     let saturation = 1;
@@ -246,16 +246,20 @@
     const canvas = document.getElementById('photoCanvas');
     const ctx = canvas.getContext('2d');
 
-    // 动态设置画布尺寸，自适应手机屏幕
-    const canvasWidth = Math.min(window.innerWidth * 0.9, 874);
-    const canvasHeight = canvasWidth * (1251 / 874);
+    // 设置画布尺寸（基于厘米单位）
+    const canvasWidthCm = 7.4; // 宽度 7.4cm
+    const canvasHeightCm = 10.6; // 高度 10.6cm
+    const dpi = 300; // 打印分辨率 300 DPI
+    const pixelsPerCm = dpi / 2.54; // 1 厘米 = 300 / 2.54 像素
+    const canvasWidth = Math.round(canvasWidthCm * pixelsPerCm); // 7.4cm ≈ 874 像素
+    const canvasHeight = Math.round(canvasHeightCm * pixelsPerCm); // 10.6cm ≈ 1252 像素
     canvas.width = canvasWidth * dpr;
     canvas.height = canvasHeight * dpr;
-    canvas.style.width = `${canvasWidth}px`;
-    canvas.style.height = `${canvasHeight}px`;
+    canvas.style.width = `${Math.min(window.innerWidth * 0.9, canvasWidth)}px`;
+    canvas.style.height = `${Math.min(window.innerWidth * 0.9, canvasWidth) * (canvasHeight / canvasWidth)}px`;
     ctx.scale(dpr, dpr);
 
-    // 离屏画布用于预渲染
+    // 离屏画布用于预渲染照片
     const offscreenCanvas = document.createElement('canvas');
     offscreenCanvas.width = canvasWidth * dpr;
     offscreenCanvas.height = canvasHeight * dpr;
@@ -263,106 +267,27 @@
     offscreenCtx.scale(dpr, dpr);
     let needsRedraw = true; // 标记是否需要更新离屏画布
 
-    // 生成回退蒙版（不规则椭圆形）
-    function generateFallbackMask() {
-      const maskCanvas = document.createElement('canvas');
-      maskCanvas.width = canvasWidth * dpr;
-      maskCanvas.height = canvasHeight * dpr;
-      const maskCtx = maskCanvas.getContext('2d');
-      maskCtx.scale(dpr, dpr);
+    // 加载蒙版图像（只加载一次）
+    if (!isMaskLoaded) {
+      maskImage.src = 'https://photo-print-app.netlify.app/assets/mask.png';
+      maskImage.onload = () => {
+        console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
+        isMaskLoaded = true;
 
-      // 绘制不规则椭圆形（模拟期望的形状）
-      maskCtx.beginPath();
-      const centerX = canvasWidth / 2;
-      const centerY = canvasHeight / 2;
-      const radiusX = canvasWidth * 0.4;
-      const radiusY = canvasHeight * 0.6;
-      for (let i = 0; i <= 360; i += 1) {
-        const angle = (i * Math.PI) / 180;
-        const x = centerX + radiusX * Math.cos(angle) * (1 + 0.1 * Math.sin(angle * 3));
-        const y = centerY + radiusY * Math.sin(angle) * (1 + 0.1 * Math.cos(angle * 2));
-        if (i === 0) {
-          maskCtx.moveTo(x, y);
-        } else {
-          maskCtx.lineTo(x, y);
+        // 绘制蒙版到画布（作为背景）
+        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+
+        if (image.src) {
+          needsRedraw = true;
+          drawImage();
         }
-      }
-      maskCtx.closePath();
-      maskCtx.fillStyle = 'black';
-      maskCtx.fill();
-
-      return maskCanvas;
+      };
+      maskImage.onerror = () => {
+        console.error('Failed to load mask image from https://photo-print-app.netlify.app/assets/mask.png');
+        alert('无法加载蒙版图像，请检查路径 https://photo-print-app.netlify.app/assets/mask.png 是否正确！');
+        isMaskLoaded = true; // 即使加载失败，也标记为已加载，避免重复尝试
+      };
     }
-
-    // 加载蒙版图像并处理透明性
-    maskImage.src = 'https://photo-print-app.netlify.app/assets/mask.png';
-    maskImage.onload = () => {
-      console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
-
-      // 创建临时画布以处理蒙版图像
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = canvasWidth * dpr;
-      tempCanvas.height = canvasHeight * dpr;
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCtx.drawImage(maskImage, 0, 0, canvasWidth * dpr, canvasHeight * dpr);
-
-      // 获取像素数据并处理白色背景
-      const imageData = tempCtx.getImageData(0, 0, canvasWidth * dpr, canvasHeight * dpr);
-      const data = imageData.data;
-      let hasTransparent = false;
-
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const a = data[i + 3];
-
-        // 检查是否为白色（RGB: 255, 255, 255）
-        if (r === 255 && g === 255 && b === 255) {
-          data[i + 3] = 0; // 将白色背景设置为透明
-        }
-
-        // 检查是否有透明区域
-        if (a === 0) {
-          hasTransparent = true;
-        }
-      }
-
-      // 如果没有透明区域，说明蒙版图像可能有问题，切换到回退蒙版
-      if (!hasTransparent) {
-        console.warn('Mask image has no transparent areas, switching to fallback mask.');
-        maskImage.src = generateFallbackMask().toDataURL();
-        maskImage.onload(); // 重新触发加载逻辑
-        return;
-      }
-
-      // 将处理后的像素数据写回临时画布
-      tempCtx.putImageData(imageData, 0, 0);
-      maskImage.src = tempCanvas.toDataURL(); // 更新蒙版图像
-
-      // 找到蒙版顶端
-      const centerX = Math.floor(canvasWidth * dpr / 2);
-      for (let y = 0; y < canvasHeight * dpr; y++) {
-        const index = (y * canvasWidth * dpr + centerX) * 4;
-        if (data[index + 3] > 0) { // 找到第一个非透明像素
-          maskTopY = y / dpr; // 转换为画布坐标
-          break;
-        }
-      }
-      console.log('Mask top Y:', maskTopY);
-
-      if (image.src) {
-        posY = maskTopY - image.height * photoScale / 2; // 照片顶端对齐蒙版顶端
-        needsRedraw = true;
-        drawImage();
-      }
-    };
-    maskImage.onerror = () => {
-      console.error('Failed to load mask image from https://photo-print-app.netlify.app/assets/mask.png');
-      alert('无法加载蒙版图像，切换到回退蒙版！');
-      maskImage.src = generateFallbackMask().toDataURL();
-      maskImage.onload(); // 重新触发加载逻辑
-    };
 
     document.getElementById('photoInput').addEventListener('change', (e) => {
       const file = e.target.files[0];
@@ -375,9 +300,10 @@
           const canvasAspect = canvasWidth / canvasHeight;
           const imageAspect = image.width / image.height;
           photoScale = imageAspect > canvasAspect ? canvasWidth / image.width : canvasHeight / image.height;
-          // 初始位置：照片顶端对齐蒙版顶端
-          posY = maskTopY - image.height * photoScale / 2;
-          console.log('Initial posY:', posY);
+          // 初始位置：照片居中显示
+          posX = 0;
+          posY = 0;
+          console.log('Initial posX:', posX, 'posY:', posY);
           needsRedraw = true;
           drawImage();
         };
@@ -417,21 +343,24 @@
         offscreenCtx.drawImage(image, -image.width / 2, -image.height / 2);
         offscreenCtx.restore();
 
-        // 应用蒙版
-        if (maskImage.complete && maskImage.src) {
-          console.log('Applying mask to offscreen canvas...');
-          offscreenCtx.globalCompositeOperation = 'destination-in';
-          offscreenCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
-          offscreenCtx.globalCompositeOperation = 'source-over'; // 恢复默认合成模式
-        }
-
         offscreenCtx.filter = 'none'; // 清除滤镜
         needsRedraw = false; // 重置标记
       }
 
-      // 将离屏画布内容绘制到主画布
+      // 将离屏画布内容绘制到主画布，并应用蒙版
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(offscreenCanvas, 0, 0);
+      if (isMaskLoaded && maskImage.complete && maskImage.src) {
+        // 重新绘制蒙版作为背景
+        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+
+        // 使用 destination-in 合成模式，将照片限制在蒙版区域内
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(offscreenCanvas, 0, 0);
+        ctx.globalCompositeOperation = 'source-over'; // 恢复默认合成模式
+      } else {
+        // 如果蒙版未加载，直接绘制照片
+        ctx.drawImage(offscreenCanvas, 0, 0);
+      }
     }
 
     // 节流函数
@@ -508,7 +437,6 @@
         photoScale += delta;
         photoScale = Math.max(0.1, photoScale); // 防止缩放过小
         console.log('Wheel scroll, new scale:', photoScale);
-        posY = maskTopY - image.height * photoScale / 2; // 重新对齐顶端
         throttledDrawImage();
       });
 
@@ -585,7 +513,6 @@
           photoScale = Math.max(0.1, photoScale); // 防止缩放过小
           photoRotation = initialRotation + (angle - initialAngle) * (180 / Math.PI);
           console.log('Pinching, new distance:', distance, 'new scale:', photoScale, 'new rotation:', photoRotation);
-          posY = maskTopY - image.height * photoScale / 2; // 重新对齐顶端
           throttledDrawImage();
         }
       });
@@ -613,24 +540,28 @@
         return;
       }
 
+      // 打印尺寸（与画布尺寸相同）
+      const printWidthPx = canvasWidth; // 7.4cm ≈ 874 像素
+      const printHeightPx = canvasHeight; // 10.6cm ≈ 1252 像素
+
       const printCanvas = document.createElement('canvas');
-      printCanvas.width = 874 * dpr;
-      printCanvas.height = 1251 * dpr;
+      printCanvas.width = printWidthPx * dpr;
+      printCanvas.height = printHeightPx * dpr;
       const printCtx = printCanvas.getContext('2d');
       printCtx.scale(dpr, dpr);
 
       printCtx.clearRect(0, 0, printCanvas.width, printCanvas.height);
       printCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
       printCtx.save();
-      printCtx.translate(874 / 2 + posX * (874 / canvasWidth), 1251 / 2 + posY * (1251 / canvasHeight));
+      printCtx.translate(printWidthPx / 2 + posX, printHeightPx / 2 + posY);
       printCtx.rotate((photoRotation * Math.PI) / 180);
-      printCtx.scale(photoScale * (874 / canvasWidth), photoScale * (1251 / canvasHeight));
+      printCtx.scale(photoScale, photoScale);
       printCtx.drawImage(image, -image.width / 2, -image.height / 2);
       printCtx.restore();
 
-      if (maskImage.complete && maskImage.src) {
+      if (isMaskLoaded && maskImage.complete && maskImage.src) {
         printCtx.globalCompositeOperation = 'destination-in';
-        printCtx.drawImage(maskImage, 0, 0, 874, 1251);
+        printCtx.drawImage(maskImage, 0, 0, printWidthPx, printHeightPx);
         printCtx.globalCompositeOperation = 'source-over';
       }
 
