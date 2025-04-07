@@ -255,41 +255,18 @@
     canvas.style.height = `${canvasHeight}px`;
     ctx.scale(dpr, dpr);
 
-    // 生成回退蒙版（不规则椭圆形）
-    function generateFallbackMask() {
-      const maskCanvas = document.createElement('canvas');
-      maskCanvas.width = canvasWidth * dpr;
-      maskCanvas.height = canvasHeight * dpr;
-      const maskCtx = maskCanvas.getContext('2d');
-      maskCtx.scale(dpr, dpr);
+    // 离屏画布用于预渲染
+    const offscreenCanvas = document.createElement('canvas');
+    offscreenCanvas.width = canvasWidth * dpr;
+    offscreenCanvas.height = canvasHeight * dpr;
+    const offscreenCtx = offscreenCanvas.getContext('2d');
+    offscreenCtx.scale(dpr, dpr);
+    let needsRedraw = true; // 标记是否需要更新离屏画布
 
-      // 绘制不规则椭圆形（模拟截图3的形状）
-      maskCtx.beginPath();
-      const centerX = canvasWidth / 2;
-      const centerY = canvasHeight / 2;
-      const radiusX = canvasWidth * 0.4;
-      const radiusY = canvasHeight * 0.6;
-      for (let i = 0; i <= 360; i += 1) {
-        const angle = (i * Math.PI) / 180;
-        const x = centerX + radiusX * Math.cos(angle) * (1 + 0.1 * Math.sin(angle * 3));
-        const y = centerY + radiusY * Math.sin(angle) * (1 + 0.1 * Math.cos(angle * 2));
-        if (i === 0) {
-          maskCtx.moveTo(x, y);
-        } else {
-          maskCtx.lineTo(x, y);
-        }
-      }
-      maskCtx.closePath();
-      maskCtx.fillStyle = 'black';
-      maskCtx.fill();
-
-      return maskCanvas;
-    }
-
-    // 强制使用回退蒙版
-    maskImage.src = generateFallbackMask().toDataURL();
+    // 加载蒙版图像
+    maskImage.src = 'https://photo-print-app.netlify.app/assets/mask.png';
     maskImage.onload = () => {
-      console.log('Fallback mask loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
+      console.log('Mask image loaded successfully, dimensions:', maskImage.width, 'x', maskImage.height);
       // 优化：只扫描中心列以找到蒙版顶端
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = canvasWidth * dpr;
@@ -310,6 +287,17 @@
       console.log('Mask top Y:', maskTopY);
       if (image.src) {
         posY = maskTopY - image.height * photoScale / 2; // 照片顶端对齐蒙版顶端
+        needsRedraw = true;
+        drawImage();
+      }
+    };
+    maskImage.onerror = () => {
+      console.error('Failed to load mask image from https://photo-print-app.netlify.app/assets/mask.png');
+      alert('无法加载蒙版图像，请检查路径 https://photo-print-app.netlify.app/assets/mask.png 是否正确！');
+      maskTopY = 0; // 默认值
+      if (image.src) {
+        posY = maskTopY - image.height * photoScale / 2;
+        needsRedraw = true;
         drawImage();
       }
     };
@@ -328,6 +316,7 @@
           // 初始位置：照片顶端对齐蒙版顶端
           posY = maskTopY - image.height * photoScale / 2;
           console.log('Initial posY:', posY);
+          needsRedraw = true;
           drawImage();
         };
         image.onerror = () => {
@@ -338,41 +327,61 @@
     });
 
     let lastDrawTime = 0;
-    const throttleInterval = 50; // 增加防抖间隔
+    const throttleInterval = 100; // 增加防抖间隔
 
     function drawImage() {
       const now = performance.now();
       if (now - lastDrawTime < throttleInterval) return;
       lastDrawTime = now;
 
+      // 如果需要更新离屏画布（例如变换或滤镜变化）
+      if (needsRedraw) {
+        offscreenCtx.clearRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
+        if (!image.src) {
+          console.log('No image source, skipping draw');
+          return;
+        }
+
+        console.log('Updating offscreen canvas...');
+
+        // 应用亮度、对比度、饱和度
+        offscreenCtx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
+
+        // 绘制照片到离屏画布
+        offscreenCtx.save();
+        offscreenCtx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
+        offscreenCtx.rotate((photoRotation * Math.PI) / 180);
+        offscreenCtx.scale(photoScale, photoScale);
+        offscreenCtx.drawImage(image, -image.width / 2, -image.height / 2);
+        offscreenCtx.restore();
+
+        // 应用蒙版
+        if (maskImage.complete && maskImage.src) {
+          console.log('Applying mask to offscreen canvas...');
+          offscreenCtx.globalCompositeOperation = 'destination-in';
+          offscreenCtx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
+          offscreenCtx.globalCompositeOperation = 'source-over'; // 恢复默认合成模式
+        }
+
+        offscreenCtx.filter = 'none'; // 清除滤镜
+        needsRedraw = false; // 重置标记
+      }
+
+      // 将离屏画布内容绘制到主画布
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (!image.src) {
-        console.log('No image source, skipping draw');
-        return;
-      }
+      ctx.drawImage(offscreenCanvas, 0, 0);
+    }
 
-      console.log('Drawing image...');
-
-      // 应用亮度、对比度、饱和度
-      ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-
-      // 绘制照片
-      ctx.save();
-      ctx.translate(canvasWidth / 2 + posX, canvasHeight / 2 + posY);
-      ctx.rotate((photoRotation * Math.PI) / 180);
-      ctx.scale(photoScale, photoScale);
-      ctx.drawImage(image, -image.width / 2, -image.height / 2);
-      ctx.restore();
-
-      // 应用蒙版
-      if (maskImage.complete && maskImage.src) {
-        console.log('Applying mask...');
-        ctx.globalCompositeOperation = 'destination-in';
-        ctx.drawImage(maskImage, 0, 0, canvasWidth, canvasHeight);
-        ctx.globalCompositeOperation = 'source-over'; // 恢复默认合成模式
-      }
-
-      ctx.filter = 'none'; // 清除滤镜
+    // 节流函数
+    function throttle(func, wait) {
+      let lastCall = 0;
+      return function (...args) {
+        const now = performance.now();
+        if (now - lastCall >= wait) {
+          lastCall = now;
+          return func.apply(this, args);
+        }
+      };
     }
 
     // 防抖函数
@@ -384,10 +393,21 @@
       };
     }
 
-    const debouncedDrawImage = debounce(drawImage, throttleInterval);
+    const throttledDrawImage = throttle(() => {
+      needsRedraw = true;
+      drawImage();
+    }, 50); // 节流绘制，50ms 一次
+
+    const debouncedDrawImage = debounce(() => {
+      needsRedraw = true;
+      drawImage();
+    }, throttleInterval);
 
     // 电脑端交互逻辑
     if (!isMobile) {
+      let lastMouseMove = 0;
+      const mouseMoveThrottle = 50; // 节流鼠标移动事件
+
       canvas.addEventListener('mousedown', (e) => {
         const rect = canvas.getBoundingClientRect();
         isDraggingImage = true;
@@ -397,6 +417,10 @@
       });
 
       canvas.addEventListener('mousemove', (e) => {
+        const now = performance.now();
+        if (now - lastMouseMove < mouseMoveThrottle) return;
+        lastMouseMove = now;
+
         if (isDraggingImage) {
           const rect = canvas.getBoundingClientRect();
           const dx = (e.clientX - startX) * (canvasWidth / rect.width);
@@ -406,7 +430,7 @@
           startX = e.clientX;
           startY = e.clientY;
           console.log('Dragging, dx:', dx, 'dy:', dy, 'new pos:', posX, posY);
-          debouncedDrawImage();
+          throttledDrawImage();
         }
       });
 
@@ -423,7 +447,7 @@
         photoScale = Math.max(0.1, photoScale); // 防止缩放过小
         console.log('Wheel scroll, new scale:', photoScale);
         posY = maskTopY - image.height * photoScale / 2; // 重新对齐顶端
-        debouncedDrawImage();
+        throttledDrawImage();
       });
 
       // 键盘事件（调整角度）
@@ -431,17 +455,20 @@
         if (e.key === 'ArrowLeft') {
           photoRotation -= 5; // 向左旋转
           console.log('Rotate left, new rotation:', photoRotation);
-          debouncedDrawImage();
+          throttledDrawImage();
         } else if (e.key === 'ArrowRight') {
           photoRotation += 5; // 向右旋转
           console.log('Rotate right, new rotation:', photoRotation);
-          debouncedDrawImage();
+          throttledDrawImage();
         }
       });
     }
 
     // 手机端交互逻辑
     if (isMobile) {
+      let lastTouchMove = 0;
+      const touchMoveThrottle = 50; // 节流触摸移动事件
+
       canvas.addEventListener('touchstart', (e) => {
         e.preventDefault();
         const touches = e.touches;
@@ -469,6 +496,10 @@
 
       canvas.addEventListener('touchmove', (e) => {
         e.preventDefault();
+        const now = performance.now();
+        if (now - lastTouchMove < touchMoveThrottle) return;
+        lastTouchMove = now;
+
         const touches = e.touches;
         const rect = canvas.getBoundingClientRect();
 
@@ -482,7 +513,7 @@
           startX = touches[0].clientX;
           startY = touches[0].clientY;
           console.log('Dragging, dx:', dx, 'dy:', dy, 'new pos:', posX, posY);
-          debouncedDrawImage();
+          throttledDrawImage();
         } else if (touches.length === 2 && isPinching) {
           const dx = touches[0].clientX - touches[1].clientX;
           const dy = touches[0].clientY - touches[1].clientY;
@@ -493,7 +524,7 @@
           photoRotation = initialRotation + (angle - initialAngle) * (180 / Math.PI);
           console.log('Pinching, new distance:', distance, 'new scale:', photoScale, 'new rotation:', photoRotation);
           posY = maskTopY - image.height * photoScale / 2; // 重新对齐顶端
-          debouncedDrawImage();
+          throttledDrawImage();
         }
       });
 
@@ -502,6 +533,7 @@
         isDraggingImage = false;
         isPinching = false;
         console.log('Touchend triggered');
+        debouncedDrawImage(); // 确保最后一次操作后重绘
       });
     }
 
@@ -509,6 +541,7 @@
       brightness = document.getElementById('brightness').value;
       contrast = document.getElementById('contrast').value;
       saturation = document.getElementById('saturation').value;
+      needsRedraw = true;
       drawImage();
     }
 
