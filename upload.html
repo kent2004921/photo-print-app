@@ -123,8 +123,8 @@
     ctx.scale(dpr, dpr);
 
     // SVG 尺寸
-    const svgWidth = 600;
-    const svgHeight = 800;
+    const svgWidth = 460;
+    const svgHeight = 200;
     const scaleX = canvasWidth / svgWidth;
     const scaleY = canvasHeight / svgHeight;
 
@@ -146,15 +146,48 @@
     const throttleInterval = 16;
 
     // 绘制不规则形状（从SVG路径转换）
-    function drawShape() {
+    function drawShapes() {
       ctx.beginPath();
-      // SVG路径：M296.5,50 C312,85 335,210 335,400 C335,590 312,715 296.5,750 C281,715 257,590 257,400 C257,210 281,85 296.5,50 Z
-      // 转换为Canvas路径，并映射到画布尺寸
-      ctx.moveTo(296.5 * scaleX, 50 * scaleY);
-      ctx.bezierCurveTo(312 * scaleX, 85 * scaleY, 335 * scaleX, 210 * scaleY, 335 * scaleX, 400 * scaleY);
-      ctx.bezierCurveTo(335 * scaleX, 590 * scaleY, 312 * scaleX, 715 * scaleY, 296.5 * scaleX, 750 * scaleY);
-      ctx.bezierCurveTo(281 * scaleX, 715 * scaleY, 257 * scaleX, 590 * scaleY, 257 * scaleX, 400 * scaleY);
-      ctx.bezierCurveTo(257 * scaleX, 210 * scaleY, 281 * scaleX, 85 * scaleY, 296.5 * scaleX, 50 * scaleY);
+      // 路径 1
+      ctx.moveTo(185.76 * scaleX, 193.75 * scaleY);
+      ctx.bezierCurveTo(167.54 * scaleX, 191.87 * scaleY, 145.39 * scaleX, 185.95 * scaleY, 126.62 * scaleX, 173.38 * scaleY);
+      ctx.bezierCurveTo(106.6 * scaleX, 160.04 * scaleY, 93.14 * scaleX, 139.77 * scaleY, 86.1 * scaleX, 115.96 * scaleY);
+      ctx.bezierCurveTo(79.99 * scaleX, 95.28 * scaleY, 80.68 * scaleX, 74.3 * scaleY, 84.64 * scaleX, 56.91 * scaleY);
+      ctx.bezierCurveTo(87.91 * scaleX, 42.84 * scaleY, 94.21 * scaleX, 29.17 * scaleY, 102.99 * scaleX, 18.69 * scaleY);
+      ctx.bezierCurveTo(111.26 * scaleX, 8.84 * scaleY, 122.84 * scaleX, 0.94 * scaleY, 135.87 * scaleX, 0.13 * scaleY);
+      ctx.bezierCurveTo(148.38 * scaleX, -0.66 * scaleY, 159.6 * scaleX, 5.39 * scaleY, 167.49 * scaleX, 13.23 * scaleY);
+      ctx.bezierCurveTo(175.17 * scaleX, 20.85 * scaleY, 179.72 * scaleX, 30.39 * scaleY, 182.45 * scaleX, 40.37 * scaleY);
+      ctx.bezierCurveTo(185.37 * scaleX, 51.07 * scaleY, 186.34 * scaleX, 62.43 * scaleY, 185.6 * scaleX, 73.14 * scaleY);
+      ctx.bezierCurveTo(184.67 * scaleX, 86.65 * scaleY, 180.7 * scaleX, 100.12 * scaleY, 174.89 * scaleX, 111.55 * scaleY);
+      ctx.bezierCurveTo(168.46 * scaleX, 123.99 * scaleY, 159.12 * scaleX, 134.2 * scaleY, 148.06 * scaleX, 142.07 * scaleY);
+      ctx.bezierCurveTo(137.65 * scaleX, 149.47 * scaleY, 125.84 * scaleX, 154.52 * scaleY, 113.98 * scaleX, 157.13 * scaleY);
+      ctx.bezierCurveTo(104.53 * scaleX, 159.14 * scaleY, 94.4 * scaleX, 159.95 * scaleY, 85.16 * scaleX, 158.44 * scaleY);
+      ctx.closePath();
+
+      // 路径 2
+      ctx.moveTo(185.76 * scaleX, 193.75 * scaleY);
+      ctx.lineTo(268.55 * scaleX, 193.75 * scaleY);
+      ctx.bezierCurveTo(286.77 * scaleX, 191.87 * scaleY, 308.92 * scaleX, 185.95 * scaleY, 327.69 * scaleX, 173.38 * scaleY);
+      ctx.bezierCurveTo(347.71 * scaleX, 160.04 * scaleY, 361.17 * scaleX, 139.77 * scaleY, 368.21 * scaleX, 115.96 * scaleY);
+      ctx.bezierCurveTo(374.32 * scaleX, 95.28 * scaleY, 373.63 * scaleX, 74.3 * scaleY, 369.67 * scaleX, 56.91 * scaleY);
+      ctx.bezierCurveTo(366.4 * scaleX, 42.84 * scaleY, 360.1 * scaleX, 29.17 * scaleY, 351.32 * scaleX, 18.69 * scaleY);
+      ctx.bezierCurveTo(343.05 * scaleX, 8.84 * scaleY, 331.47 * scaleX, 0.94 * scaleY, 318.44 * scaleX, 0.13 * scaleY);
+      ctx.bezierCurveTo(305.93 * scaleX, -0.66 * scaleY, 294.71 * scaleX, 5.39 * scaleY, 286.82 * scaleX, 13.23 * scaleY);
+      ctx.bezierCurveTo(279.14 * scaleX, 20.85 * scaleY, 274.59 * scaleX, 30.39 * scaleY, 271.86 * scaleX, 40.37 * scaleY);
+      ctx.bezierCurveTo(268.94 * scaleX, 51.07 * scaleY, 267.97 * scaleX, 62.43 * scaleY, 268.71 * scaleX, 73.14 * scaleY);
+      ctx.bezierCurveTo(269.64 * scaleX, 86.65 * scaleY, 273.61 * scaleX, 100.12 * scaleY, 279.42 * scaleX, 111.55 * scaleY);
+      ctx.bezierCurveTo(285.85 * scaleX, 123.99 * scaleY, 295.19 * scaleX, 134.2 * scaleY, 306.25 * scaleX, 142.07 * scaleY);
+      ctx.bezierCurveTo(316.66 * scaleX, 149.47 * scaleY, 328.47 * scaleX, 154.52 * scaleY, 340.33 * scaleX, 157.13 * scaleY);
+      ctx.bezierCurveTo(349.78 * scaleX, 159.14 * scaleY, 359.91 * scaleX, 159.95 * scaleY, 369.15 * scaleX, 158.44 * scaleY);
+      ctx.closePath();
+
+      // 路径 3
+      ctx.moveTo(369.15 * scaleX, 158.44 * scaleY);
+      ctx.lineTo(460 * scaleX, 158.44 * scaleY);
+      ctx.lineTo(460 * scaleX, 200 * scaleY);
+      ctx.lineTo(0 * scaleX, 200 * scaleY);
+      ctx.lineTo(0 * scaleX, 158.44 * scaleY);
+      ctx.lineTo(85.16 * scaleX, 158.44 * scaleY);
       ctx.closePath();
     }
 
@@ -167,7 +200,7 @@
       if (image.src) {
         ctx.save();
         // 应用不规则形状作为剪切区域
-        drawShape();
+        drawShapes();
         ctx.clip();
 
         // 绘制照片
@@ -181,7 +214,7 @@
         ctx.save();
         ctx.strokeStyle = 'red';
         ctx.lineWidth = 2;
-        drawShape();
+        drawShapes();
         ctx.stroke();
         ctx.restore();
       }
@@ -315,11 +348,46 @@
         printCtx.save();
         // 应用不规则形状作为剪切区域（打印时也需要）
         printCtx.beginPath();
-        printCtx.moveTo(296.5 * (874 / svgWidth), 50 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(312 * (874 / svgWidth), 85 * (1251 / svgHeight), 335 * (874 / svgWidth), 210 * (1251 / svgHeight), 335 * (874 / svgWidth), 400 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(335 * (874 / svgWidth), 590 * (1251 / svgHeight), 312 * (874 / svgWidth), 715 * (1251 / svgHeight), 296.5 * (874 / svgWidth), 750 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(281 * (874 / svgWidth), 715 * (1251 / svgHeight), 257 * (874 / svgWidth), 590 * (1251 / svgHeight), 257 * (874 / svgWidth), 400 * (1251 / svgHeight));
-        printCtx.bezierCurveTo(257 * (874 / svgWidth), 210 * (1251 / svgHeight), 281 * (874 / svgWidth), 85 * (1251 / svgHeight), 296.5 * (874 / svgWidth), 50 * (1251 / svgHeight));
+        // 路径 1
+        printCtx.moveTo(185.76 * (874 / svgWidth), 193.75 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(167.54 * (874 / svgWidth), 191.87 * (1251 / svgHeight), 145.39 * (874 / svgWidth), 185.95 * (1251 / svgHeight), 126.62 * (874 / svgWidth), 173.38 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(106.6 * (874 / svgWidth), 160.04 * (1251 / svgHeight), 93.14 * (874 / svgWidth), 139.77 * (1251 / svgHeight), 86.1 * (874 / svgWidth), 115.96 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(79.99 * (874 / svgWidth), 95.28 * (1251 / svgHeight), 80.68 * (874 / svgWidth), 74.3 * (1251 / svgHeight), 84.64 * (874 / svgWidth), 56.91 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(87.91 * (874 / svgWidth), 42.84 * (1251 / svgHeight), 94.21 * (874 / svgWidth), 29.17 * (1251 / svgHeight), 102.99 * (874 / svgWidth), 18.69 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(111.26 * (874 / svgWidth), 8.84 * (1251 / svgHeight), 122.84 * (874 / svgWidth), 0.94 * (1251 / svgHeight), 135.87 * (874 / svgWidth), 0.13 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(148.38 * (874 / svgWidth), -0.66 * (1251 / svgHeight), 159.6 * (874 / svgWidth), 5.39 * (1251 / svgHeight), 167.49 * (874 / svgWidth), 13.23 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(175.17 * (874 / svgWidth), 20.85 * (1251 / svgHeight), 179.72 * (874 / svgWidth), 30.39 * (1251 / svgHeight), 182.45 * (874 / svgWidth), 40.37 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(185.37 * (874 / svgWidth), 51.07 * (1251 / svgHeight), 186.34 * (874 / svgWidth), 62.43 * (1251 / svgHeight), 185.6 * (874 / svgWidth), 73.14 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(184.67 * (874 / svgWidth), 86.65 * (1251 / svgHeight), 180.7 * (874 / svgWidth), 100.12 * (1251 / svgHeight), 174.89 * (874 / svgWidth), 111.55 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(168.46 * (874 / svgWidth), 123.99 * (1251 / svgHeight), 159.12 * (874 / svgWidth), 134.2 * (1251 / svgHeight), 148.06 * (874 / svgWidth), 142.07 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(137.65 * (874 / svgWidth), 149.47 * (1251 / svgHeight), 125.84 * (874 / svgWidth), 154.52 * (1251 / svgHeight), 113.98 * (874 / svgWidth), 157.13 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(104.53 * (874 / svgWidth), 159.14 * (1251 / svgHeight), 94.4 * (874 / svgWidth), 159.95 * (1251 / svgHeight), 85.16 * (874 / svgWidth), 158.44 * (1251 / svgHeight));
+        printCtx.closePath();
+
+        // 路径 2
+        printCtx.moveTo(185.76 * (874 / svgWidth), 193.75 * (1251 / svgHeight));
+        printCtx.lineTo(268.55 * (874 / svgWidth), 193.75 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(286.77 * (874 / svgWidth), 191.87 * (1251 / svgHeight), 308.92 * (874 / svgWidth), 185.95 * (1251 / svgHeight), 327.69 * (874 / svgWidth), 173.38 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(347.71 * (874 / svgWidth), 160.04 * (1251 / svgHeight), 361.17 * (874 / svgWidth), 139.77 * (1251 / svgHeight), 368.21 * (874 / svgWidth), 115.96 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(374.32 * (874 / svgWidth), 95.28 * (1251 / svgHeight), 373.63 * (874 / svgWidth), 74.3 * (1251 / svgHeight), 369.67 * (874 / svgWidth), 56.91 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(366.4 * (874 / svgWidth), 42.84 * (1251 / svgHeight), 360.1 * (874 / svgWidth), 29.17 * (1251 / svgHeight), 351.32 * (874 / svgWidth), 18.69 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(343.05 * (874 / svgWidth), 8.84 * (1251 / svgHeight), 331.47 * (874 / svgWidth), 0.94 * (1251 / svgHeight), 318.44 * (874 / svgWidth), 0.13 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(305.93 * (874 / svgWidth), -0.66 * (1251 / svgHeight), 294.71 * (874 / svgWidth), 5.39 * (1251 / svgHeight), 286.82 * (874 / svgWidth), 13.23 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(279.14 * (874 / svgWidth), 20.85 * (1251 / svgHeight), 274.59 * (874 / svgWidth), 30.39 * (1251 / svgHeight), 271.86 * (874 / svgWidth), 40.37 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(268.94 * (874 / svgWidth), 51.07 * (1251 / svgHeight), 267.97 * (874 / svgWidth), 62.43 * (1251 / svgHeight), 268.71 * (874 / svgWidth), 73.14 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(269.64 * (874 / svgWidth), 86.65 * (1251 / svgHeight), 273.61 * (874 / svgWidth), 100.12 * (1251 / svgHeight), 279.42 * (874 / svgWidth), 111.55 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(285.85 * (874 / svgWidth), 123.99 * (1251 / svgHeight), 295.19 * (874 / svgWidth), 134.2 * (1251 / svgHeight), 306.25 * (874 / svgWidth), 142.07 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(316.66 * (874 / svgWidth), 149.47 * (1251 / svgHeight), 328.47 * (874 / svgWidth), 154.52 * (1251 / svgHeight), 340.33 * (874 / svgWidth), 157.13 * (1251 / svgHeight));
+        printCtx.bezierCurveTo(349.78 * (874 / svgWidth), 159.14 * (1251 / svgHeight), 359.91 * (874 / svgWidth), 159.95 * (1251 / svgHeight), 369.15 * (874 / svgWidth), 158.44 * (1251 / svgHeight));
+        printCtx.closePath();
+
+        // 路径 3
+        printCtx.moveTo(369.15 * (874 / svgWidth), 158.44 * (1251 / svgHeight));
+        printCtx.lineTo(460 * (874 / svgWidth), 158.44 * (1251 / svgHeight));
+        printCtx.lineTo(460 * (874 / svgWidth), 200 * (1251 / svgHeight));
+        printCtx.lineTo(0 * (874 / svgWidth), 200 * (1251 / svgHeight));
+        printCtx.lineTo(0 * (874 / svgWidth), 158.44 * (1251 / svgHeight));
+        printCtx.lineTo(85.16 * (874 / svgWidth), 158.44 * (1251 / svgHeight));
         printCtx.closePath();
         printCtx.clip();
 
