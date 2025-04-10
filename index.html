@@ -122,139 +122,147 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    // 初始化 Supabase 客户端
-    const SUPABASE_URL = 'https://nqapfcosintqipzttflo.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8';
-    const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // 确保 DOM 加载完成后再执行
+    document.addEventListener('DOMContentLoaded', () => {
+      // 初始化 Supabase 客户端（修复拼写错误）
+      const SUPABASE_URL = 'https://nqapfcosintqipzttflo.supabase.co';
+      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8';
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const translations = {
-      zh: {
-        login_title: "登录 - 照片打印服务",
-        email_placeholder: "邮箱",
-        password_placeholder: "密码",
-        login: "登录",
-        signup: "注册",
-        login_failed: "登录失败，请检查邮箱和密码！",
-        signup_success: "注册成功！请等待管理员审批。",
-        signup_failed: "注册失败，请稍后再试！",
-        network_error: "网络错误，请稍后再试！"
-      },
-      en: {
-        login_title: "Login - Photo Print Service",
-        email_placeholder: "Email",
-        password_placeholder: "Password",
-        login: "Login",
-        signup: "Sign Up",
-        login_failed: "Login failed, please check your email and password!",
-        signup_success: "Sign up successful! Please wait for admin approval.",
-        signup_failed: "Sign up failed, please try again later!",
-        network_error: "Network error, please try again later!"
-      }
-    };
+      const translations = {
+        zh: {
+          login_title: "登录 - 照片打印服务",
+          email_placeholder: "邮箱",
+          password_placeholder: "密码",
+          login: "登录",
+          signup: "注册",
+          login_failed: "登录失败，请检查邮箱和密码！",
+          signup_success: "注册成功！请等待管理员审批。",
+          signup_failed: "注册失败，请稍后再试！",
+          network_error: "网络错误，请稍后再试！"
+        },
+        en: {
+          login_title: "Login - Photo Print Service",
+          email_placeholder: "Email",
+          password_placeholder: "Password",
+          login: "Login",
+          signup: "Sign Up",
+          login_failed: "Login failed, please check your email and password!",
+          signup_success: "Sign up successful! Please wait for admin approval.",
+          signup_failed: "Sign up failed, please try again later!",
+          network_error: "Network error, please try again later!"
+        }
+      };
 
-    let currentLang = localStorage.getItem('language') || 'en';
-    updateLanguage();
-
-    function toggleLanguage() {
-      currentLang = currentLang === 'zh' ? 'en' : 'zh';
-      localStorage.setItem('language', currentLang);
+      let currentLang = localStorage.getItem('language') || 'en';
       updateLanguage();
-    }
 
-    function updateLanguage() {
-      document.querySelectorAll('[data-i18n]').forEach(element => {
-        const key = element.getAttribute('data-i18n');
-        element.textContent = translations[currentLang][key];
-      });
-      document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
-        const key = element.getAttribute('data-i18n-placeholder');
-        element.placeholder = translations[currentLang][key];
-      });
-      document.title = translations[currentLang].login_title;
-    }
-
-    async function signup() {
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value.trim();
-
-      if (!email || !password) {
-        document.getElementById('message').innerText = translations[currentLang].signup_failed;
-        return;
+      function toggleLanguage() {
+        currentLang = currentLang === 'zh' ? 'en' : 'zh';
+        localStorage.setItem('language', currentLang);
+        updateLanguage();
       }
 
-      try {
-        // 使用 Supabase Auth 注册用户
-        const { data, error } = await supabase.auth.signUp({
-          email: email,
-          password: password
+      function updateLanguage() {
+        document.querySelectorAll('[data-i18n]').forEach(element => {
+          const key = element.getAttribute('data-i18n');
+          element.textContent = translations[currentLang][key];
         });
-
-        if (error) {
-          document.getElementById('message').innerText = translations[currentLang].signup_failed + ' ' + error.message;
-          return;
-        }
-
-        // 插入会员申请到 membership_applications 表
-        const { data: appData, error: appError } = await supabase
-          .from('membership_applications')
-          .insert([{ user_id: data.user.id, email: email, status: 'pending' }]);
-
-        if (appError) {
-          document.getElementById('message').innerText = translations[currentLang].signup_failed + ' ' + appError.message;
-        } else {
-          document.getElementById('message').innerText = translations[currentLang].signup_success;
-        }
-      } catch (error) {
-        console.error('Signup error:', error);
-        document.getElementById('message').innerText = translations[currentLang].network_error;
-      }
-    }
-
-    async function login() {
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value.trim();
-
-      if (!email || !password) {
-        document.getElementById('message').innerText = translations[currentLang].login_failed;
-        return;
-      }
-
-      try {
-        // 使用 Supabase Auth 登录用户
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: email,
-          password: password
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+          const key = element.getAttribute('data-i18n-placeholder');
+          element.placeholder = translations[currentLang][key];
         });
-
-        if (error) {
-          document.getElementById('message').innerText = translations[currentLang].login_failed + ' ' + error.message;
-          return;
-        }
-
-        // 检查会员申请状态
-        const { data: appData, error: appError } = await supabase
-          .from('membership_applications')
-          .select('status')
-          .eq('user_id', data.user.id)
-          .single();
-
-        if (appError || !appData) {
-          document.getElementById('message').innerText = 'Error: Membership application not found.';
-          return;
-        }
-
-        if (appData.status !== 'approved') {
-          document.getElementById('message').innerText = 'Your membership application is not yet approved.';
-          return;
-        }
-
-        // 登录成功，跳转到加盟商页面
-        window.location.href = `/franchisee.html?userId=${encodeURIComponent(data.user.id)}`;
-      } catch (error) {
-        console.error('Login error:', error);
-        document.getElementById('message').innerText = translations[currentLang].network_error;
+        document.title = translations[currentLang].login_title;
       }
-    }
+
+      async function signup() {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value.trim();
+
+        if (!email || !password) {
+          document.getElementById('message').innerText = translations[currentLang].signup_failed;
+          return;
+        }
+
+        try {
+          // 使用 Supabase Auth 注册用户
+          const { data, error } = await supabase.auth.signUp({
+            email: email,
+            password: password
+          });
+
+          if (error) {
+            document.getElementById('message').innerText = translations[currentLang].signup_failed + ' ' + error.message;
+            return;
+          }
+
+          // 插入会员申请到 membership_applications 表
+          const { data: appData, error: appError } = await supabase
+            .from('membership_applications')
+            .insert([{ user_id: data.user.id, email: email, status: 'pending' }]);
+
+          if (appError) {
+            document.getElementById('message').innerText = translations[currentLang].signup_failed + ' ' + appError.message;
+          } else {
+            document.getElementById('message').innerText = translations[currentLang].signup_success;
+          }
+        } catch (error) {
+          console.error('Signup error:', error);
+          document.getElementById('message').innerText = translations[currentLang].network_error;
+        }
+      }
+
+      async function login() {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value.trim();
+
+        if (!email || !password) {
+          document.getElementById('message').innerText = translations[currentLang].login_failed;
+          return;
+        }
+
+        try {
+          // 使用 Supabase Auth 登录用户
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password
+          });
+
+          if (error) {
+            document.getElementById('message').innerText = translations[currentLang].login_failed + ' ' + error.message;
+            return;
+          }
+
+          // 检查会员申请状态
+          const { data: appData, error: appError } = await supabase
+            .from('membership_applications')
+            .select('status')
+            .eq('user_id', data.user.id)
+            .single();
+
+          if (appError || !appData) {
+            document.getElementById('message').innerText = 'Error: Membership application not found.';
+            return;
+          }
+
+          if (appData.status !== 'approved') {
+            document.getElementById('message').innerText = 'Your membership application is not yet approved.';
+            return;
+          }
+
+          // 登录成功，跳转到加盟商页面
+          window.location.href = `/franchisee.html?userId=${encodeURIComponent(data.user.id)}`;
+        } catch (error) {
+          console.error('Login error:', error);
+          document.getElementById('message').innerText = translations[currentLang].network_error;
+        }
+      }
+
+      // 暴露函数到全局作用域
+      window.toggleLanguage = toggleLanguage;
+      window.signup = signup;
+      window.login = login;
+    });
   </script>
 </body>
 </html>
