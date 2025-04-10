@@ -140,7 +140,8 @@
           login_failed: "登录失败，请检查邮箱和密码！",
           signup_success: "注册成功！请等待管理员审批。",
           signup_failed: "注册失败：",
-          network_error: "网络错误，请稍后再试！"
+          network_error: "网络错误，请稍后再试！",
+          invalid_email: "邮箱格式无效，请输入有效的邮箱地址！"
         },
         en: {
           login_title: "Login - Photo Print Service",
@@ -151,7 +152,8 @@
           login_failed: "Login failed, please check your email and password!",
           signup_success: "Sign up successful! Please wait for admin approval.",
           signup_failed: "Sign up failed: ",
-          network_error: "Network error, please try again later!"
+          network_error: "Network error, please try again later!",
+          invalid_email: "Invalid email format, please enter a valid email address!"
         }
       };
 
@@ -176,6 +178,12 @@
         document.title = translations[currentLang].login_title;
       }
 
+      // 邮箱格式验证函数
+      function isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+      }
+
       async function signup() {
         const email = document.getElementById('email').value.trim();
         const password = document.getElementById('password').value.trim();
@@ -183,6 +191,11 @@
 
         if (!email || !password) {
           messageElement.innerText = translations[currentLang].signup_failed + ' Email and password are required.';
+          return;
+        }
+
+        if (!isValidEmail(email)) {
+          messageElement.innerText = translations[currentLang].invalid_email;
           return;
         }
 
@@ -226,6 +239,11 @@
 
         if (!email || !password) {
           messageElement.innerText = translations[currentLang].login_failed;
+          return;
+        }
+
+        if (!isValidEmail(email)) {
+          messageElement.innerText = translations[currentLang].invalid_email;
           return;
         }
 
