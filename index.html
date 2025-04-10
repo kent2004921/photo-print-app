@@ -104,6 +104,7 @@
       margin-top: 10px;
       color: #ff6b6b;
       font-size: 14px;
+      word-wrap: break-word;
     }
   </style>
 </head>
@@ -124,7 +125,7 @@
   <script>
     // 确保 DOM 加载完成后再执行
     document.addEventListener('DOMContentLoaded', () => {
-      // 初始化 Supabase 客户端（修复拼写错误）
+      // 初始化 Supabase 客户端
       const SUPABASE_URL = 'https://nqapfcosintqipzttflo.supabase.co';
       const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8';
       const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -138,7 +139,7 @@
           signup: "注册",
           login_failed: "登录失败，请检查邮箱和密码！",
           signup_success: "注册成功！请等待管理员审批。",
-          signup_failed: "注册失败，请稍后再试！",
+          signup_failed: "注册失败：",
           network_error: "网络错误，请稍后再试！"
         },
         en: {
@@ -149,7 +150,7 @@
           signup: "Sign Up",
           login_failed: "Login failed, please check your email and password!",
           signup_success: "Sign up successful! Please wait for admin approval.",
-          signup_failed: "Sign up failed, please try again later!",
+          signup_failed: "Sign up failed: ",
           network_error: "Network error, please try again later!"
         }
       };
@@ -178,9 +179,15 @@
       async function signup() {
         const email = document.getElementById('email').value.trim();
         const password = document.getElementById('password').value.trim();
+        const messageElement = document.getElementById('message');
 
         if (!email || !password) {
-          document.getElementById('message').innerText = translations[currentLang].signup_failed;
+          messageElement.innerText = translations[currentLang].signup_failed + ' Email and password are required.';
+          return;
+        }
+
+        if (password.length < 6) {
+          messageElement.innerText = translations[currentLang].signup_failed + ' Password must be at least 6 characters.';
           return;
         }
 
@@ -192,7 +199,7 @@
           });
 
           if (error) {
-            document.getElementById('message').innerText = translations[currentLang].signup_failed + ' ' + error.message;
+            messageElement.innerText = translations[currentLang].signup_failed + ' ' + error.message;
             return;
           }
 
@@ -202,22 +209,23 @@
             .insert([{ user_id: data.user.id, email: email, status: 'pending' }]);
 
           if (appError) {
-            document.getElementById('message').innerText = translations[currentLang].signup_failed + ' ' + appError.message;
+            messageElement.innerText = translations[currentLang].signup_failed + ' ' + appError.message;
           } else {
-            document.getElementById('message').innerText = translations[currentLang].signup_success;
+            messageElement.innerText = translations[currentLang].signup_success;
           }
         } catch (error) {
           console.error('Signup error:', error);
-          document.getElementById('message').innerText = translations[currentLang].network_error;
+          messageElement.innerText = translations[currentLang].network_error + ' ' + error.message;
         }
       }
 
       async function login() {
         const email = document.getElementById('email').value.trim();
         const password = document.getElementById('password').value.trim();
+        const messageElement = document.getElementById('message');
 
         if (!email || !password) {
-          document.getElementById('message').innerText = translations[currentLang].login_failed;
+          messageElement.innerText = translations[currentLang].login_failed;
           return;
         }
 
@@ -229,7 +237,7 @@
           });
 
           if (error) {
-            document.getElementById('message').innerText = translations[currentLang].login_failed + ' ' + error.message;
+            messageElement.innerText = translations[currentLang].login_failed + ' ' + error.message;
             return;
           }
 
@@ -241,12 +249,12 @@
             .single();
 
           if (appError || !appData) {
-            document.getElementById('message').innerText = 'Error: Membership application not found.';
+            messageElement.innerText = 'Error: Membership application not found.';
             return;
           }
 
           if (appData.status !== 'approved') {
-            document.getElementById('message').innerText = 'Your membership application is not yet approved.';
+            messageElement.innerText = 'Your membership application is not yet approved.';
             return;
           }
 
@@ -254,7 +262,7 @@
           window.location.href = `/franchisee.html?userId=${encodeURIComponent(data.user.id)}`;
         } catch (error) {
           console.error('Login error:', error);
-          document.getElementById('message').innerText = translations[currentLang].network_error;
+          messageElement.innerText = translations[currentLang].network_error + ' ' + error.message;
         }
       }
 
