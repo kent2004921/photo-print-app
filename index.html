@@ -114,7 +114,7 @@
       <h2 data-i18n="login_title">Login - Photo Print Service</h2>
       <button class="language-btn" onclick="toggleLanguage()">🌐</button>
     </div>
-    <input type="email" id="email" placeholder="Email" data-i18n-placeholder="email_placeholder">
+    <input type="text" id="username" placeholder="Username" data-i18n-placeholder="username_placeholder">
     <input type="password" id="password" placeholder="Password" data-i18n-placeholder="password_placeholder">
     <button class="login-btn" onclick="login()" data-i18n="login">Login</button>
     <button class="signup-btn" onclick="signup()" data-i18n="signup">Sign Up</button>
@@ -133,33 +133,35 @@
       const translations = {
         zh: {
           login_title: "登录 - 照片打印服务",
-          email_placeholder: "邮箱",
+          username_placeholder: "用户名",
           password_placeholder: "密码",
           login: "登录",
           signup: "注册",
-          login_failed: "登录失败，请检查邮箱和密码！",
+          login_failed: "登录失败，请检查用户名和密码！",
           signup_success: "注册成功！请等待管理员审批。",
           signup_failed: "注册失败：",
           network_error: "网络错误，请稍后再试！",
-          invalid_email: "邮箱格式无效，请输入有效的邮箱地址！",
-          user_exists: "该邮箱已注册，请使用其他邮箱！",
+          user_exists: "该用户名已注册，请使用其他用户名！",
           not_found: "用户未找到，请先注册！",
-          not_approved: "您的申请尚未通过管理员审批！"
+          not_approved: "您的申请尚未通过管理员审批！",
+          invalid_input: "用户名和密码不能为空！",
+          password_too_short: "密码必须至少6个字符！"
         },
         en: {
           login_title: "Login - Photo Print Service",
-          email_placeholder: "Email",
+          username_placeholder: "Username",
           password_placeholder: "Password",
           login: "Login",
           signup: "Sign Up",
-          login_failed: "Login failed, please check your email and password!",
+          login_failed: "Login failed, please check your username and password!",
           signup_success: "Sign up successful! Please wait for admin approval.",
           signup_failed: "Sign up failed: ",
           network_error: "Network error, please try again later!",
-          invalid_email: "Invalid email format, please enter a valid email address!",
-          user_exists: "This email is already registered, please use another email!",
+          user_exists: "This username is already registered, please use another username!",
           not_found: "User not found, please sign up first!",
-          not_approved: "Your application has not yet been approved by the admin!"
+          not_approved: "Your application has not yet been approved by the admin!",
+          invalid_input: "Username and password cannot be empty!",
+          password_too_short: "Password must be at least 6 characters!"
         }
       };
 
@@ -184,38 +186,27 @@
         document.title = translations[currentLang].login_title;
       }
 
-      // 邮箱格式验证函数
-      function isValidEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-      }
-
       async function signup() {
-        const email = document.getElementById('email').value.trim();
+        const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value.trim();
         const messageElement = document.getElementById('message');
 
-        if (!email || !password) {
-          messageElement.innerText = translations[currentLang].signup_failed + ' Email and password are required.';
-          return;
-        }
-
-        if (!isValidEmail(email)) {
-          messageElement.innerText = translations[currentLang].invalid_email;
+        if (!username || !password) {
+          messageElement.innerText = translations[currentLang].invalid_input;
           return;
         }
 
         if (password.length < 6) {
-          messageElement.innerText = translations[currentLang].signup_failed + ' Password must be at least 6 characters.';
+          messageElement.innerText = translations[currentLang].password_too_short;
           return;
         }
 
         try {
-          // 检查邮箱是否已注册
+          // 检查用户名是否已注册
           const { data: existingUser, error: checkError } = await supabase
             .from('membership_applications')
-            .select('email')
-            .eq('email', email)
+            .select('username')
+            .eq('username', username)
             .single();
 
           if (checkError && checkError.code !== 'PGRST116') { // PGRST116 表示未找到记录
@@ -231,7 +222,7 @@
           // 插入新记录到 membership_applications 表
           const { data, error } = await supabase
             .from('membership_applications')
-            .insert([{ email: email, password: password, status: 'pending' }]);
+            .insert([{ username: username, password: password, status: 'pending' }]);
 
           if (error) {
             messageElement.innerText = translations[currentLang].signup_failed + ' ' + error.message;
@@ -245,17 +236,12 @@
       }
 
       async function login() {
-        const email = document.getElementById('email').value.trim();
+        const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value.trim();
         const messageElement = document.getElementById('message');
 
-        if (!email || !password) {
-          messageElement.innerText = translations[currentLang].login_failed;
-          return;
-        }
-
-        if (!isValidEmail(email)) {
-          messageElement.innerText = translations[currentLang].invalid_email;
+        if (!username || !password) {
+          messageElement.innerText = translations[currentLang].invalid_input;
           return;
         }
 
@@ -263,8 +249,8 @@
           // 查询 membership_applications 表
           const { data: user, error } = await supabase
             .from('membership_applications')
-            .select('email, password, status')
-            .eq('email', email)
+            .select('username, password, status')
+            .eq('username', username)
             .single();
 
           if (error || !user) {
@@ -282,8 +268,8 @@
             return;
           }
 
-          // 登录成功，跳转到加盟商页面
-          window.location.href = `/franchisee.html?email=${encodeURIComponent(email)}`;
+          // 登录成功，跳转到 dashboard.html
+          window.location.href = `/dashboard.html?username=${encodeURIComponent(username)}`;
         } catch (error) {
           console.error('Login error:', error);
           messageElement.innerText = translations[currentLang].network_error + ' ' + error.message;
