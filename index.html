@@ -141,7 +141,10 @@
           signup_success: "注册成功！请等待管理员审批。",
           signup_failed: "注册失败：",
           network_error: "网络错误，请稍后再试！",
-          invalid_email: "邮箱格式无效，请输入有效的邮箱地址！"
+          invalid_email: "邮箱格式无效，请输入有效的邮箱地址！",
+          user_exists: "该邮箱已注册，请使用其他邮箱！",
+          not_found: "用户未找到，请先注册！",
+          not_approved: "您的申请尚未通过管理员审批！"
         },
         en: {
           login_title: "Login - Photo Print Service",
@@ -153,7 +156,10 @@
           signup_success: "Sign up successful! Please wait for admin approval.",
           signup_failed: "Sign up failed: ",
           network_error: "Network error, please try again later!",
-          invalid_email: "Invalid email format, please enter a valid email address!"
+          invalid_email: "Invalid email format, please enter a valid email address!",
+          user_exists: "This email is already registered, please use another email!",
+          not_found: "User not found, please sign up first!",
+          not_approved: "Your application has not yet been approved by the admin!"
         }
       };
 
@@ -205,27 +211,30 @@
         }
 
         try {
-          // 使用 Supabase Auth 注册用户
-          const { data, error } = await supabase.auth.signUp({
-            email: email,
-            password: password
-          });
+          // 检查邮箱是否已注册
+          const { data: existingUser, error: checkError } = await supabase
+            .from('membership_applications')
+            .select('email')
+            .eq('email', email)
+            .single();
 
-          if (error) {
-            messageElement.innerText = translations[currentLang].signup_failed + ' ' + error.message;
+          if (checkError && checkError.code !== 'PGRST116') { // PGRST116 表示未找到记录
+            messageElement.innerText = translations[currentLang].signup_failed + ' ' + checkError.message;
             return;
           }
 
-          // 直接使用注册返回的 user_id
-          const userId = data.user.id;
+          if (existingUser) {
+            messageElement.innerText = translations[currentLang].user_exists;
+            return;
+          }
 
-          // 插入会员申请到 membership_applications 表
-          const { data: appData, error: appError } = await supabase
+          // 插入新记录到 membership_applications 表
+          const { data, error } = await supabase
             .from('membership_applications')
-            .insert([{ user_id: userId, email: email, status: 'pending' }]);
+            .insert([{ email: email, password: password, status: 'pending' }]);
 
-          if (appError) {
-            messageElement.innerText = translations[currentLang].signup_failed + ' ' + appError.message;
+          if (error) {
+            messageElement.innerText = translations[currentLang].signup_failed + ' ' + error.message;
           } else {
             messageElement.innerText = translations[currentLang].signup_success;
           }
@@ -251,36 +260,30 @@
         }
 
         try {
-          // 使用 Supabase Auth 登录用户
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email: email,
-            password: password
-          });
-
-          if (error) {
-            messageElement.innerText = translations[currentLang].login_failed + ' ' + error.message;
-            return;
-          }
-
-          // 检查会员申请状态
-          const { data: appData, error: appError } = await supabase
+          // 查询 membership_applications 表
+          const { data: user, error } = await supabase
             .from('membership_applications')
-            .select('status')
-            .eq('user_id', data.user.id)
+            .select('email, password, status')
+            .eq('email', email)
             .single();
 
-          if (appError || !appData) {
-            messageElement.innerText = 'Error: Membership application not found.';
+          if (error || !user) {
+            messageElement.innerText = translations[currentLang].not_found;
             return;
           }
 
-          if (appData.status !== 'approved') {
-            messageElement.innerText = 'Your membership application is not yet approved.';
+          if (user.password !== password) {
+            messageElement.innerText = translations[currentLang].login_failed;
+            return;
+          }
+
+          if (user.status !== 'approved') {
+            messageElement.innerText = translations[currentLang].not_approved;
             return;
           }
 
           // 登录成功，跳转到加盟商页面
-          window.location.href = `/franchisee.html?userId=${encodeURIComponent(data.user.id)}`;
+          window.location.href = `/franchisee.html?email=${encodeURIComponent(email)}`;
         } catch (error) {
           console.error('Login error:', error);
           messageElement.innerText = translations[currentLang].network_error + ' ' + error.message;
