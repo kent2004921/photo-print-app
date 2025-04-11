@@ -122,10 +122,10 @@
 <body>
   <div class="container">
     <div class="header">
-      <h2><span data-i18n="welcome">Welcome, </span><span id="username"></span></h2>
+      <h2 data-i18n="welcome">Welcome, <span id="username"></span></h2>
       <button class="language-btn" onclick="toggleLanguage()">🌐</button>
     </div>
-    <p><span data-i18n="remaining_prints">Remaining Prints: </span><span id="remainingUses">0</span></p>
+    <p data-i18n="remaining_prints">Remaining Prints: <span id="remainingUses">0</span></p>
     <h3 data-i18n="bind_printer">Bind Printer</h3>
     <input type="text" id="printerId" placeholder="Enter Printer ID" data-i18n-placeholder="printer_id_placeholder">
     <button class="bind-btn" onclick="bindPrinter()" data-i18n="bind">Bind</button>
@@ -172,19 +172,6 @@
     };
 
     let currentLang = localStorage.getItem('language') || 'en';
-    let username = '';
-    let remainingUses = 0;
-
-    // 从URL参数中获取username和remainingUses
-    const urlParams = new URLSearchParams(window.location.search);
-    username = urlParams.get('username') || 'Unknown User';
-    remainingUses = parseInt(urlParams.get('remainingUses')) || 0;
-
-    // 确保页面加载时显示用户名和剩余打印次数
-    document.getElementById('username').textContent = username;
-    document.getElementById('remainingUses').textContent = remainingUses;
-
-    // 页面加载时更新语言
     updateLanguage();
 
     function toggleLanguage() {
@@ -196,22 +183,30 @@
     function updateLanguage() {
       document.querySelectorAll('[data-i18n]').forEach(element => {
         const key = element.getAttribute('data-i18n');
-        element.textContent = translations[currentLang][key];
+        if (element.id === 'welcome' || element.id === 'remaining_prints') {
+          element.innerHTML = translations[currentLang][key] + element.querySelector('span').outerHTML;
+        } else {
+          element.textContent = translations[currentLang][key];
+        }
       });
       document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
         const key = element.getAttribute('data-i18n-placeholder');
         element.placeholder = translations[currentLang][key];
       });
-      // 手动更新包含动态内容的元素
-      document.querySelector('h2').innerHTML = `<span data-i18n="welcome">${translations[currentLang].welcome}</span><span id="username">${username}</span>`;
-      document.querySelector('p').innerHTML = `<span data-i18n="remaining_prints">${translations[currentLang].remaining_prints}</span><span id="remainingUses">${remainingUses}</span>`;
       document.title = translations[currentLang].dashboard_title;
     }
 
-    // 验证用户访问
+    // 从URL参数中获取username和remainingUses
+    const urlParams = new URLSearchParams(window.location.search);
+    const username = urlParams.get('username');
+    const remainingUses = urlParams.get('remainingUses');
+
     if (!username || remainingUses === null) {
       alert(translations[currentLang].invalid_access);
       window.location.href = '/index.html';
+    } else {
+      document.getElementById('username').textContent = username || 'Unknown User';
+      document.getElementById('remainingUses').textContent = remainingUses || 0;
     }
 
     async function bindPrinter() {
@@ -230,7 +225,8 @@
         const data = await response.json();
         if (data.success) {
           alert(translations[currentLang].bind_success);
-          window.location.href = `/dashboard.html?username=${encodeURIComponent(username)}&remainingUses=${remainingUses}`;
+          // 重新获取remainingUses（如果绑定打印机会影响次数）
+          window.location.href = `/dashboard.html?username=${encodeURIComponent(username)}&remainingUses=${data.remainingUses || remainingUses}`;
         } else {
           alert(data.message || translations[currentLang].bind_failed);
         }
