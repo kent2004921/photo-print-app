@@ -75,13 +75,6 @@
     .login-btn:hover {
       background: linear-gradient(to right, #0056b3, #0099cc);
     }
-    .signup-btn {
-      background: linear-gradient(to right, #28a745, #34d058);
-      color: white;
-    }
-    .signup-btn:hover {
-      background: linear-gradient(to right, #218838, #28a745);
-    }
     .language-btn {
       background: linear-gradient(to right, #28a745, #34d058);
       color: white;
@@ -100,12 +93,6 @@
       background: linear-gradient(to right, #218838, #28a745);
       transform: scale(1.1);
     }
-    #message {
-      margin-top: 10px;
-      color: #ff6b6b;
-      font-size: 14px;
-      word-wrap: break-word;
-    }
   </style>
 </head>
 <body>
@@ -114,187 +101,80 @@
       <h2 data-i18n="login_title">Login - Photo Print Service</h2>
       <button class="language-btn" onclick="toggleLanguage()">🌐</button>
     </div>
-    <input type="email" id="email" placeholder="Email" data-i18n-placeholder="email_placeholder">
+    <input type="text" id="username" placeholder="Username" data-i18n-placeholder="username_placeholder">
     <input type="password" id="password" placeholder="Password" data-i18n-placeholder="password_placeholder">
     <button class="login-btn" onclick="login()" data-i18n="login">Login</button>
-    <button class="signup-btn" onclick="signup()" data-i18n="signup">Sign Up</button>
-    <p id="message"></p>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    // 确保 DOM 加载完成后再执行
-    document.addEventListener('DOMContentLoaded', () => {
-      // 初始化 Supabase 客户端
-      const SUPABASE_URL = 'https://nqapfcosintqipzttflo.supabase.co';
-      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8';
-      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const translations = {
+      zh: {
+        login_title: "登录 - 照片打印服务",
+        username_placeholder: "用户名",
+        password_placeholder: "密码",
+        login: "登录",
+        login_failed: "登录失败，请检查用户名和密码！",
+        network_error: "网络错误，请稍后再试！"
+      },
+      en: {
+        login_title: "Login - Photo Print Service",
+        username_placeholder: "Username",
+        password_placeholder: "Password",
+        login: "Login",
+        login_failed: "Login failed, please check your username and password!",
+        network_error: "Network error, please try again later!"
+      }
+    };
 
-      const translations = {
-        zh: {
-          login_title: "登录 - 照片打印服务",
-          email_placeholder: "邮箱",
-          password_placeholder: "密码",
-          login: "登录",
-          signup: "注册",
-          login_failed: "登录失败，请检查邮箱和密码！",
-          signup_success: "注册成功！请等待管理员审批。",
-          signup_failed: "注册失败：",
-          network_error: "网络错误，请稍后再试！",
-          invalid_email: "邮箱格式无效，请输入有效的邮箱地址！",
-          user_exists: "该邮箱已注册，请使用其他邮箱！",
-          not_found: "用户未找到，请先注册！",
-          not_approved: "您的申请尚未通过管理员审批！"
-        },
-        en: {
-          login_title: "Login - Photo Print Service",
-          email_placeholder: "Email",
-          password_placeholder: "Password",
-          login: "Login",
-          signup: "Sign Up",
-          login_failed: "Login failed, please check your email and password!",
-          signup_success: "Sign up successful! Please wait for admin approval.",
-          signup_failed: "Sign up failed: ",
-          network_error: "Network error, please try again later!",
-          invalid_email: "Invalid email format, please enter a valid email address!",
-          user_exists: "This email is already registered, please use another email!",
-          not_found: "User not found, please sign up first!",
-          not_approved: "Your application has not yet been approved by the admin!"
-        }
-      };
+    let currentLang = localStorage.getItem('language') || 'en';
+    updateLanguage();
 
-      let currentLang = localStorage.getItem('language') || 'en';
+    function toggleLanguage() {
+      currentLang = currentLang === 'zh' ? 'en' : 'zh';
+      localStorage.setItem('language', currentLang);
       updateLanguage();
+    }
 
-      function toggleLanguage() {
-        currentLang = currentLang === 'zh' ? 'en' : 'zh';
-        localStorage.setItem('language', currentLang);
-        updateLanguage();
+    function updateLanguage() {
+      document.querySelectorAll('[data-i18n]').forEach(element => {
+        const key = element.getAttribute('data-i18n');
+        element.textContent = translations[currentLang][key];
+      });
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+        const key = element.getAttribute('data-i18n-placeholder');
+        element.placeholder = translations[currentLang][key];
+      });
+      document.title = translations[currentLang].login_title;
+    }
+
+    async function login() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      if (!username || !password) {
+        alert(translations[currentLang].login_failed);
+        return;
       }
 
-      function updateLanguage() {
-        document.querySelectorAll('[data-i18n]').forEach(element => {
-          const key = element.getAttribute('data-i18n');
-          element.textContent = translations[currentLang][key];
+      try {
+        const response = await fetch('/.netlify/functions/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'login', username, password })
         });
-        document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
-          const key = element.getAttribute('data-i18n-placeholder');
-          element.placeholder = translations[currentLang][key];
-        });
-        document.title = translations[currentLang].login_title;
+        const data = await response.json();
+        if (data.success) {
+          // 直接通过URL参数传递username和remainingUses
+          const remainingUses = data.remainingUses !== undefined ? data.remainingUses : 0;
+          window.location.href = `/dashboard.html?username=${encodeURIComponent(username)}&remainingUses=${remainingUses}`;
+        } else {
+          alert(data.message || translations[currentLang].login_failed);
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        alert(translations[currentLang].network_error);
       }
-
-      // 邮箱格式验证函数
-      function isValidEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-      }
-
-      async function signup() {
-        const email = document.getElementById('email').value.trim();
-        const password = document.getElementById('password').value.trim();
-        const messageElement = document.getElementById('message');
-
-        if (!email || !password) {
-          messageElement.innerText = translations[currentLang].signup_failed + ' Email and password are required.';
-          return;
-        }
-
-        if (!isValidEmail(email)) {
-          messageElement.innerText = translations[currentLang].invalid_email;
-          return;
-        }
-
-        if (password.length < 6) {
-          messageElement.innerText = translations[currentLang].signup_failed + ' Password must be at least 6 characters.';
-          return;
-        }
-
-        try {
-          // 检查邮箱是否已注册
-          const { data: existingUser, error: checkError } = await supabase
-            .from('membership_applications')
-            .select('email')
-            .eq('email', email)
-            .single();
-
-          if (checkError && checkError.code !== 'PGRST116') { // PGRST116 表示未找到记录
-            messageElement.innerText = translations[currentLang].signup_failed + ' ' + checkError.message;
-            return;
-          }
-
-          if (existingUser) {
-            messageElement.innerText = translations[currentLang].user_exists;
-            return;
-          }
-
-          // 插入新记录到 membership_applications 表
-          const { data, error } = await supabase
-            .from('membership_applications')
-            .insert([{ email: email, password: password, status: 'pending' }]);
-
-          if (error) {
-            messageElement.innerText = translations[currentLang].signup_failed + ' ' + error.message;
-          } else {
-            messageElement.innerText = translations[currentLang].signup_success;
-          }
-        } catch (error) {
-          console.error('Signup error:', error);
-          messageElement.innerText = translations[currentLang].network_error + ' ' + error.message;
-        }
-      }
-
-      async function login() {
-        const email = document.getElementById('email').value.trim();
-        const password = document.getElementById('password').value.trim();
-        const messageElement = document.getElementById('message');
-
-        if (!email || !password) {
-          messageElement.innerText = translations[currentLang].login_failed;
-          return;
-        }
-
-        if (!isValidEmail(email)) {
-          messageElement.innerText = translations[currentLang].invalid_email;
-          return;
-        }
-
-        try {
-          // 查询 membership_applications 表
-          const { data: user, error } = await supabase
-            .from('membership_applications')
-            .select('email, password, status')
-            .eq('email', email)
-            .single();
-
-          if (error || !user) {
-            messageElement.innerText = translations[currentLang].not_found;
-            return;
-          }
-
-          if (user.password !== password) {
-            messageElement.innerText = translations[currentLang].login_failed;
-            return;
-          }
-
-          if (user.status !== 'approved') {
-            messageElement.innerText = translations[currentLang].not_approved;
-            return;
-          }
-
-          // 登录成功，跳转到加盟商页面
-          window.location.href = `/franchisee.html?email=${encodeURIComponent(email)}`;
-        } catch (error) {
-          console.error('Login error:', error);
-          messageElement.innerText = translations[currentLang].network_error + ' ' + error.message;
-        }
-      }
-
-      // 暴露函数到全局作用域
-      window.toggleLanguage = toggleLanguage;
-      window.signup = signup;
-      window.login = login;
-    });
+    }
   </script>
 </body>
 </html>
