@@ -3,9 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="dashboard_title">Dashboard - Photo Print Service</title>
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <title data-i18n="login_title">Login - Photo Print Service</title>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -15,19 +13,17 @@
       min-height: 100vh;
       margin: 0;
       background: linear-gradient(135deg, #74ebd5, #acb6e5);
-      overflow-x: hidden;
     }
     .container {
       background: white;
-      padding: 20px;
+      padding: 30px;
       border-radius: 15px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.2);
       width: 90%;
-      max-width: 500px;
+      max-width: 400px;
       text-align: center;
       position: relative;
       overflow: hidden;
-      box-sizing: border-box;
     }
     .container::before {
       content: '';
@@ -49,16 +45,15 @@
       font-size: 24px;
       margin: 0;
     }
-    p {
-      color: #666;
-      font-size: 16px;
+    input {
+      width: 100%;
+      padding: 12px;
       margin: 10px 0;
-    }
-    h3 {
-      color: #444;
-      font-size: 18px;
-      margin-top: 20px;
-      margin-bottom: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-sizing: border-box;
+      font-size: 16px;
+      background-color: #f9f9f9;
     }
     button {
       width: 100%;
@@ -66,36 +61,26 @@
       margin: 10px 0;
       border: none;
       border-radius: 8px;
-      box-sizing: border-box;
-      font-size: 16px;
       cursor: pointer;
+      font-size: 16px;
       transition: transform 0.1s, background 0.3s;
     }
     button:hover {
       transform: scale(1.02);
     }
-    button:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
-    .generate-btn, .print-btn {
+    .login-btn {
       background: linear-gradient(to right, #007bff, #00c4ff);
       color: white;
     }
-    .generate-btn:hover, .print-btn:hover {
+    .login-btn:hover {
       background: linear-gradient(to right, #0056b3, #0099cc);
     }
-    .logout-btn {
-      background: linear-gradient(to right, #ff4b4b, #ff7878);
+    .signup-btn {
+      background: linear-gradient(to right, #28a745, #34d058);
       color: white;
     }
-    .logout-btn:hover {
-      background: linear-gradient(to right, #cc3a3a, #cc6060);
-    }
-    #qrcode {
-      margin: 20px 0;
-      display: flex;
-      justify-content: center;
+    .signup-btn:hover {
+      background: linear-gradient(to right, #218838, #28a745);
     }
     .language-btn {
       background: linear-gradient(to right, #28a745, #34d058);
@@ -121,214 +106,195 @@
       font-size: 14px;
       word-wrap: break-word;
     }
-    @media (max-width: 600px) {
-      .container {
-        padding: 15px;
-        width: 100%;
-        max-width: 100%;
-        border-radius: 0;
-        box-shadow: none;
-      }
-      h2 {
-        font-size: 20px;
-      }
-      h3 {
-        font-size: 16px;
-      }
-      button {
-        font-size: 14px;
-        padding: 10px;
-      }
-      p {
-        font-size: 14px;
-      }
-      #qrcode img {
-        width: 150px;
-        height: 150px;
-      }
-    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h2 data-i18n="welcome">Welcome, <span id="username"></span></h2>
+      <h2 data-i18n="login_title">Login - Photo Print Service</h2>
       <button class="language-btn" onclick="toggleLanguage()">🌐</button>
     </div>
-    <p data-i18n="remaining_prints">Remaining Prints: <span id="remainingUses">0</span></p>
-    <p data-i18n="printer_status" id="printer_status">No printer bound yet</p>
-    <h3 data-i18n="print_photo">Print Photo</h3>
-    <button class="print-btn" onclick="printPhoto()" disabled data-i18n="print_photo_btn">Print Photo (Not Implemented)</button>
-    <h3 data-i18n="generate_qr">Generate QR Code</h3>
-    <button class="generate-btn" onclick="generateQR()" data-i18n="generate_qr_btn">Generate QR Code</button>
-    <div id="qrcode"></div>
-    <button class="logout-btn" onclick="logout()" data-i18n="logout">Logout</button>
+    <input type="email" id="email" placeholder="Email" data-i18n-placeholder="email_placeholder">
+    <input type="password" id="password" placeholder="Password" data-i18n-placeholder="password_placeholder">
+    <button class="login-btn" onclick="login()" data-i18n="login">Login</button>
+    <button class="signup-btn" onclick="signup()" data-i18n="signup">Sign Up</button>
     <p id="message"></p>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    const translations = {
-      zh: {
-        dashboard_title: "仪表板 - 照片打印服务",
-        welcome: "欢迎，",
-        remaining_prints: "剩余打印次数：",
-        printer_status: "尚未绑定打印机",
-        print_photo: "打印照片",
-        print_photo_btn: "打印照片（未实现）",
-        generate_qr: "生成二维码",
-        generate_qr_btn: "生成二维码",
-        logout: "退出登录",
-        network_error: "网络错误，请稍后再试！",
-        invalid_access: "无效访问，请重新登录！",
-        printer_bound: "当前绑定的打印机："
-      },
-      en: {
-        dashboard_title: "Dashboard - Photo Print Service",
-        welcome: "Welcome, ",
-        remaining_prints: "Remaining Prints: ",
-        printer_status: "No printer bound yet",
-        print_photo: "Print Photo",
-        print_photo_btn: "Print Photo (Not Implemented)",
-        generate_qr: "Generate QR Code",
-        generate_qr_btn: "Generate QR Code",
-        logout: "Logout",
-        network_error: "Network error, please try again later!",
-        invalid_access: "Invalid access, please login again!",
-        printer_bound: "Currently bound printer: "
-      }
-    };
+    // 确保 DOM 加载完成后再执行
+    document.addEventListener('DOMContentLoaded', () => {
+      // 初始化 Supabase 客户端
+      const SUPABASE_URL = 'https://nqapfcosintqipzttflo.supabase.co';
+      const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8';
+      const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let currentLang = localStorage.getItem('language') || 'zh'; // 默认语言设置为中文
-    let username = '';
-    let remainingUses = 0;
-    let qrToken = '';
-
-    // 初始化 Supabase 客户端
-    const SUPABASE_URL = 'https://nqapfcosintqipzttflo.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
-    // 从 URL 参数中获取 username 和 remainingUses
-    const urlParams = new URLSearchParams(window.location.search);
-    username = urlParams.get('username');
-    remainingUses = parseInt(urlParams.get('remainingUses'), 10);
-
-    if (!username || isNaN(remainingUses)) {
-      document.getElementById('message').innerText = translations[currentLang].invalid_access;
-      setTimeout(() => {
-        window.location.href = '/index.html';
-      }, 2000);
-      return;
-    }
-
-    updateLanguage();
-    loadUserInfo();
-
-    function toggleLanguage() {
-      currentLang = currentLang === 'zh' ? 'en' : 'zh';
-      localStorage.setItem('language', currentLang);
-      updateLanguage();
-      loadUserInfo();
-    }
-
-    function updateLanguage() {
-      document.querySelectorAll('[data-i18n]').forEach(element => {
-        const key = element.getAttribute('data-i18n');
-        if (element.id === 'welcome' || element.id === 'remaining_prints' || element.id === 'printer_status') {
-          const span = element.querySelector('span');
-          element.innerHTML = translations[currentLang][key] + (span ? span.outerHTML : '');
-        } else {
-          element.textContent = translations[currentLang][key];
+      const translations = {
+        zh: {
+          login_title: "登录 - 照片打印服务",
+          email_placeholder: "邮箱",
+          password_placeholder: "密码",
+          login: "登录",
+          signup: "注册",
+          login_failed: "登录失败，请检查邮箱和密码！",
+          signup_success: "注册成功！请等待管理员审批。",
+          signup_failed: "注册失败：",
+          network_error: "网络错误，请稍后再试！",
+          invalid_email: "邮箱格式无效，请输入有效的邮箱地址！",
+          user_exists: "该邮箱已注册，请使用其他邮箱！",
+          not_found: "用户未找到，请先注册！",
+          not_approved: "您的申请尚未通过管理员审批！"
+        },
+        en: {
+          login_title: "Login - Photo Print Service",
+          email_placeholder: "Email",
+          password_placeholder: "Password",
+          login: "Login",
+          signup: "Sign Up",
+          login_failed: "Login failed, please check your email and password!",
+          signup_success: "Sign up successful! Please wait for admin approval.",
+          signup_failed: "Sign up failed: ",
+          network_error: "Network error, please try again later!",
+          invalid_email: "Invalid email format, please enter a valid email address!",
+          user_exists: "This email is already registered, please use another email!",
+          not_found: "User not found, please sign up first!",
+          not_approved: "Your application has not yet been approved by the admin!"
         }
-      });
-      document.title = translations[currentLang].dashboard_title;
-      document.getElementById('welcome').innerHTML = translations[currentLang].welcome + `<span id="username">${username}</span>`;
-      document.getElementById('remainingUses').textContent = remainingUses;
-    }
+      };
 
-    async function loadUserInfo() {
-      try {
-        const { data: user, error } = await supabase
-          .from('membership_applications')
-          .select('printer_id, print_count, qr_token')
-          .eq('username', username)
-          .single();
+      let currentLang = localStorage.getItem('language') || 'en';
+      updateLanguage();
 
-        if (error || !user) {
-          document.getElementById('message').innerText = translations[currentLang].invalid_access;
-          setTimeout(() => {
-            window.location.href = '/index.html';
-          }, 2000);
+      function toggleLanguage() {
+        currentLang = currentLang === 'zh' ? 'en' : 'zh';
+        localStorage.setItem('language', currentLang);
+        updateLanguage();
+      }
+
+      function updateLanguage() {
+        document.querySelectorAll('[data-i18n]').forEach(element => {
+          const key = element.getAttribute('data-i18n');
+          element.textContent = translations[currentLang][key];
+        });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
+          const key = element.getAttribute('data-i18n-placeholder');
+          element.placeholder = translations[currentLang][key];
+        });
+        document.title = translations[currentLang].login_title;
+      }
+
+      // 邮箱格式验证函数
+      function isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+      }
+
+      async function signup() {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const messageElement = document.getElementById('message');
+
+        if (!email || !password) {
+          messageElement.innerText = translations[currentLang].signup_failed + ' Email and password are required.';
           return;
         }
 
-        remainingUses = user.print_count || 0;
-        document.getElementById('remainingUses').textContent = remainingUses;
+        if (!isValidEmail(email)) {
+          messageElement.innerText = translations[currentLang].invalid_email;
+          return;
+        }
 
-        // 显示打印机信息
-        if (user.printer_id) {
-          const { data: printer, error: printerError } = await supabase
-            .from('printers')
-            .select('printer_name')
-            .eq('printer_id', user.printer_id)
+        if (password.length < 6) {
+          messageElement.innerText = translations[currentLang].signup_failed + ' Password must be at least 6 characters.';
+          return;
+        }
+
+        try {
+          // 检查邮箱是否已注册
+          const { data: existingUser, error: checkError } = await supabase
+            .from('membership_applications')
+            .select('email')
+            .eq('email', email)
             .single();
 
-          if (printerError || !printer) {
-            document.getElementById('printer_status').innerText = translations[currentLang].printer_status;
-          } else {
-            document.getElementById('printer_status').innerText = translations[currentLang].printer_bound + printer.printer_name;
-          }
-        } else {
-          document.getElementById('printer_status').innerText = translations[currentLang].printer_status;
-        }
-
-        // 检查并生成 qr_token
-        qrToken = user.qr_token;
-        if (!qrToken) {
-          qrToken = `token-${username}-${Date.now()}`;
-          const { error: updateError } = await supabase
-            .from('membership_applications')
-            .update({ qr_token: qrToken })
-            .eq('username', username);
-
-          if (updateError) {
-            document.getElementById('message').innerText = translations[currentLang].network_error;
+          if (checkError && checkError.code !== 'PGRST116') { // PGRST116 表示未找到记录
+            messageElement.innerText = translations[currentLang].signup_failed + ' ' + checkError.message;
             return;
           }
+
+          if (existingUser) {
+            messageElement.innerText = translations[currentLang].user_exists;
+            return;
+          }
+
+          // 插入新记录到 membership_applications 表
+          const { data, error } = await supabase
+            .from('membership_applications')
+            .insert([{ email: email, password: password, status: 'pending' }]);
+
+          if (error) {
+            messageElement.innerText = translations[currentLang].signup_failed + ' ' + error.message;
+          } else {
+            messageElement.innerText = translations[currentLang].signup_success;
+          }
+        } catch (error) {
+          console.error('Signup error:', error);
+          messageElement.innerText = translations[currentLang].network_error + ' ' + error.message;
         }
-      } catch (error) {
-        console.error('Load user info error:', error);
-        document.getElementById('message').innerText = translations[currentLang].network_error;
-      }
-    }
-
-    function generateQR() {
-      const qrcodeDiv = document.getElementById('qrcode');
-      qrcodeDiv.innerHTML = '';
-
-      if (!qrToken) {
-        document.getElementById('message').innerText = translations[currentLang].network_error;
-        return;
       }
 
-      const url = `${window.location.origin}/upload.html?username=${encodeURIComponent(username)}&token=${qrToken}`;
-      new QRCode(qrcodeDiv, {
-        text: url,
-        width: 200,
-        height: 200,
-        colorDark: "#000000",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.H
-      });
-    }
+      async function login() {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const messageElement = document.getElementById('message');
 
-    function printPhoto() {
-      document.getElementById('message').innerText = translations[currentLang].print_photo_btn;
-    }
+        if (!email || !password) {
+          messageElement.innerText = translations[currentLang].login_failed;
+          return;
+        }
 
-    function logout() {
-      window.location.href = '/index.html';
-    }
+        if (!isValidEmail(email)) {
+          messageElement.innerText = translations[currentLang].invalid_email;
+          return;
+        }
+
+        try {
+          // 查询 membership_applications 表
+          const { data: user, error } = await supabase
+            .from('membership_applications')
+            .select('email, password, status')
+            .eq('email', email)
+            .single();
+
+          if (error || !user) {
+            messageElement.innerText = translations[currentLang].not_found;
+            return;
+          }
+
+          if (user.password !== password) {
+            messageElement.innerText = translations[currentLang].login_failed;
+            return;
+          }
+
+          if (user.status !== 'approved') {
+            messageElement.innerText = translations[currentLang].not_approved;
+            return;
+          }
+
+          // 登录成功，跳转到加盟商页面
+          window.location.href = `/franchisee.html?email=${encodeURIComponent(email)}`;
+        } catch (error) {
+          console.error('Login error:', error);
+          messageElement.innerText = translations[currentLang].network_error + ' ' + error.message;
+        }
+      }
+
+      // 暴露函数到全局作用域
+      window.toggleLanguage = toggleLanguage;
+      window.signup = signup;
+      window.login = login;
+    });
   </script>
 </body>
 </html>
