@@ -138,10 +138,17 @@
   </div>
 
   <script>
-    const supabase = Supabase.createClient(
-      'https://nqapfcosintqipzttflo.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8'
-    );
+    // Supabase 客户端初始化
+    let supabase;
+    try {
+      supabase = Supabase.createClient(
+        'https://nqapfcosintqipzttflo.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8'
+      );
+    } catch (err) {
+      console.error('Failed to initialize Supabase client:', err);
+      // 如果 Supabase 初始化失败，仍然允许页面加载和语言切换
+    }
 
     const translations = {
       zh: {
@@ -201,22 +208,17 @@
       currentLang = 'zh'; // 强制默认语言为中文
       localStorage.setItem('language', currentLang);
     }
-    let lastRegisterMessage = '';
-    let lastLoginMessage = '';
 
+    // 页面加载时初始化语言
     updateLanguage();
 
     function toggleLanguage() {
       currentLang = currentLang === 'zh' ? 'en' : 'zh';
       localStorage.setItem('language', currentLang);
       updateLanguage();
-      // 重新翻译动态提示信息
-      if (lastRegisterMessage) {
-        document.getElementById('registerMessage').innerText = translations[currentLang][lastRegisterMessage];
-      }
-      if (lastLoginMessage) {
-        document.getElementById('loginMessage').innerText = translations[currentLang][lastLoginMessage];
-      }
+      // 清空动态提示信息，需重新触发操作以更新翻译
+      document.getElementById('registerMessage').innerText = '';
+      document.getElementById('loginMessage').innerText = '';
     }
 
     function updateLanguage() {
@@ -239,14 +241,12 @@
       document.getElementById('loginSection').classList.add('hidden');
       document.getElementById('registerSection').classList.remove('hidden');
       document.getElementById('registerMessage').innerText = '';
-      lastRegisterMessage = '';
     }
 
     function showLogin() {
       document.getElementById('registerSection').classList.add('hidden');
       document.getElementById('loginSection').classList.remove('hidden');
       document.getElementById('loginMessage').innerText = '';
-      lastLoginMessage = '';
     }
 
     async function register() {
@@ -256,8 +256,12 @@
       const password = document.getElementById('registerPassword').value.trim();
 
       if (!name || !email || !phone || !password) {
-        lastRegisterMessage = 'register_failed';
         document.getElementById('registerMessage').innerText = translations[currentLang].register_failed;
+        return;
+      }
+
+      if (!supabase) {
+        document.getElementById('registerMessage').innerText = translations[currentLang].network_error;
         return;
       }
 
@@ -268,20 +272,16 @@
 
         if (error) {
           if (error.code === '23505') { // 邮箱重复
-            lastRegisterMessage = 'email_taken';
             document.getElementById('registerMessage').innerText = translations[currentLang].email_taken;
           } else {
-            lastRegisterMessage = 'register_error';
             document.getElementById('registerMessage').innerText = translations[currentLang].register_error;
           }
           console.error('Register error:', error);
           return;
         }
 
-        lastRegisterMessage = 'register_pending';
         document.getElementById('registerMessage').innerText = translations[currentLang].register_pending;
       } catch (err) {
-        lastRegisterMessage = 'network_error';
         document.getElementById('registerMessage').innerText = translations[currentLang].network_error;
         console.error('Network error:', err);
       }
@@ -292,8 +292,12 @@
       const password = document.getElementById('loginPassword').value.trim();
 
       if (!email || !password) {
-        lastLoginMessage = 'login_failed';
         document.getElementById('loginMessage').innerText = translations[currentLang].login_failed;
+        return;
+      }
+
+      if (!supabase) {
+        document.getElementById('loginMessage').innerText = translations[currentLang].network_error;
         return;
       }
 
@@ -306,25 +310,21 @@
           .single();
 
         if (error || !data) {
-          lastLoginMessage = 'login_failed';
           document.getElementById('loginMessage').innerText = translations[currentLang].login_failed;
           console.error('Login error:', error);
           return;
         }
 
         if (data.status === 'pending') {
-          lastLoginMessage = 'login_pending';
           document.getElementById('loginMessage').innerText = translations[currentLang].login_pending;
           return;
         }
 
-        lastLoginMessage = 'login_success';
         document.getElementById('loginMessage').innerText = translations[currentLang].login_success;
         setTimeout(() => {
           window.location.href = `dashboard.html?email=${encodeURIComponent(email)}&id=${data.id}`;
         }, 2000);
       } catch (err) {
-        lastLoginMessage = 'network_error';
         document.getElementById('loginMessage').innerText = translations[currentLang].network_error;
         console.error('Network error:', err);
       }
