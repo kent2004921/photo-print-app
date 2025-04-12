@@ -154,7 +154,7 @@
         login: "登录",
         register_pending: "注册已提交，请等待管理员审核！",
         register_failed: "请填写所有信息！",
-        register_error: "注册失败，请重试！",
+        register_error: "注册失败：{message}",
         email_taken: "邮箱已被使用！",
         login_pending: "您的注册正在审核中，请等待！",
         login_failed: "登录失败，请检查邮箱和密码！",
@@ -179,7 +179,7 @@
         login: "Login",
         register_pending: "Registration submitted, please wait for admin approval!",
         register_failed: "Please fill in all information!",
-        register_error: "Registration failed, please try again!",
+        register_error: "Registration failed: {message}",
         email_taken: "Email is already taken!",
         login_pending: "Your registration is under review, please wait!",
         login_failed: "Login failed, please check your email and password!",
@@ -254,13 +254,14 @@
           body: JSON.stringify({ action: 'register', name, email, phone, password })
         });
         const data = await response.json();
+        console.log('Register response:', data); // 调试日志
         if (data.success) {
           document.getElementById('registerMessage').innerText = translations[currentLang].register_pending;
         } else {
           if (data.message === 'Email already taken') {
             document.getElementById('registerMessage').innerText = translations[currentLang].email_taken;
           } else {
-            document.getElementById('registerMessage').innerText = translations[currentLang].register_error;
+            document.getElementById('registerMessage').innerText = translations[currentLang].register_error.replace('{message}', data.message || 'Unknown error');
           }
         }
       } catch (error) {
@@ -285,6 +286,7 @@
           body: JSON.stringify({ action: 'login', email, password })
         });
         const data = await response.json();
+        console.log('Login response:', data); // 调试日志
         if (data.success) {
           if (data.status === 'pending') {
             document.getElementById('loginMessage').innerText = translations[currentLang].login_pending;
