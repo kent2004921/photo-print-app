@@ -8,14 +8,40 @@ exports.handler = async (event) => {
   );
 
   // 解析请求体
-  const { action, name, email, phone, password } = JSON.parse(event.body);
+  let body;
+  try {
+    body = JSON.parse(event.body);
+  } catch (error) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ success: false, message: 'Invalid request body' })
+    };
+  }
+
+  const { action, name, email, phone, password, id } = body;
+
+  // 验证必要字段
+  if (!action) {
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ success: false, message: 'Missing required field: action' })
+    };
+  }
 
   try {
     if (action === 'register') {
-      // 插入新用户，设置默认 status 为 'pending'
+      // 验证注册字段
+      if (!name || !email || !phone || !password) {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ success: false, message: 'Missing required fields: name, email, phone, password' })
+        };
+      }
+
+      // 插入新用户，设置默认 status 为 'pending' 和 remaining_prints 为 100
       const { data, error } = await supabase
         .from('franchisees')
-        .insert([{ name, email, phone, password, status: 'pending' }]);
+        .insert([{ name, email, phone, password, status: 'pending', remaining_prints: 100 }]);
 
       if (error) {
         if (error.code === '23505') {
@@ -24,7 +50,6 @@ exports.handler = async (event) => {
             body: JSON.stringify({ success: false, message: 'Email already taken' })
           };
         }
-        // 提供更详细的错误信息
         return {
           statusCode: 500,
           body: JSON.stringify({ success: false, message: `Supabase error: ${error.message}` })
@@ -38,6 +63,13 @@ exports.handler = async (event) => {
     }
 
     if (action === 'login') {
+      if (!email || !password) {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ success: false, message: 'Missing required fields: email, password' })
+        };
+      }
+
       const { data, error } = await supabase
         .from('franchisees')
         .select('*')
@@ -55,6 +87,34 @@ exports.handler = async (event) => {
       return {
         statusCode: 200,
         body: JSON.stringify({ success: true, status: data.status, id: data.id })
+      };
+    }
+
+    if (action === 'get_user') {
+      if (!email || !id) {
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ success: false, message: 'Missing required fields: email, id' })
+        };
+      }
+
+      const { data, error } = await supabase
+        .from('franchisees')
+        .select('name, remaining_prints')
+        .eq('email', email)
+        .eq('id', id)
+        .single();
+
+      if (error || !data) {
+        return {
+          statusCode: 404,
+          body: JSON.stringify({ success: false, message: 'User not found' })
+        };
+      }
+
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ success: true, user: data })
       };
     }
 
