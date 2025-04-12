@@ -65,9 +65,6 @@
       margin-top: 20px;
       text-align: left;
     }
-    .task-section.hidden {
-      display: none;
-    }
     .buttons {
       display: flex;
       justify-content: space-between;
@@ -109,9 +106,9 @@
 
     <div id="qrCode"></div>
 
-    <div class="task-section hidden" id="taskSection">
-      <div class="info" id="taskType"></div>
-      <div class="info" id="taskMask"></div>
+    <div class="task-section" id="taskSection">
+      <div class="info" id="taskType" data-i18n="task_type">Type: Unknown</div>
+      <div class="info" id="taskMask" data-i18n="task_mask">Mask: Unknown</div>
       <div class="buttons">
         <button class="start-btn" onclick="startPrint()" data-i18n="start_print">确认打印</button>
         <button class="cancel-btn" onclick="cancelPrint()" data-i18n="cancel_print">删除任务</button>
@@ -130,9 +127,12 @@
         task_mask: "Mask: {mask}",
         start_print: "确认打印",
         cancel_print: "删除任务",
+        status_not_connected: "未连接",
+        status_connected: "已连接 - {brand} {model}",
         status_idle: "空闲",
         status_printing: "打印中",
-        status_no_task: "没有任何",
+        task_idle: "空闲",
+        task_not_loaded: "没有加载",
         network_error: "网络错误，请稍后再试！",
         load_error: "加载用户信息失败，请重试！{message}"
       },
@@ -145,9 +145,12 @@
         task_mask: "Mask: {mask}",
         start_print: "Start Print",
         cancel_print: "Cancel Print",
+        status_not_connected: "Not Connected",
+        status_connected: "Connected - {brand} {model}",
         status_idle: "Idle",
         status_printing: "Printing",
-        status_no_task: "No Task",
+        task_idle: "Idle",
+        task_not_loaded: "Not Loaded",
         network_error: "Network error, please try again later!",
         load_error: "Failed to load user info, please try again! {message}"
       }
@@ -196,8 +199,9 @@
           if (user.id) {
             generateQRCode(user.id);
           }
-          // 更新打印机状态
-          updatePrinterStatus();
+          // 检查打印机状态并更新
+          const printerInfo = await checkPrinterStatus();
+          updatePrinterStatus(printerInfo);
         } else {
           alert(translations[currentLang].load_error.replace('{message}', data.message || 'Unknown error'));
           window.location.href = 'index.html';
@@ -213,7 +217,7 @@
       currentLang = currentLang === 'zh' ? 'en' : 'zh';
       localStorage.setItem('language', currentLang);
       updateLanguage();
-      updatePrinterStatus(); // 重新渲染状态
+      checkPrinterStatus().then(printerInfo => updatePrinterStatus(printerInfo)); // 重新检查打印机状态
     }
 
     function updateLanguage() {
@@ -229,7 +233,12 @@
           text = text.replace('{count}', count);
         } else if (key === 'printer_status') {
           const status = element.innerText.match(/打印机状态：(.+)/)?.[1] || element.innerText.match(/Printer Status: (.+)/)?.[1] || 'Unknown';
-          text = text.replace('{status}', translations[currentLang][`status_${status.toLowerCase()}`] || status);
+          if (status.includes('-')) {
+            const [_, brand, model] = status.match(/(.+) - (.+)/) || [status, '', ''];
+            text = translations[currentLang].status_connected.replace('{brand}', brand).replace('{model}', model);
+          } else {
+            text = text.replace('{status}', translations[currentLang][`status_${status.toLowerCase()}`] || status);
+          }
         } else if (key === 'task_type') {
           const type = element.innerText.match(/Type: (.+)/)?.[1] || 'Unknown';
           text = text.replace('{type}', type);
@@ -255,23 +264,53 @@
       });
     }
 
-    function updatePrinterStatus() {
+    async function checkPrinterStatus() {
+      // 模拟打印机状态检测（实际需替换为真实 API 调用）
+      // 假设通过 Netlify Functions 调用 /check_printer_status
+      try {
+        const response = await fetch('/.netlify/functions/check_printer_status', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        console.log('Printer status:', data);
+        return data; // 期望返回 { connected: true, brand: "Epson", model: "L3150" } 或 { connected: false }
+      } catch (error) {
+        console.error('Check printer status error:', error);
+        // 模拟返回（实际需替换）
+        return { connected: true, brand: "Epson", model: "L3150" }; // 模拟已连接
+        // return { connected: false }; // 模拟未连接
+      }
+    }
+
+    function updatePrinterStatus(printerInfo) {
       const printerStatus = document.getElementById('printerStatus');
-      const taskSection = document.getElementById('taskSection');
       const taskType = document.getElementById('taskType');
       const taskMask = document.getElementById('taskMask');
       const hasTask = false; // 假设当前没有打印任务
 
+      // 更新打印机状态
+      if (printerInfo.connected) {
+        printerStatus.innerText = translations[currentLang].printer_status.replace(
+          '{status}',
+          translations[currentLang].status_connected
+            .replace('{brand}', printerInfo.brand)
+            .replace('{model}', printerInfo.model)
+        );
+      } else {
+        printerStatus.innerText = translations[currentLang].printer_status.replace(
+          '{status}',
+          translations[currentLang].status_not_connected
+        );
+      }
+
+      // 更新任务状态
       if (hasTask) {
-        printerStatus.innerText = translations[currentLang].printer_status.replace('{status}', translations[currentLang].status_printing);
-        taskSection.classList.remove('hidden');
         taskType.innerText = translations[currentLang].task_type.replace('{type}', '摇摇乐'); // 示例任务类型
         taskMask.innerText = translations[currentLang].task_mask.replace('{mask}', 'Mask'); // 示例 Mask
       } else {
-        printerStatus.innerText = translations[currentLang].printer_status.replace('{status}', translations[currentLang].status_no_task);
-        taskSection.classList.add('hidden');
-        taskType.innerText = '';
-        taskMask.innerText = '';
+        taskType.innerText = translations[currentLang].task_type.replace('{type}', translations[currentLang].task_idle);
+        taskMask.innerText = translations[currentLang].task_mask.replace('{mask}', translations[currentLang].task_not_loaded);
       }
     }
 
