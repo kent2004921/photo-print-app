@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="title">Dashboard - Photo Print Service</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -56,6 +57,10 @@
       font-size: 16px;
       color: #333;
     }
+    #qrCode {
+      margin: 20px auto;
+      text-align: center;
+    }
     .task-section {
       margin-top: 20px;
       text-align: left;
@@ -98,16 +103,18 @@
       <button class="language-btn" onclick="toggleLanguage()">🌐</button>
     </div>
 
-    <div class="info" id="welcomeMessage" data-i18n="welcome">Welcome, Franchisee</div>
-    <div class="info" id="remainingPrints" data-i18n="remaining_prints">Remaining Prints: 0</div>
-    <div class="info" id="printerStatus" data-i18n="printer_status">Printer Status: Unknown</div>
+    <div class="info" id="welcomeMessage" data-i18n="welcome">欢迎，Franchisee</div>
+    <div class="info" id="remainingPrints" data-i18n="remaining_prints">剩余打印次数：0</div>
+    <div class="info" id="printerStatus" data-i18n="printer_status">打印机状态：Unknown</div>
+
+    <div id="qrCode"></div>
 
     <div class="task-section" id="taskSection">
       <div class="info" id="taskType" data-i18n="task_type">Type: Unknown</div>
       <div class="info" id="taskMask" data-i18n="task_mask">Mask: Unknown</div>
       <div class="buttons">
-        <button class="start-btn" onclick="startPrint()" data-i18n="start_print">Start Print</button>
-        <button class="cancel-btn" onclick="cancelPrint()" data-i18n="cancel_print">Cancel Print</button>
+        <button class="start-btn" onclick="startPrint()" data-i18n="start_print">确认打印</button>
+        <button class="cancel-btn" onclick="cancelPrint()" data-i18n="cancel_print">删除任务</button>
       </div>
     </div>
   </div>
@@ -125,6 +132,7 @@
         cancel_print: "删除任务",
         status_idle: "空闲",
         status_printing: "打印中",
+        status_no_task: "没有任何",
         network_error: "网络错误，请稍后再试！",
         load_error: "加载用户信息失败，请重试！"
       },
@@ -139,6 +147,7 @@
         cancel_print: "Cancel Print",
         status_idle: "Idle",
         status_printing: "Printing",
+        status_no_task: "No Task",
         network_error: "Network error, please try again later!",
         load_error: "Failed to load user info, please try again!"
       }
@@ -181,10 +190,12 @@
           // 更新打印次数
           const remainingPrints = user.remaining_prints !== undefined ? user.remaining_prints : 100; // 默认 100
           document.getElementById('remainingPrints').innerText = translations[currentLang].remaining_prints.replace('{count}', remainingPrints);
+          // 生成二维码
+          generateQRCode(id);
           // 更新打印机状态
           updatePrinterStatus();
         } else {
-          alert(translations[currentLang].load_error);
+          alert(translations[currentLang].load_error + ' ' + (data.message || ''));
           window.location.href = 'index.html';
         }
       } catch (error) {
@@ -221,6 +232,19 @@
       document.title = translations[currentLang].title;
     }
 
+    function generateQRCode(userId) {
+      const qrCodeDiv = document.getElementById('qrCode');
+      qrCodeDiv.innerHTML = ''; // 清空之前的内容
+      new QRCode(qrCodeDiv, {
+        text: `user:${userId}`, // 唯一标识用户的二维码内容
+        width: 128,
+        height: 128,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    }
+
     function updatePrinterStatus() {
       const printerStatus = document.getElementById('printerStatus');
       const taskSection = document.getElementById('taskSection');
@@ -230,7 +254,7 @@
         printerStatus.innerText = translations[currentLang].printer_status.replace('{status}', translations[currentLang].status_printing);
         taskSection.classList.remove('hidden');
       } else {
-        printerStatus.innerText = translations[currentLang].printer_status.replace('{status}', translations[currentLang].status_idle);
+        printerStatus.innerText = translations[currentLang].printer_status.replace('{status}', translations[currentLang].status_no_task);
         taskSection.classList.add('hidden');
       }
     }
