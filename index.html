@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="title">Photo Print Service</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -137,6 +138,11 @@
   </div>
 
   <script>
+    const supabase = Supabase.createClient(
+      'https://nqapfcosintqipzttflo.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8'
+    );
+
     const translations = {
       zh: {
         title: "照片打印服务",
@@ -154,11 +160,14 @@
         login: "登录",
         register_pending: "注册已提交，请等待管理员审核！",
         register_failed: "请填写所有信息！",
+        register_error: "注册失败，请重试！",
+        email_taken: "邮箱已被使用！",
         login_pending: "您的注册正在审核中，请等待！",
         login_failed: "登录失败，请检查邮箱和密码！",
-        login_success: "登录成功！您的唯一码是：{code}，请记下来！",
+        login_success: "登录成功！请前往管理页面！",
         register_link: "还没有账号？注册",
-        login_link: "已有账号？登录"
+        login_link: "已有账号？登录",
+        network_error: "网络错误，请稍后再试！"
       },
       en: {
         title: "Photo Print Service",
@@ -176,31 +185,52 @@
         login: "Login",
         register_pending: "Registration submitted, please wait for admin approval!",
         register_failed: "Please fill in all information!",
+        register_error: "Registration failed, please try again!",
+        email_taken: "Email is already taken!",
         login_pending: "Your registration is under review, please wait!",
         login_failed: "Login failed, please check your email and password!",
-        login_success: "Login successful! Your unique code is: {code}, please note it down!",
+        login_success: "Login successful! Proceed to dashboard!",
         register_link: "Don't have an account? Register",
-        login_link: "Already have an account? Login"
+        login_link: "Already have an account? Login",
+        network_error: "Network error, please try again later!"
       }
     };
 
-    let currentLang = localStorage.getItem('language') || 'zh';
+    let currentLang = localStorage.getItem('language');
+    if (!currentLang || !translations[currentLang]) {
+      currentLang = 'zh'; // 强制默认语言为中文
+      localStorage.setItem('language', currentLang);
+    }
+    let lastRegisterMessage = '';
+    let lastLoginMessage = '';
+
     updateLanguage();
 
     function toggleLanguage() {
       currentLang = currentLang === 'zh' ? 'en' : 'zh';
       localStorage.setItem('language', currentLang);
       updateLanguage();
+      // 重新翻译动态提示信息
+      if (lastRegisterMessage) {
+        document.getElementById('registerMessage').innerText = translations[currentLang][lastRegisterMessage];
+      }
+      if (lastLoginMessage) {
+        document.getElementById('loginMessage').innerText = translations[currentLang][lastLoginMessage];
+      }
     }
 
     function updateLanguage() {
       document.querySelectorAll('[data-i18n]').forEach(element => {
         const key = element.getAttribute('data-i18n');
-        element.textContent = translations[currentLang][key];
+        if (translations[currentLang][key]) {
+          element.textContent = translations[currentLang][key];
+        }
       });
       document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
         const key = element.getAttribute('data-i18n-placeholder');
-        element.placeholder = translations[currentLang][key];
+        if (translations[currentLang][key]) {
+          element.placeholder = translations[currentLang][key];
+        }
       });
       document.title = translations[currentLang].title;
     }
@@ -208,52 +238,96 @@
     function showRegister() {
       document.getElementById('loginSection').classList.add('hidden');
       document.getElementById('registerSection').classList.remove('hidden');
+      document.getElementById('registerMessage').innerText = '';
+      lastRegisterMessage = '';
     }
 
     function showLogin() {
       document.getElementById('registerSection').classList.add('hidden');
       document.getElementById('loginSection').classList.remove('hidden');
+      document.getElementById('loginMessage').innerText = '';
+      lastLoginMessage = '';
     }
 
-    function register() {
+    async function register() {
       const name = document.getElementById('registerName').value.trim();
       const email = document.getElementById('registerEmail').value.trim();
       const phone = document.getElementById('registerPhone').value.trim();
       const password = document.getElementById('registerPassword').value.trim();
-      const printerEmail = "jmx12814u9q9q8@print.epsonconnect.com";
 
       if (!name || !email || !phone || !password) {
+        lastRegisterMessage = 'register_failed';
         document.getElementById('registerMessage').innerText = translations[currentLang].register_failed;
         return;
       }
 
-      // 模拟提交注册，实际会存到 Supabase（status=pending）
-      document.getElementById('registerMessage').innerText = translations[currentLang].register_pending;
+      try {
+        const { data, error } = await supabase
+          .from('franchisees')
+          .insert([{ name, email, phone, password }]);
+
+        if (error) {
+          if (error.code === '23505') { // 邮箱重复
+            lastRegisterMessage = 'email_taken';
+            document.getElementById('registerMessage').innerText = translations[currentLang].email_taken;
+          } else {
+            lastRegisterMessage = 'register_error';
+            document.getElementById('registerMessage').innerText = translations[currentLang].register_error;
+          }
+          console.error('Register error:', error);
+          return;
+        }
+
+        lastRegisterMessage = 'register_pending';
+        document.getElementById('registerMessage').innerText = translations[currentLang].register_pending;
+      } catch (err) {
+        lastRegisterMessage = 'network_error';
+        document.getElementById('registerMessage').innerText = translations[currentLang].network_error;
+        console.error('Network error:', err);
+      }
     }
 
-    function login() {
+    async function login() {
       const email = document.getElementById('loginEmail').value.trim();
       const password = document.getElementById('loginPassword').value.trim();
 
       if (!email || !password) {
+        lastLoginMessage = 'login_failed';
         document.getElementById('loginMessage').innerText = translations[currentLang].login_failed;
         return;
       }
 
-      // 模拟登录逻辑，实际会查 Supabase
-      const simulatedStatus = "pending"; // 模拟审核状态
-      const simulatedUniqueCode = "FRANCHISEE_abc123";
+      try {
+        const { data, error } = await supabase
+          .from('franchisees')
+          .select('*')
+          .eq('email', email)
+          .eq('password', password)
+          .single();
 
-      if (simulatedStatus === "pending") {
-        document.getElementById('loginMessage').innerText = translations[currentLang].login_pending;
-        return;
+        if (error || !data) {
+          lastLoginMessage = 'login_failed';
+          document.getElementById('loginMessage').innerText = translations[currentLang].login_failed;
+          console.error('Login error:', error);
+          return;
+        }
+
+        if (data.status === 'pending') {
+          lastLoginMessage = 'login_pending';
+          document.getElementById('loginMessage').innerText = translations[currentLang].login_pending;
+          return;
+        }
+
+        lastLoginMessage = 'login_success';
+        document.getElementById('loginMessage').innerText = translations[currentLang].login_success;
+        setTimeout(() => {
+          window.location.href = `dashboard.html?email=${encodeURIComponent(email)}&id=${data.id}`;
+        }, 2000);
+      } catch (err) {
+        lastLoginMessage = 'network_error';
+        document.getElementById('loginMessage').innerText = translations[currentLang].network_error;
+        console.error('Network error:', err);
       }
-
-      // 模拟登录成功
-      document.getElementById('loginMessage').innerText = translations[currentLang].login_success.replace('{code}', simulatedUniqueCode);
-      setTimeout(() => {
-        window.location.href = `dashboard.html?email=${encodeURIComponent(email)}&code=${simulatedUniqueCode}`;
-      }, 2000);
     }
   </script>
 </body>
