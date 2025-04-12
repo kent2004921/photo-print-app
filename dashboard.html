@@ -168,6 +168,8 @@
       const email = urlParams.get('email');
       const id = urlParams.get('id');
 
+      console.log('URL params:', { email, id });
+
       if (!email || !id) {
         alert(translations[currentLang].load_error.replace('{message}', 'Missing email or id'));
         window.location.href = 'index.html';
@@ -186,12 +188,14 @@
         if (data.success) {
           const user = data.user;
           // 更新欢迎信息
-          document.getElementById('welcomeMessage').innerText = translations[currentLang].welcome.replace('{name}', user.name);
+          document.getElementById('welcomeMessage').innerText = translations[currentLang].welcome.replace('{name}', user.name || 'Franchisee');
           // 更新打印次数
-          const remainingPrints = user.remaining_prints !== undefined ? user.remaining_prints : 100; // 默认 100
-          document.getElementById('remainingPrints').innerText = translations[currentLang].remaining_prints.replace('{count}', remainingPrints);
+          const printQuota = user.print_quota !== undefined ? user.print_quota : 100; // 默认 100
+          document.getElementById('remainingPrints').innerText = translations[currentLang].remaining_prints.replace('{count}', printQuota);
           // 生成二维码
-          generateQRCode(user.id);
+          if (user.id) {
+            generateQRCode(user.id);
+          }
           // 更新打印机状态
           updatePrinterStatus();
         } else {
