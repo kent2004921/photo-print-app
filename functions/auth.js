@@ -72,7 +72,7 @@ exports.handler = async (event) => {
 
       const { data, error } = await supabase
         .from('franchisees')
-        .select('*')
+        .select('id, status')
         .eq('email', email)
         .eq('password', password)
         .single();
@@ -108,7 +108,7 @@ exports.handler = async (event) => {
       if (error || !data) {
         return {
           statusCode: 404,
-          body: JSON.stringify({ success: false, message: 'User not found' })
+          body: JSON.stringify({ success: false, message: `User not found: ${error ? error.message : 'No data'}` })
         };
       }
 
