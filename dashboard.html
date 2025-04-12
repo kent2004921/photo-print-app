@@ -20,7 +20,7 @@
       border-radius: 10px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
       width: 90%;
-      max-width: 800px;
+      max-width: 400px;
       text-align: center;
     }
     .header {
@@ -33,30 +33,6 @@
       color: #333;
       font-size: 20px;
       margin: 0;
-    }
-    h3 {
-      color: #333;
-      font-size: 18px;
-      margin: 10px 0;
-    }
-    button {
-      padding: 8px 16px;
-      margin: 5px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
-      background: #007bff;
-      color: white;
-    }
-    button:hover {
-      background: #0056b3;
-    }
-    .delete-btn {
-      background: #dc3545;
-    }
-    .delete-btn:hover {
-      background: #c82333;
     }
     .language-btn {
       background: #28a745;
@@ -74,95 +50,44 @@
     .language-btn:hover {
       background: #218838;
     }
-    .section {
-      margin: 20px 0;
+    .info {
+      text-align: left;
+      margin: 10px 0;
+      font-size: 16px;
+      color: #333;
+    }
+    .task-section {
+      margin-top: 20px;
       text-align: left;
     }
-    .franchisee {
-      border: 1px solid #ddd;
-      padding: 10px;
-      margin: 10px 0;
-      border-radius: 5px;
+    .task-section .hidden {
+      display: none;
     }
-    .task {
-      border: 1px solid #ddd;
-      padding: 10px;
-      margin: 10px 0;
-      border-radius: 5px;
+    .buttons {
       display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      background: #f9f9f9;
+      justify-content: space-between;
+      margin-top: 20px;
     }
-    .task img.photo-preview {
-      width: 60px;
-      height: 60px;
-      margin-right: 10px;
-      object-fit: cover;
+    button {
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
       cursor: pointer;
-      border-radius: 5px;
-    }
-    .task img.mask-preview {
-      width: 30px;
-      height: 30px;
-      margin-right: 10px;
-      object-fit: cover;
-    }
-    .task-details {
-      flex: 1;
-    }
-    .task-actions {
-      margin-left: auto;
-    }
-    .hidden {
-      display: none;
-    }
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0,0,0,0.5);
-      justify-content: center;
-      align-items: center;
-    }
-    .modal-content {
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      text-align: center;
-      max-width: 90%;
-      max-height: 90%;
-    }
-    .modal-content img {
-      max-width: 100%;
-      max-height: 70vh;
-      border-radius: 5px;
-    }
-    .close {
-      position: absolute;
-      top: 10px;
-      right: 20px;
+      font-size: 16px;
       color: white;
-      font-size: 30px;
-      cursor: pointer;
+      width: 48%;
     }
-    @media (max-width: 600px) {
-      .task {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-      .task-actions {
-        margin-left: 0;
-        margin-top: 10px;
-      }
-      .task img.photo-preview {
-        width: 50px;
-        height: 50px;
-      }
+    .start-btn {
+      background: #007bff;
+    }
+    .start-btn:hover {
+      background: #0056b3;
+    }
+    .cancel-btn {
+      background: #dc3545;
+    }
+    .cancel-btn:hover {
+      background: #c82333;
     }
   </style>
 </head>
@@ -173,27 +98,16 @@
       <button class="language-btn" onclick="toggleLanguage()">🌐</button>
     </div>
 
-    <!-- 管理员审核界面 -->
-    <div id="adminSection" class="section hidden">
-      <h3 data-i18n="pending_franchisees">Pending Franchisees</h3>
-      <div id="pendingList"></div>
-    </div>
+    <div class="info" id="welcomeMessage" data-i18n="welcome">Welcome, Franchisee</div>
+    <div class="info" id="remainingPrints" data-i18n="remaining_prints">Remaining Prints: 0</div>
+    <div class="info" id="printerStatus" data-i18n="printer_status">Printer Status: Unknown</div>
 
-    <!-- 加盟商管理界面 -->
-    <div id="franchiseeSection" class="section">
-      <h3 data-i18n="welcome">Welcome, Franchisee!</h3>
-      <p><span data-i18n="print_quota">Remaining Prints:</span> <span id="printQuota">0</span></p>
-      <p><span data-i18n="printer_status">Printer Status:</span> <span id="printerStatus">Unknown</span></p>
-      <h3 data-i18n="qr_code">Your QR Code</h3>
-      <img id="qrCode" src="" alt="QR Code" onerror="this.src='https://via.placeholder.com/150?text=QR+Code+Failed'">
-      <h3 data-i18n="print_tasks">Print Tasks</h3>
-      <div id="taskList"></div>
-    </div>
-
-    <div id="photoModal" class="modal">
-      <div class="modal-content">
-        <span class="close" onclick="closeModal()">×</span>
-        <img id="modalPhoto" src="" alt="Photo Preview">
+    <div class="task-section" id="taskSection">
+      <div class="info" id="taskType" data-i18n="task_type">Type: Unknown</div>
+      <div class="info" id="taskMask" data-i18n="task_mask">Mask: Unknown</div>
+      <div class="buttons">
+        <button class="start-btn" onclick="startPrint()" data-i18n="start_print">Start Print</button>
+        <button class="cancel-btn" onclick="cancelPrint()" data-i18n="cancel_print">Cancel Print</button>
       </div>
     </div>
   </div>
@@ -202,185 +116,132 @@
     const translations = {
       zh: {
         title: "管理面板 - 照片打印服务",
-        pending_franchisees: "待审核加盟商",
-        welcome: "欢迎，加盟商！",
-        print_quota: "剩余打印次数：",
-        printer_status: "打印机状态：",
-        qr_code: "您的二维码",
-        print_tasks: "打印任务",
-        approve: "通过",
-        task_status_pending: "待打印",
-        task_status_printed: "已打印",
-        confirm_print: "确认打印",
-        delete_task: "删除任务",
-        print_failed: "打印失败，请检查打印机状态！"
+        welcome: "欢迎，{name}",
+        remaining_prints: "剩余打印次数：{count}",
+        printer_status: "打印机状态：{status}",
+        task_type: "Type: 摇摇乐",
+        task_mask: "Mask: Mask",
+        start_print: "确认打印",
+        cancel_print: "删除任务",
+        status_idle: "空闲",
+        status_printing: "打印中",
+        network_error: "网络错误，请稍后再试！",
+        load_error: "加载用户信息失败，请重试！"
       },
       en: {
         title: "Dashboard - Photo Print Service",
-        pending_franchisees: "Pending Franchisees",
-        welcome: "Welcome, Franchisee!",
-        print_quota: "Remaining Prints:",
-        printer_status: "Printer Status:",
-        qr_code: "Your QR Code",
-        print_tasks: "Print Tasks",
-        approve: "Approve",
-        task_status_pending: "Pending",
-        task_status_printed: "Printed",
-        confirm_print: "Confirm Print",
-        delete_task: "Delete Task",
-        print_failed: "Printing failed, please check printer status!"
+        welcome: "Welcome, {name}",
+        remaining_prints: "Remaining Prints: {count}",
+        printer_status: "Printer Status: {status}",
+        task_type: "Type: Unknown",
+        task_mask: "Mask: Unknown",
+        start_print: "Start Print",
+        cancel_print: "Cancel Print",
+        status_idle: "Idle",
+        status_printing: "Printing",
+        network_error: "Network error, please try again later!",
+        load_error: "Failed to load user info, please try again!"
       }
     };
 
-    let currentLang = localStorage.getItem('language') || 'zh';
+    let currentLang = localStorage.getItem('language');
+    if (!currentLang || !translations[currentLang]) {
+      currentLang = 'zh';
+      localStorage.setItem('language', currentLang);
+    }
+
+    // 页面加载时初始化语言
     updateLanguage();
+
+    // 加载用户信息和打印次数
+    window.onload = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const email = urlParams.get('email');
+      const id = urlParams.get('id');
+
+      if (!email || !id) {
+        alert(translations[currentLang].load_error);
+        window.location.href = 'index.html';
+        return;
+      }
+
+      try {
+        const response = await fetch('/.netlify/functions/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'get_user', email, id })
+        });
+        const data = await response.json();
+        console.log('User data:', data);
+
+        if (data.success) {
+          const user = data.user;
+          // 更新欢迎信息
+          document.getElementById('welcomeMessage').innerText = translations[currentLang].welcome.replace('{name}', user.name);
+          // 更新打印次数
+          const remainingPrints = user.remaining_prints !== undefined ? user.remaining_prints : 100; // 默认 100
+          document.getElementById('remainingPrints').innerText = translations[currentLang].remaining_prints.replace('{count}', remainingPrints);
+          // 更新打印机状态
+          updatePrinterStatus();
+        } else {
+          alert(translations[currentLang].load_error);
+          window.location.href = 'index.html';
+        }
+      } catch (error) {
+        console.error('Load user error:', error);
+        alert(translations[currentLang].network_error);
+        window.location.href = 'index.html';
+      }
+    };
 
     function toggleLanguage() {
       currentLang = currentLang === 'zh' ? 'en' : 'zh';
       localStorage.setItem('language', currentLang);
       updateLanguage();
-      loadPendingFranchisees();
-      loadTasks();
+      updatePrinterStatus(); // 重新渲染状态
     }
 
     function updateLanguage() {
       document.querySelectorAll('[data-i18n]').forEach(element => {
         const key = element.getAttribute('data-i18n');
-        element.textContent = translations[currentLang][key];
+        let text = translations[currentLang][key] || '';
+        // 特殊处理 welcome 和 remaining_prints
+        if (key === 'welcome') {
+          const name = element.innerText.match(/欢迎，(.+)/)?.[1] || element.innerText.match(/Welcome, (.+)/)?.[1] || 'Franchisee';
+          text = text.replace('{name}', name);
+        } else if (key === 'remaining_prints') {
+          const count = element.innerText.match(/剩余打印次数：(\d+)/)?.[1] || element.innerText.match(/Remaining Prints: (\d+)/)?.[1] || '0';
+          text = text.replace('{count}', count);
+        } else if (key === 'printer_status') {
+          const status = element.innerText.match(/打印机状态：(.+)/)?.[1] || element.innerText.match(/Printer Status: (.+)/)?.[1] || 'Unknown';
+          text = text.replace('{status}', translations[currentLang][`status_${status.toLowerCase()}`] || status);
+        }
+        element.innerText = text;
       });
       document.title = translations[currentLang].title;
     }
 
-    // 模拟数据
-    const urlParams = new URLSearchParams(window.location.search);
-    const email = urlParams.get('email');
-    const code = urlParams.get('code');
-    const isAdmin = email === 'admin@example.com'; // 模拟管理员
+    function updatePrinterStatus() {
+      const printerStatus = document.getElementById('printerStatus');
+      const taskSection = document.getElementById('taskSection');
+      const hasTask = false; // 假设当前没有打印任务
 
-    // 模拟 print_jobs 数据（从 upload.html 共享）
-    let printJobs = window.printJobs || [
-      { id: 1, photoUrl: 'https://via.placeholder.com/50', type: '摇摇乐', mask: 'assets/mask_shake.png', status: 'pending' }
-    ];
-
-    // 显示管理员或加盟商界面
-    if (isAdmin) {
-      document.getElementById('adminSection').classList.remove('hidden');
-      document.getElementById('franchiseeSection').classList.add('hidden');
-      loadPendingFranchisees();
-    } else {
-      document.getElementById('adminSection').classList.add('hidden');
-      document.getElementById('franchiseeSection').classList.remove('hidden');
-      loadFranchiseeData();
-    }
-
-    function loadPendingFranchisees() {
-      // 模拟待审核加盟商数据
-      const pendingFranchisees = [
-        { id: 1, name: 'wing', email: 'kwn998@gmail.com', phone: '0614845451' }
-      ];
-      const pendingList = document.getElementById('pendingList');
-      pendingList.innerHTML = '';
-      pendingFranchisees.forEach(franchisee => {
-        const div = document.createElement('div');
-        div.className = 'franchisee';
-        div.innerHTML = `
-          <p>Name: ${franchisee.name}</p>
-          <p>Email: ${franchisee.email}</p>
-          <p>Phone: ${franchisee.phone}</p>
-          <button onclick="approveFranchisee(${franchisee.id})" data-i18n="approve">Approve</button>
-        `;
-        pendingList.appendChild(div);
-      });
-      updateLanguage();
-    }
-
-    function approveFranchisee(id) {
-      // 模拟通过审核，实际会更新 Supabase
-      alert('Franchisee approved! Unique code: FRANCHISEE_abc123');
-      loadPendingFranchisees();
-    }
-
-    function loadFranchiseeData() {
-      // 模拟加盟商数据
-      document.getElementById('printQuota').innerText = 10;
-      document.getElementById('printerStatus').innerText = 'Unknown'; // 后续用 Epson API
-      const qrCode = document.getElementById('qrCode');
-      // 动态获取当前域名，避免硬编码
-      const baseUrl = window.location.origin;
-      qrCode.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${baseUrl}/upload.html?code=${code}`)}`;
-      loadTasks();
-    }
-
-    function loadTasks() {
-      const taskList = document.getElementById('taskList');
-      taskList.innerHTML = '';
-      printJobs.forEach(task => {
-        const div = document.createElement('div');
-        div.className = 'task';
-        div.innerHTML = `
-          <img src="${task.photoUrl}" alt="Photo" class="photo-preview" onclick="openModal('${task.photoUrl}')" onerror="this.src='https://via.placeholder.com/60?text=Photo+Failed'">
-          <div class="task-details">
-            <p>Type: <span class="task-type">${task.type}</span></p>
-            <p>Mask: <img src="${task.mask || 'https://via.placeholder.com/30?text=Mask+Failed'}" alt="Mask" class="mask-preview"></p>
-            <p>Status: <span class="task-status" data-i18n="task_status_${task.status}">${translations[currentLang][`task_status_${task.status}`]}</span></p>
-          </div>
-          <div class="task-actions">
-            ${task.status === 'pending' ? `<button onclick="confirmPrint(${task.id})" data-i18n="confirm_print">Confirm Print</button>` : ''}
-            <button class="delete-btn" onclick="deleteTask(${task.id})" data-i18n="delete_task">Delete Task</button>
-          </div>
-        `;
-        taskList.appendChild(div);
-      });
-      updateLanguage();
-    }
-
-    function confirmPrint(id) {
-      const task = printJobs.find(t => t.id === id);
-      if (task) {
-        try {
-          // 模拟调用 Epson API 打印
-          console.log('Sending to printer:', task.photoUrl);
-          // 实际会调用 Epson API /print 端点
-          alert('Printing task ' + id);
-          // 更新任务状态
-          task.status = 'printed';
-          // 实际会更新 Supabase
-          window.printJobs = printJobs; // 更新全局变量
-          loadTasks();
-        } catch (error) {
-          alert(translations[currentLang].print_failed);
-          console.error('Print error:', error);
-        }
+      if (hasTask) {
+        printerStatus.innerText = translations[currentLang].printer_status.replace('{status}', translations[currentLang].status_printing);
+        taskSection.classList.remove('hidden');
+      } else {
+        printerStatus.innerText = translations[currentLang].printer_status.replace('{status}', translations[currentLang].status_idle);
+        taskSection.classList.add('hidden');
       }
     }
 
-    function deleteTask(id) {
-      if (confirm(translations[currentLang].delete_task + '?')) {
-        printJobs = printJobs.filter(task => task.id !== id);
-        window.printJobs = printJobs; // 更新全局变量
-        loadTasks();
-      }
+    async function startPrint() {
+      alert('Start print functionality not implemented yet.');
     }
 
-    function openModal(photoUrl) {
-      const modal = document.getElementById('photoModal');
-      const modalPhoto = document.getElementById('modalPhoto');
-      modalPhoto.src = photoUrl;
-      modal.style.display = 'flex';
+    async function cancelPrint() {
+      alert('Cancel print functionality not implemented yet.');
     }
-
-    function closeModal() {
-      const modal = document.getElementById('photoModal');
-      modal.style.display = 'none';
-    }
-
-    // 点击模态框外部关闭
-    window.onclick = function(event) {
-      const modal = document.getElementById('photoModal');
-      if (event.target === modal) {
-        modal.style.display = 'none';
-      }
-    };
   </script>
 </body>
 </html>
