@@ -65,6 +65,10 @@
     button:hover {
       background: #0056b3;
     }
+    button:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
+    }
     .language-btn {
       background: #28a745;
       color: white;
@@ -92,6 +96,7 @@
       height: 300px;
       margin: 20px auto;
       border: 1px solid #ddd;
+      background: #f9f9f9;
     }
     canvas {
       position: absolute;
@@ -129,12 +134,27 @@
       cursor: pointer;
       border: 2px solid transparent;
       border-radius: 5px;
+      background: #eee;
     }
     .mask-option:hover {
       border-color: #007bff;
     }
     .mask-option.selected {
       border-color: #28a745;
+    }
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: #333;
+      display: none;
     }
   </style>
 </head>
@@ -146,7 +166,7 @@
     </div>
 
     <label data-i18n="print_type_label">Print Type</label>
-    <select id="printType" onchange="updateMaskOptions()">
+    <select id="printType" onchange="photoEditor.updateMaskOptions()">
       <option value="摇摇乐" data-i18n="print_type_1">摇摇乐</option>
       <option value="冰箱贴" data-i18n="print_type_2">冰箱贴</option>
       <option value="钥匙圈" data-i18n="print_type_3">钥匙圈</option>
@@ -154,25 +174,23 @@
 
     <div id="maskSelector" class="mask-selector" style="display: none;"></div>
 
-    <input type="file" id="photoInput" accept="image/*" capture="environment" onchange="loadPhoto()">
+    <input type="file" id="photoInput" accept="image/*" capture="environment" onchange="photoEditor.loadPhoto()">
     <div class="canvas-container">
       <canvas id="photoCanvas"></canvas>
-      <img id="mask" src="assets/mask_shake.png">
+      <img id="mask" src="">
+      <div id="loadingOverlay" class="loading-overlay" data-i18n="loading">加载中...</div>
     </div>
     <div class="controls">
-      <label data-i18n="instructions">Drag to select foreground area, then click "Remove Background"</label>
-      <button onclick="removeBackgroundLocal()" data-i18n="remove_background">Remove Background</button>
-      <button onclick="resetPhoto()" data-i18n="reset">Reset</button>
       <label data-i18n="zoom_label">Zoom</label>
-      <input type="range" id="zoomSlider" min="0.1" max="2" step="0.1" value="1" oninput="updateScale(this.value)">
+      <input type="range" id="zoomSlider" min="0.1" max="2" step="0.1" value="1" oninput="photoEditor.updateScale(this.value)">
       <label data-i18n="brightness_label">Brightness</label>
-      <input type="range" id="brightnessSlider" min="0" max="2" step="0.1" value="1" oninput="updatePhoto()">
+      <input type="range" id="brightnessSlider" min="0" max="2" step="0.1" value="1" oninput="photoEditor.updatePhoto()">
       <label data-i18n="contrast_label">Contrast</label>
-      <input type="range" id="contrastSlider" min="0" max="2" step="0.1" value="1" oninput="updatePhoto()">
-      <button onclick="rotateLeft()" data-i18n="rotate_left">Rotate Left</button>
-      <button onclick="rotateRight()" data-i18n="rotate_right">Rotate Right</button>
+      <input type="range" id="contrastSlider" min="0" max="2" step="0.1" value="1" oninput="photoEditor.updatePhoto()">
+      <button onclick="photoEditor.rotateLeft()" data-i18n="rotate_left">Rotate Left</button>
+      <button onclick="photoEditor.rotateRight()" data-i18n="rotate_right">Rotate Right</button>
     </div>
-    <button onclick="submitPhoto()" data-i18n="submit">Submit</button>
+    <button id="submitButton" onclick="photoEditor.submitPhoto()" data-i18n="submit">Submit</button>
     <div id="submitMessage" class="message"></div>
   </div>
 
@@ -189,13 +207,13 @@
         print_type_1: "摇摇乐",
         print_type_2: "冰箱贴",
         print_type_3: "钥匙圈",
-        instructions: "拖动选择前景区域，然后点击“移除背景”",
-        remove_background: "移除背景",
-        reset: "重置",
         submit: "提交",
+        loading: "加载中...",
+        submitting: "提交中...",
         submit_success: "照片已提交，等待打印！",
         submit_failed: "请先上传照片！",
-        select_area_failed: "请先选择前景区域！"
+        file_too_large: "照片文件过大，请选择小于5MB的照片！",
+        network_error: "网络错误，请稍后再试！"
       },
       en: {
         title: "Upload Photo - Photo Print Service",
@@ -208,13 +226,13 @@
         print_type_1: "Shake Toy",
         print_type_2: "Fridge Magnet",
         print_type_3: "Keychain",
-        instructions: "Drag to select foreground area, then click 'Remove Background'",
-        remove_background: "Remove Background",
-        reset: "Reset",
         submit: "Submit",
+        loading: "Loading...",
+        submitting: "Submitting...",
         submit_success: "Photo submitted, waiting for printing!",
         submit_failed: "Please upload a photo first!",
-        select_area_failed: "Please select the foreground area first!"
+        file_too_large: "Photo file is too large, please select a photo smaller than 5MB!",
+        network_error: "Network error, please try again later!"
       }
     };
 
@@ -235,418 +253,354 @@
       document.title = translations[currentLang].title;
     }
 
-    const canvas = document.getElementById('photoCanvas');
-    const ctx = canvas.getContext('2d');
-    const mask = document.getElementById('mask');
-    let img = new Image();
-    let originalImg = new Image(); // 存储原始照片
-    let scale = 1;
-    let rotation = 0;
-    let brightness = 1;
-    let contrast = 1;
-    let offsetX = 0;
-    let offsetY = 0;
-    let isDragging = false;
-    let isSelecting = false;
-    let startX, startY;
-    let selectStartX, selectStartY, selectEndX, selectEndY;
-    let initialDistance = 0;
-    let initialAngle = 0;
-    let initialScale = 1;
-    let initialRotation = 0;
-
-    // 设置 Canvas 尺寸
-    canvas.width = 300;
-    canvas.height = 300;
-
-    // 蒙版原始尺寸和比例
-    const maskOriginalWidth = 875;
-    const maskOriginalHeight = 1252;
-    const maskAspectRatio = maskOriginalWidth / maskOriginalHeight; // 约 0.698
-    const displayHeight = 300; // 显示区域高度
-    const displayWidth = displayHeight * maskAspectRatio; // 保持比例，宽度约 209.66
-
-    // 模拟蒙版数据
-    const maskOptions = {
-      '摇摇乐': [
-        { name: '默认', src: 'assets/mask_shake.png' }
-      ],
-      '冰箱贴': [
-        { name: '动物-猫咪', src: 'assets/mask_magnet_cat.png' },
-        { name: '动物-小狗', src: 'assets/mask_magnet_dog.png' },
-        { name: '风景-海洋', src: 'assets/mask_magnet_ocean.png' }
-      ],
-      '钥匙圈': [
-        { name: '圆形-简约', src: 'assets/mask_keychain_circle.png' },
-        { name: '方形-经典', src: 'assets/mask_keychain_square.png' },
-        { name: '心形-浪漫', src: 'assets/mask_keychain_heart.png' }
-      ]
-    };
-
-    let selectedMaskSrc = 'assets/mask_shake.png';
-
-    function updateMaskOptions() {
-      const printType = document.getElementById('printType').value;
-      const maskSelector = document.getElementById('maskSelector');
-      maskSelector.innerHTML = '';
-
-      if (printType === '摇摇乐') {
-        maskSelector.style.display = 'none';
-        selectedMaskSrc = maskOptions[printType][0].src;
-      } else {
-        maskSelector.style.display = 'flex';
-        maskOptions[printType].forEach((option, index) => {
-          const img = document.createElement('img');
-          img.className = 'mask-option';
-          img.src = option.src;
-          img.alt = option.name;
-          img.title = option.name;
-          if (index === 0) {
-            img.classList.add('selected');
-            selectedMaskSrc = option.src;
-          }
-          img.onerror = () => {
-            img.src = 'https://via.placeholder.com/60?text=' + option.name; // 占位图
-          };
-          img.onclick = () => {
-            document.querySelectorAll('.mask-option').forEach(opt => opt.classList.remove('selected'));
-            img.classList.add('selected');
-            selectedMaskSrc = option.src;
-            updateMask();
-          };
-          maskSelector.appendChild(img);
-        });
-      }
-      updateMask();
+    // 获取 userId
+    const urlParams = new URLSearchParams(window.location.search);
+    const userId = urlParams.get('userId');
+    if (!userId) {
+      alert('Missing userId');
+      window.location.href = 'index.html';
     }
 
-    function updateMask() {
-      mask.src = selectedMaskSrc;
-      mask.style.width = `${displayWidth}px`;
-      mask.style.height = `${displayHeight}px`;
-      mask.style.left = `${(300 - displayWidth) / 2}px`; // 居中
-      mask.style.top = '0px';
-      updatePhoto();
-    }
+    class PhotoEditor {
+      constructor() {
+        this.canvas = document.getElementById('photoCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.mask = document.getElementById('mask');
+        this.loadingOverlay = document.getElementById('loadingOverlay');
+        this.submitButton = document.getElementById('submitButton');
+        this.submitMessage = document.getElementById('submitMessage');
 
-    // 初始化蒙版选项
-    updateMaskOptions();
-
-    function loadPhoto() {
-      const file = document.getElementById('photoInput').files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          originalImg.src = e.target.result;
-          originalImg.onload = () => {
-            img.src = originalImg.src;
-            img.onload = () => {
-              scale = 1;
-              rotation = 0;
-              brightness = 1;
-              contrast = 1;
-              offsetX = 0;
-              offsetY = 0;
-              // 设置默认矩形区域（覆盖照片中心）
-              selectStartX = canvas.width * 0.25; // 左上角
-              selectStartY = canvas.height * 0.25;
-              selectEndX = canvas.width * 0.75; // 右下角
-              selectEndY = canvas.height * 0.75;
-              updatePhoto();
-            };
-          };
+        this.img = new Image();
+        this.state = {
+          scale: 1,
+          rotation: 0,
+          brightness: 1,
+          contrast: 1,
+          offsetX: 0,
+          offsetY: 0,
+          isDragging: false,
+          startX: 0,
+          startY: 0,
+          initialDistance: 0,
+          initialAngle: 0,
+          initialScale: 1,
+          initialRotation: 0
         };
-        reader.readAsDataURL(file);
-      }
-    }
 
-    function resetPhoto() {
-      if (!originalImg.src) {
-        document.getElementById('submitMessage').innerText = translations[currentLang].submit_failed;
-        return;
-      }
-      img.src = originalImg.src;
-      scale = 1;
-      rotation = 0;
-      brightness = 1;
-      contrast = 1;
-      offsetX = 0;
-      offsetY = 0;
-      selectStartX = canvas.width * 0.25;
-      selectStartY = canvas.height * 0.25;
-      selectEndX = canvas.width * 0.75;
-      selectEndY = canvas.height * 0.75;
-      document.getElementById('zoomSlider').value = 1;
-      document.getElementById('brightnessSlider').value = 1;
-      document.getElementById('contrastSlider').value = 1;
-      updatePhoto();
-    }
+        // 设置 Canvas 尺寸
+        this.canvas.width = 300;
+        this.canvas.height = 300;
 
-    function removeBackgroundLocal() {
-      // 检查是否上传了照片
-      if (!originalImg.src || !img.src) {
-        document.getElementById('submitMessage').innerText = translations[currentLang].submit_failed;
-        return;
-      }
+        // 蒙版原始尺寸和比例
+        this.maskOriginalWidth = 875;
+        this.maskOriginalHeight = 1252;
+        this.maskAspectRatio = this.maskOriginalWidth / this.maskOriginalHeight; // 约 0.698
+        this.displayHeight = 300;
+        this.displayWidth = this.displayHeight * this.maskAspectRatio; // 约 209.66
 
-      // 创建一个临时的 Canvas 用于抠图
-      const tempCanvas = document.createElement('canvas');
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCanvas.width = originalImg.width;
-      tempCanvas.height = originalImg.height;
+        // 蒙版选项（使用占位符 URL，实际需替换）
+        this.maskOptions = {
+          '摇摇乐': [
+            { name: '默认', src: 'https://via.placeholder.com/60?text=Shake' }
+          ],
+          '冰箱贴': [
+            { name: '动物-猫咪', src: 'https://via.placeholder.com/60?text=Cat' },
+            { name: '动物-小狗', src: 'https://via.placeholder.com/60?text=Dog' },
+            { name: '风景-海洋', src: 'https://via.placeholder.com/60?text=Ocean' }
+          ],
+          '钥匙圈': [
+            { name: '圆形-简约', src: 'https://via.placeholder.com/60?text=Circle' },
+            { name: '方形-经典', src: 'https://via.placeholder.com/60?text=Square' },
+            { name: '心形-浪漫', src: 'https://via.placeholder.com/60?text=Heart' }
+          ]
+        };
 
-      // 绘制原始照片
-      tempCtx.drawImage(originalImg, 0, 0);
+        this.selectedMaskSrc = this.maskOptions['摇摇乐'][0].src;
 
-      // 获取用户选择的矩形区域（映射到原始图像尺寸）
-      const canvasRatioX = originalImg.width / canvas.width;
-      const canvasRatioY = originalImg.height / canvas.height;
+        // 初始化蒙版选项
+        this.updateMaskOptions();
 
-      // 调整坐标，考虑 Canvas 的缩放、旋转和偏移
-      let rectStartX = Math.min(selectStartX, selectEndX);
-      let rectStartY = Math.min(selectStartY, selectEndY);
-      let rectEndX = Math.max(selectStartX, selectEndX);
-      let rectEndY = Math.max(selectStartY, selectEndY);
-
-      // 限制坐标在 Canvas 范围内
-      rectStartX = Math.max(0, Math.min(canvas.width, rectStartX));
-      rectStartY = Math.max(0, Math.min(canvas.height, rectStartY));
-      rectEndX = Math.max(0, Math.min(canvas.width, rectEndX));
-      rectEndY = Math.max(0, Math.min(canvas.height, rectEndY));
-
-      // 映射到原始图像尺寸
-      const rectX = rectStartX * canvasRatioX;
-      const rectY = rectStartY * canvasRatioY;
-      const rectWidth = (rectEndX - rectStartX) * canvasRatioX;
-      const rectHeight = (rectEndY - rectStartY) * canvasRatioY;
-
-      // 安全检查：如果矩形区域无效，提示用户
-      if (rectWidth <= 0 || rectHeight <= 0) {
-        document.getElementById('submitMessage').innerText = translations[currentLang].select_area_failed;
-        return;
+        // 绑定事件
+        this.bindEvents();
       }
 
-      // 获取像素数据
-      const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
-      const data = imageData.data;
+      updateMaskOptions() {
+        const printType = document.getElementById('printType').value;
+        const maskSelector = document.getElementById('maskSelector');
+        maskSelector.innerHTML = '';
 
-      // 遍历像素，移除矩形区域外的部分
-      for (let y = 0; y < tempCanvas.height; y++) {
-        for (let x = 0; x < tempCanvas.width; x++) {
-          const i = (y * tempCanvas.width + x) * 4;
-          const isInsideRect =
-            x >= rectX &&
-            x <= rectX + rectWidth &&
-            y >= rectY &&
-            y <= rectY + rectHeight;
-          if (!isInsideRect) {
-            data[i + 3] = 0; // 设置为透明
-          }
+        if (printType === '摇摇乐') {
+          maskSelector.style.display = 'none';
+          this.selectedMaskSrc = this.maskOptions[printType][0].src;
+        } else {
+          maskSelector.style.display = 'flex';
+          this.maskOptions[printType].forEach((option, index) => {
+            const img = document.createElement('img');
+            img.className = 'mask-option';
+            img.src = option.src;
+            img.alt = option.name;
+            img.title = option.name;
+            if (index === 0) {
+              img.classList.add('selected');
+              this.selectedMaskSrc = option.src;
+            }
+            img.onclick = () => {
+              document.querySelectorAll('.mask-option').forEach(opt => opt.classList.remove('selected'));
+              img.classList.add('selected');
+              this.selectedMaskSrc = option.src;
+              this.updateMask();
+            };
+            maskSelector.appendChild(img);
+          });
+        }
+        this.updateMask();
+      }
+
+      updateMask() {
+        this.mask.src = this.selectedMaskSrc;
+        this.mask.style.width = `${this.displayWidth}px`;
+        this.mask.style.height = `${this.displayHeight}px`;
+        this.mask.style.left = `${(300 - this.displayWidth) / 2}px`; // 居中
+        this.mask.style.top = '0px';
+        this.updatePhoto();
+      }
+
+      async loadPhoto() {
+        const file = document.getElementById('photoInput').files[0];
+        if (!file) return;
+
+        // 限制文件大小（5MB）
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+          this.submitMessage.innerText = translations[currentLang].file_too_large;
+          return;
+        }
+
+        this.showLoading(true);
+        try {
+          this.img.src = URL.createObjectURL(file);
+          await new Promise(resolve => this.img.onload = resolve);
+          // 模拟抠图 API 调用
+          const processedImg = await this.removeBackground(this.img);
+          this.img = processedImg;
+          this.state = {
+            ...this.state,
+            scale: 1,
+            rotation: 0,
+            brightness: 1,
+            contrast: 1,
+            offsetX: 0,
+            offsetY: 0
+          };
+          document.getElementById('zoomSlider').value = 1;
+          document.getElementById('brightnessSlider').value = 1;
+          document.getElementById('contrastSlider').value = 1;
+          this.updatePhoto();
+        } catch (error) {
+          console.error('Load photo error:', error);
+          this.submitMessage.innerText = translations[currentLang].network_error;
+        } finally {
+          this.showLoading(false);
         }
       }
 
-      // 将处理后的像素数据放回 Canvas
-      tempCtx.putImageData(imageData, 0, 0);
+      removeBackground(image) {
+        // 占位：模拟抠图 API
+        return new Promise(resolve => resolve(image));
+      }
 
-      // 更新 img 为抠图后的图像
-      img.src = tempCanvas.toDataURL('image/png');
-      img.onload = () => {
-        updatePhoto();
-      };
+      updateScale(value) {
+        this.state.scale = parseFloat(value);
+        this.updatePhoto();
+      }
+
+      updatePhoto() {
+        this.state.scale = Math.max(0.1, Math.min(2, this.state.scale));
+        this.state.brightness = parseFloat(document.getElementById('brightnessSlider').value);
+        this.state.contrast = parseFloat(document.getElementById('contrastSlider').value);
+
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.save();
+        this.ctx.filter = `brightness(${this.state.brightness}) contrast(${this.state.contrast})`;
+        this.ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
+        this.ctx.rotate((this.state.rotation * Math.PI) / 180);
+        this.ctx.scale(this.state.scale, this.state.scale);
+
+        const aspectRatio = this.img.width / this.img.height;
+        let drawWidth, drawHeight;
+        if (aspectRatio > 1) {
+          drawWidth = 300;
+          drawHeight = 300 / aspectRatio;
+        } else {
+          drawHeight = 300;
+          drawWidth = 300 * aspectRatio;
+        }
+        this.ctx.translate(-drawWidth / 2 + this.state.offsetX, -drawHeight / 2 + this.state.offsetY);
+        this.ctx.drawImage(this.img, 0, 0, drawWidth, drawHeight);
+        this.ctx.restore();
+      }
+
+      rotateLeft() {
+        this.state.rotation -= 90;
+        this.updatePhoto();
+      }
+
+      rotateRight() {
+        this.state.rotation += 90;
+        this.updatePhoto();
+      }
+
+      async submitPhoto() {
+        if (!this.img.src) {
+          this.submitMessage.innerText = translations[currentLang].submit_failed;
+          return;
+        }
+
+        this.submitButton.disabled = true;
+        this.showLoading(true, translations[currentLang].submitting);
+        try {
+          const printType = document.getElementById('printType').value;
+          const photoDataUrl = this.canvas.toDataURL('image/png');
+
+          // 上传照片到 Supabase Storage
+          const photoResponse = await fetch('/.netlify/functions/upload_photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: userId,
+              photoData: photoDataUrl
+            })
+          });
+          const photoData = await photoResponse.json();
+          if (!photoData.success) {
+            throw new Error('Failed to upload photo');
+          }
+
+          // 创建打印任务
+          const taskResponse = await fetch('/.netlify/functions/create_print_job', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: userId,
+              photoUrl: photoData.photoUrl,
+              type: printType,
+              mask: this.selectedMaskSrc,
+              status: 'pending'
+            })
+          });
+          const taskData = await taskResponse.json();
+          if (!taskData.success) {
+            throw new Error('Failed to create print job');
+          }
+
+          this.submitMessage.innerText = translations[currentLang].submit_success;
+          setTimeout(() => {
+            window.location.href = `dashboard.html?email=${encodeURIComponent('kwn998@gmail.com')}&id=${userId}`;
+          }, 1000);
+        } catch (error) {
+          console.error('Submit photo error:', error);
+          this.submitMessage.innerText = translations[currentLang].network_error;
+        } finally {
+          this.submitButton.disabled = false;
+          this.showLoading(false);
+        }
+      }
+
+      showLoading(show, message = translations[currentLang].loading) {
+        this.loadingOverlay.style.display = show ? 'flex' : 'none';
+        this.loadingOverlay.textContent = message;
+      }
+
+      bindEvents() {
+        // 鼠标事件
+        this.canvas.addEventListener('mousedown', (e) => this.handleStart(e));
+        this.canvas.addEventListener('mousemove', (e) => this.handleMove(e));
+        this.canvas.addEventListener('mouseup', () => this.handleEnd());
+        this.canvas.addEventListener('mouseleave', () => this.handleEnd());
+
+        // 触屏事件
+        this.canvas.addEventListener('touchstart', (e) => this.handleStart(e));
+        this.canvas.addEventListener('touchmove', (e) => this.handleMove(e));
+        this.canvas.addEventListener('touchend', (e) => this.handleEnd());
+      }
+
+      getEventPosition(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        if (e.type.includes('touch')) {
+          const touch = e.touches[0] || e.changedTouches[0];
+          return {
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top,
+            touches: e.touches
+          };
+        }
+        return {
+          x: e.offsetX,
+          y: e.offsetY,
+          touches: null
+        };
+      }
+
+      handleStart(e) {
+        e.preventDefault();
+        const { x, y, touches } = this.getEventPosition(e);
+        if (touches && touches.length === 2) {
+          this.state.isDragging = false;
+          const touch1 = touches[0];
+          const touch2 = touches[1];
+          this.state.initialDistance = Math.hypot(
+            touch1.clientX - touch2.clientX,
+            touch1.clientY - touch2.clientY
+          );
+          this.state.initialAngle = Math.atan2(
+            touch2.clientY - touch1.clientY,
+            touch2.clientX - touch1.clientX
+          );
+          this.state.initialScale = this.state.scale;
+          this.state.initialRotation = this.state.rotation;
+        } else {
+          this.state.isDragging = true;
+          this.state.startX = x;
+          this.state.startY = y;
+        }
+      }
+
+      handleMove(e) {
+        e.preventDefault();
+        const { x, y, touches } = this.getEventPosition(e);
+        if (this.state.isDragging) {
+          this.state.offsetX += (x - this.state.startX) / this.state.scale;
+          this.state.offsetY += (y - this.state.startY) / this.state.scale;
+          this.state.startX = x;
+          this.state.startY = y;
+          this.updatePhoto();
+        } else if (touches && touches.length === 2) {
+          const touch1 = touches[0];
+          const touch2 = touches[1];
+          const currentDistance = Math.hypot(
+            touch1.clientX - touch2.clientX,
+            touch1.clientY - touch2.clientY
+          );
+          const currentAngle = Math.atan2(
+            touch2.clientY - touch1.clientY,
+            touch2.clientX - touch1.clientX
+          );
+          this.state.scale = this.state.initialScale * (currentDistance / this.state.initialDistance);
+          this.state.scale = Math.max(0.1, Math.min(2, this.state.scale));
+          const angleDiff = (currentAngle - this.state.initialAngle) * (180 / Math.PI);
+          this.state.rotation = this.state.initialRotation + angleDiff;
+          this.updatePhoto();
+        }
+      }
+
+      handleEnd() {
+        this.state.isDragging = false;
+        this.state.initialDistance = 0;
+        this.state.initialAngle = 0;
+      }
     }
 
-    function updateScale(value) {
-      scale = parseFloat(value);
-      updatePhoto();
-    }
-
-    function updatePhoto() {
-      scale = Math.max(0.1, Math.min(2, scale)); // 限制缩放范围
-      document.getElementById('zoomSlider').value = scale;
-      brightness = parseFloat(document.getElementById('brightnessSlider').value);
-      contrast = parseFloat(document.getElementById('contrastSlider').value);
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.save();
-      ctx.filter = `brightness(${brightness}) contrast(${contrast})`;
-      ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate((rotation * Math.PI) / 180);
-      ctx.scale(scale, scale);
-
-      // 计算照片的绘制尺寸，保持原始比例
-      const aspectRatio = img.width / img.height;
-      let drawWidth, drawHeight;
-      if (aspectRatio > 1) {
-        // 宽图
-        drawWidth = 300;
-        drawHeight = 300 / aspectRatio;
-      } else {
-        // 高图
-        drawHeight = 300;
-        drawWidth = 300 * aspectRatio;
-      }
-      ctx.translate(-drawWidth / 2 + offsetX, -drawHeight / 2 + offsetY);
-      ctx.drawImage(img, 0, 0, drawWidth, drawHeight);
-
-      // 绘制选择矩形
-      if (isSelecting || (selectStartX !== selectEndX && selectStartY !== selectEndY)) {
-        ctx.beginPath();
-        ctx.strokeStyle = 'red';
-        ctx.lineWidth = 2;
-        ctx.rect(
-          (Math.min(selectStartX, selectEndX) - canvas.width / 2) / scale,
-          (Math.min(selectStartY, selectEndY) - canvas.height / 2) / scale,
-          (Math.abs(selectEndX - selectStartX)) / scale,
-          (Math.abs(selectEndY - selectStartY)) / scale
-        );
-        ctx.stroke();
-      }
-
-      ctx.restore();
-    }
-
-    function rotateLeft() {
-      rotation -= 90;
-      updatePhoto();
-    }
-
-    function rotateRight() {
-      rotation += 90;
-      updatePhoto();
-    }
-
-    // 鼠标事件（桌面端）
-    canvas.addEventListener('mousedown', (e) => {
-      if (e.shiftKey) {
-        // 按住 Shift 键选择前景区域
-        isSelecting = true;
-        selectStartX = e.offsetX;
-        selectStartY = e.offsetY;
-        selectEndX = e.offsetX;
-        selectEndY = e.offsetY;
-      } else {
-        isDragging = true;
-        startX = e.offsetX;
-        startY = e.offsetY;
-      }
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-      if (isDragging) {
-        offsetX += (e.offsetX - startX) / scale;
-        offsetY += (e.offsetY - startY) / scale;
-        startX = e.offsetX;
-        startY = e.offsetY;
-        updatePhoto();
-      } else if (isSelecting) {
-        selectEndX = e.offsetX;
-        selectEndY = e.offsetY;
-        updatePhoto();
-      }
-    });
-
-    canvas.addEventListener('mouseup', () => {
-      isDragging = false;
-      isSelecting = false;
-    });
-
-    canvas.addEventListener('mouseleave', () => {
-      isDragging = false;
-      isSelecting = false;
-    });
-
-    // 触屏事件（手机端）
-    canvas.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      const touches = e.touches;
-      if (touches.length === 1) {
-        // 单指拖动
-        isDragging = true;
-        const touch = touches[0];
-        startX = touch.clientX - canvas.getBoundingClientRect().left;
-        startY = touch.clientY - canvas.getBoundingClientRect().top;
-      } else if (touches.length === 2) {
-        // 双指缩放和旋转
-        isDragging = false;
-        const touch1 = touches[0];
-        const touch2 = touches[1];
-        initialDistance = Math.hypot(
-          touch1.clientX - touch2.clientX,
-          touch1.clientY - touch2.clientY
-        );
-        initialAngle = Math.atan2(
-          touch2.clientY - touch1.clientY,
-          touch2.clientX - touch1.clientX
-        );
-        initialScale = scale;
-        initialRotation = rotation;
-      }
-    });
-
-    canvas.addEventListener('touchmove', (e) => {
-      e.preventDefault();
-      const touches = e.touches;
-      if (touches.length === 1 && isDragging) {
-        // 单指拖动
-        const touch = touches[0];
-        const currentX = touch.clientX - canvas.getBoundingClientRect().left;
-        const currentY = touch.clientY - canvas.getBoundingClientRect().top;
-        offsetX += (currentX - startX) / scale;
-        offsetY += (currentY - startY) / scale;
-        startX = currentX;
-        startY = currentY;
-        updatePhoto();
-      } else if (touches.length === 2) {
-        // 双指缩放和旋转
-        const touch1 = touches[0];
-        const touch2 = touches[1];
-        const currentDistance = Math.hypot(
-          touch1.clientX - touch2.clientX,
-          touch1.clientY - touch2.clientY
-        );
-        const currentAngle = Math.atan2(
-          touch2.clientY - touch1.clientY,
-          touch2.clientX - touch1.clientX
-        );
-        // 缩放
-        scale = initialScale * (currentDistance / initialDistance);
-        scale = Math.max(0.1, Math.min(2, scale)); // 限制缩放范围
-        // 旋转
-        const angleDiff = (currentAngle - initialAngle) * (180 / Math.PI);
-        rotation = initialRotation + angleDiff;
-        updatePhoto();
-      }
-    });
-
-    canvas.addEventListener('touchend', (e) => {
-      e.preventDefault();
-      isDragging = false;
-      initialDistance = 0;
-      initialAngle = 0;
-    });
-
-    // 模拟 print_jobs 数据
-    let printJobs = window.printJobs || [];
-
-    function submitPhoto() {
-      if (!img.src) {
-        document.getElementById('submitMessage').innerText = translations[currentLang].submit_failed;
-        return;
-      }
-
-      const printType = document.getElementById('printType').value;
-      // 模拟提交，存到 printJobs（后续会存到 Supabase）
-      const photoUrl = canvas.toDataURL('image/png'); // 将 Canvas 转为 Base64
-      printJobs.push({
-        id: printJobs.length + 1,
-        photoUrl: photoUrl,
-        type: printType,
-        mask: selectedMaskSrc,
-        status: 'pending'
-      });
-      window.printJobs = printJobs; // 存储到全局变量，供 dashboard.html 使用
-      document.getElementById('submitMessage').innerText = translations[currentLang].submit_success;
-    }
+    const photoEditor = new PhotoEditor();
   </script>
 </body>
 </html>
