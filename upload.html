@@ -160,6 +160,9 @@
       <img id="mask" src="assets/mask_shake.png">
     </div>
     <div class="controls">
+      <label data-i18n="instructions">Drag to select foreground area, then click "Remove Background"</label>
+      <button onclick="removeBackgroundLocal()" data-i18n="remove_background">Remove Background</button>
+      <button onclick="resetPhoto()" data-i18n="reset">Reset</button>
       <label data-i18n="zoom_label">Zoom</label>
       <input type="range" id="zoomSlider" min="0.1" max="2" step="0.1" value="1" oninput="updateScale(this.value)">
       <label data-i18n="brightness_label">Brightness</label>
@@ -186,9 +189,13 @@
         print_type_1: "摇摇乐",
         print_type_2: "冰箱贴",
         print_type_3: "钥匙圈",
+        instructions: "拖动选择前景区域，然后点击“移除背景”",
+        remove_background: "移除背景",
+        reset: "重置",
         submit: "提交",
         submit_success: "照片已提交，等待打印！",
-        submit_failed: "请先上传照片！"
+        submit_failed: "请先上传照片！",
+        select_area_failed: "请先选择前景区域！"
       },
       en: {
         title: "Upload Photo - Photo Print Service",
@@ -201,9 +208,13 @@
         print_type_1: "Shake Toy",
         print_type_2: "Fridge Magnet",
         print_type_3: "Keychain",
+        instructions: "Drag to select foreground area, then click 'Remove Background'",
+        remove_background: "Remove Background",
+        reset: "Reset",
         submit: "Submit",
         submit_success: "Photo submitted, waiting for printing!",
-        submit_failed: "Please upload a photo first!"
+        submit_failed: "Please upload a photo first!",
+        select_area_failed: "Please select the foreground area first!"
       }
     };
 
@@ -228,6 +239,7 @@
     const ctx = canvas.getContext('2d');
     const mask = document.getElementById('mask');
     let img = new Image();
+    let originalImg = new Image(); // 存储原始照片
     let scale = 1;
     let rotation = 0;
     let brightness = 1;
@@ -235,7 +247,9 @@
     let offsetX = 0;
     let offsetY = 0;
     let isDragging = false;
+    let isSelecting = false;
     let startX, startY;
+    let selectStartX, selectStartY, selectEndX, selectEndY;
     let initialDistance = 0;
     let initialAngle = 0;
     let initialScale = 1;
@@ -291,6 +305,9 @@
             img.classList.add('selected');
             selectedMaskSrc = option.src;
           }
+          img.onerror = () => {
+            img.src = 'https://via.placeholder.com/60?text=' + option.name; // 占位图
+          };
           img.onclick = () => {
             document.querySelectorAll('.mask-option').forEach(opt => opt.classList.remove('selected'));
             img.classList.add('selected');
@@ -318,29 +335,124 @@
     function loadPhoto() {
       const file = document.getElementById('photoInput').files[0];
       if (file) {
-        img.src = URL.createObjectURL(file);
-        img.onload = () => {
-          // 模拟抠图 API 调用
-          removeBackground(img).then(processedImg => {
-            img = processedImg;
-            scale = 1;
-            rotation = 0;
-            brightness = 1;
-            contrast = 1;
-            offsetX = 0;
-            offsetY = 0;
-            updatePhoto();
-          });
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          originalImg.src = e.target.result;
+          originalImg.onload = () => {
+            img.src = originalImg.src;
+            img.onload = () => {
+              scale = 1;
+              rotation = 0;
+              brightness = 1;
+              contrast = 1;
+              offsetX = 0;
+              offsetY = 0;
+              // 设置默认矩形区域（覆盖照片中心）
+              selectStartX = canvas.width * 0.25; // 左上角
+              selectStartY = canvas.height * 0.25;
+              selectEndX = canvas.width * 0.75; // 右下角
+              selectEndY = canvas.height * 0.75;
+              updatePhoto();
+            };
+          };
         };
+        reader.readAsDataURL(file);
       }
     }
 
-    function removeBackground(image) {
-      // 占位：模拟抠图 API
-      return new Promise(resolve => {
-        // 实际会调用抠图 API，这里直接返回原图
-        resolve(image);
-      });
+    function resetPhoto() {
+      if (!originalImg.src) {
+        document.getElementById('submitMessage').innerText = translations[currentLang].submit_failed;
+        return;
+      }
+      img.src = originalImg.src;
+      scale = 1;
+      rotation = 0;
+      brightness = 1;
+      contrast = 1;
+      offsetX = 0;
+      offsetY = 0;
+      selectStartX = canvas.width * 0.25;
+      selectStartY = canvas.height * 0.25;
+      selectEndX = canvas.width * 0.75;
+      selectEndY = canvas.height * 0.75;
+      document.getElementById('zoomSlider').value = 1;
+      document.getElementById('brightnessSlider').value = 1;
+      document.getElementById('contrastSlider').value = 1;
+      updatePhoto();
+    }
+
+    function removeBackgroundLocal() {
+      // 检查是否上传了照片
+      if (!originalImg.src || !img.src) {
+        document.getElementById('submitMessage').innerText = translations[currentLang].submit_failed;
+        return;
+      }
+
+      // 创建一个临时的 Canvas 用于抠图
+      const tempCanvas = document.createElement('canvas');
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCanvas.width = originalImg.width;
+      tempCanvas.height = originalImg.height;
+
+      // 绘制原始照片
+      tempCtx.drawImage(originalImg, 0, 0);
+
+      // 获取用户选择的矩形区域（映射到原始图像尺寸）
+      const canvasRatioX = originalImg.width / canvas.width;
+      const canvasRatioY = originalImg.height / canvas.height;
+
+      // 调整坐标，考虑 Canvas 的缩放、旋转和偏移
+      let rectStartX = Math.min(selectStartX, selectEndX);
+      let rectStartY = Math.min(selectStartY, selectEndY);
+      let rectEndX = Math.max(selectStartX, selectEndX);
+      let rectEndY = Math.max(selectStartY, selectEndY);
+
+      // 限制坐标在 Canvas 范围内
+      rectStartX = Math.max(0, Math.min(canvas.width, rectStartX));
+      rectStartY = Math.max(0, Math.min(canvas.height, rectStartY));
+      rectEndX = Math.max(0, Math.min(canvas.width, rectEndX));
+      rectEndY = Math.max(0, Math.min(canvas.height, rectEndY));
+
+      // 映射到原始图像尺寸
+      const rectX = rectStartX * canvasRatioX;
+      const rectY = rectStartY * canvasRatioY;
+      const rectWidth = (rectEndX - rectStartX) * canvasRatioX;
+      const rectHeight = (rectEndY - rectStartY) * canvasRatioY;
+
+      // 安全检查：如果矩形区域无效，提示用户
+      if (rectWidth <= 0 || rectHeight <= 0) {
+        document.getElementById('submitMessage').innerText = translations[currentLang].select_area_failed;
+        return;
+      }
+
+      // 获取像素数据
+      const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+      const data = imageData.data;
+
+      // 遍历像素，移除矩形区域外的部分
+      for (let y = 0; y < tempCanvas.height; y++) {
+        for (let x = 0; x < tempCanvas.width; x++) {
+          const i = (y * tempCanvas.width + x) * 4;
+          const isInsideRect =
+            x >= rectX &&
+            x <= rectX + rectWidth &&
+            y >= rectY &&
+            y <= rectY + rectHeight;
+          if (!isInsideRect) {
+            data[i + 3] = 0; // 设置为透明
+          }
+        }
+      }
+
+      // 将处理后的像素数据放回 Canvas
+      tempCtx.putImageData(imageData, 0, 0);
+
+      // 更新 img 为抠图后的图像
+      img.src = tempCanvas.toDataURL('image/png');
+      img.onload = () => {
+        updatePhoto();
+      };
     }
 
     function updateScale(value) {
@@ -375,6 +487,21 @@
       }
       ctx.translate(-drawWidth / 2 + offsetX, -drawHeight / 2 + offsetY);
       ctx.drawImage(img, 0, 0, drawWidth, drawHeight);
+
+      // 绘制选择矩形
+      if (isSelecting || (selectStartX !== selectEndX && selectStartY !== selectEndY)) {
+        ctx.beginPath();
+        ctx.strokeStyle = 'red';
+        ctx.lineWidth = 2;
+        ctx.rect(
+          (Math.min(selectStartX, selectEndX) - canvas.width / 2) / scale,
+          (Math.min(selectStartY, selectEndY) - canvas.height / 2) / scale,
+          (Math.abs(selectEndX - selectStartX)) / scale,
+          (Math.abs(selectEndY - selectStartY)) / scale
+        );
+        ctx.stroke();
+      }
+
       ctx.restore();
     }
 
@@ -390,9 +517,18 @@
 
     // 鼠标事件（桌面端）
     canvas.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      startX = e.offsetX;
-      startY = e.offsetY;
+      if (e.shiftKey) {
+        // 按住 Shift 键选择前景区域
+        isSelecting = true;
+        selectStartX = e.offsetX;
+        selectStartY = e.offsetY;
+        selectEndX = e.offsetX;
+        selectEndY = e.offsetY;
+      } else {
+        isDragging = true;
+        startX = e.offsetX;
+        startY = e.offsetY;
+      }
     });
 
     canvas.addEventListener('mousemove', (e) => {
@@ -402,15 +538,21 @@
         startX = e.offsetX;
         startY = e.offsetY;
         updatePhoto();
+      } else if (isSelecting) {
+        selectEndX = e.offsetX;
+        selectEndY = e.offsetY;
+        updatePhoto();
       }
     });
 
     canvas.addEventListener('mouseup', () => {
       isDragging = false;
+      isSelecting = false;
     });
 
     canvas.addEventListener('mouseleave', () => {
       isDragging = false;
+      isSelecting = false;
     });
 
     // 触屏事件（手机端）
