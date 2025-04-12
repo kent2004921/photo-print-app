@@ -12,6 +12,7 @@ exports.handler = async (event) => {
   try {
     body = JSON.parse(event.body);
   } catch (error) {
+    console.error('Invalid request body:', error);
     return {
       statusCode: 400,
       body: JSON.stringify({ success: false, message: 'Invalid request body' })
@@ -19,6 +20,9 @@ exports.handler = async (event) => {
   }
 
   const { action, name, email, phone, password, id } = body;
+
+  // 调试日志
+  console.log('Request body:', body);
 
   // 验证必要字段
   if (!action) {
@@ -39,9 +43,10 @@ exports.handler = async (event) => {
 
       const { data, error } = await supabase
         .from('franchisees')
-        .insert([{ name, email, phone, password, status: 'pending', remaining_prints: 100 }]);
+        .insert([{ name, email, phone, password, status: 'pending', print_quota: 100 }]);
 
       if (error) {
+        console.error('Register error:', error);
         if (error.code === '23505') {
           return {
             statusCode: 400,
@@ -76,6 +81,7 @@ exports.handler = async (event) => {
         .single();
 
       if (error || !data) {
+        console.error('Login error:', error);
         return {
           statusCode: 401,
           body: JSON.stringify({ success: false, message: 'Invalid email or password' })
@@ -98,18 +104,20 @@ exports.handler = async (event) => {
 
       const { data, error } = await supabase
         .from('franchisees')
-        .select('id, name, remaining_prints')
+        .select('id, name, print_quota')
         .eq('email', email)
         .eq('id', id)
         .single();
 
       if (error || !data) {
+        console.error('Get user error:', error);
         return {
           statusCode: 404,
           body: JSON.stringify({ success: false, message: `User not found: ${error ? error.message : 'No data'}` })
         };
       }
 
+      console.log('User found:', data);
       return {
         statusCode: 200,
         body: JSON.stringify({ success: true, user: data })
@@ -121,7 +129,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({ success: false, message: 'Invalid action' })
     };
   } catch (error) {
-    console.error('Error:', error);
+    console.error('Server error:', error);
     return {
       statusCode: 500,
       body: JSON.stringify({ success: false, message: `Server error: ${error.message}` })
