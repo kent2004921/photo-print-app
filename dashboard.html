@@ -57,9 +57,27 @@
       font-size: 16px;
       color: #333;
     }
-    #qrCode {
-      margin: 20px auto;
-      text-align: center;
+    .preview-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 20px 0;
+    }
+    #qrCode, #photoPreview {
+      width: 128px;
+      height: 128px;
+    }
+    #photoPreview {
+      border: 2px dashed #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f9f9f9;
+    }
+    #photoPreview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     .task-section {
       margin-top: 20px;
@@ -104,7 +122,10 @@
     <div class="info" id="remainingPrints" data-i18n="remaining_prints">剩余打印次数：0</div>
     <div class="info" id="printerStatus" data-i18n="printer_status">打印机状态：Unknown</div>
 
-    <div id="qrCode"></div>
+    <div class="preview-section">
+      <div id="qrCode"></div>
+      <div id="photoPreview"></div>
+    </div>
 
     <div class="task-section" id="taskSection">
       <div class="info" id="taskType" data-i18n="task_type">Type: Unknown</div>
@@ -199,6 +220,8 @@
           if (user.id) {
             generateQRCode(user.id);
           }
+          // 加载打印照片
+          await loadPrintPhoto();
           // 检查打印机状态并更新
           const printerInfo = await checkPrinterStatus();
           updatePrinterStatus(printerInfo);
@@ -264,9 +287,34 @@
       });
     }
 
+    async function loadPrintPhoto() {
+      const photoPreview = document.getElementById('photoPreview');
+      try {
+        // 模拟调用 API 获取照片 URL
+        const response = await fetch('/.netlify/functions/get_print_photo', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await response.json();
+        console.log('Photo data:', data);
+
+        if (data.success && data.photoUrl) {
+          const img = document.createElement('img');
+          img.src = data.photoUrl;
+          photoPreview.innerHTML = '';
+          photoPreview.appendChild(img);
+        } else {
+          // 没有照片，显示空白框框
+          photoPreview.innerHTML = '';
+        }
+      } catch (error) {
+        console.error('Load photo error:', error);
+        // 加载失败，显示空白框框
+        photoPreview.innerHTML = '';
+      }
+    }
+
     async function checkPrinterStatus() {
-      // 模拟打印机状态检测（实际需替换为真实 API 调用）
-      // 假设通过 Netlify Functions 调用 /check_printer_status
       try {
         const response = await fetch('/.netlify/functions/check_printer_status', {
           method: 'GET',
@@ -277,9 +325,7 @@
         return data; // 期望返回 { connected: true, brand: "Epson", model: "L3150" } 或 { connected: false }
       } catch (error) {
         console.error('Check printer status error:', error);
-        // 模拟返回（实际需替换）
         return { connected: true, brand: "Epson", model: "L3150" }; // 模拟已连接
-        // return { connected: false }; // 模拟未连接
       }
     }
 
