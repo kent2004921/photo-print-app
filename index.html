@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="login_title">Login - Photo Print Service</title>
+  <title data-i18n="title">Photo Print Service</title>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -12,27 +12,16 @@
       align-items: center;
       min-height: 100vh;
       margin: 0;
-      background: linear-gradient(135deg, #74ebd5, #acb6e5);
+      background: #f0f0f0;
     }
     .container {
       background: white;
-      padding: 30px;
-      border-radius: 15px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
       width: 90%;
       max-width: 400px;
       text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-    .container::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 5px;
-      background: linear-gradient(to right, #ff6b6b, #feca57);
     }
     .header {
       display: flex;
@@ -42,41 +31,42 @@
     }
     h2 {
       color: #333;
-      font-size: 24px;
+      font-size: 20px;
       margin: 0;
+    }
+    label {
+      display: block;
+      text-align: left;
+      margin: 10px 0 5px;
+      color: #333;
+      font-size: 14px;
     }
     input {
       width: 100%;
-      padding: 12px;
-      margin: 10px 0;
+      padding: 10px;
+      margin-bottom: 10px;
       border: 1px solid #ddd;
-      border-radius: 8px;
+      border-radius: 5px;
       box-sizing: border-box;
-      font-size: 16px;
+      font-size: 14px;
       background-color: #f9f9f9;
     }
     button {
       width: 100%;
-      padding: 12px;
+      padding: 10px;
       margin: 10px 0;
       border: none;
-      border-radius: 8px;
+      border-radius: 5px;
       cursor: pointer;
       font-size: 16px;
-      transition: transform 0.1s, background 0.3s;
-    }
-    button:hover {
-      transform: scale(1.02);
-    }
-    .login-btn {
-      background: linear-gradient(to right, #007bff, #00c4ff);
+      background: #007bff;
       color: white;
     }
-    .login-btn:hover {
-      background: linear-gradient(to right, #0056b3, #0099cc);
+    button:hover {
+      background: #0056b3;
     }
     .language-btn {
-      background: linear-gradient(to right, #28a745, #34d058);
+      background: #28a745;
       color: white;
       width: 40px;
       height: 40px;
@@ -87,46 +77,114 @@
       cursor: pointer;
       font-size: 20px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      transition: transform 0.1s, background 0.3s;
     }
     .language-btn:hover {
-      background: linear-gradient(to right, #218838, #28a745);
-      transform: scale(1.1);
+      background: #218838;
+    }
+    .message {
+      margin-top: 10px;
+      color: #333;
+      font-size: 14px;
+    }
+    .link {
+      margin-top: 10px;
+      font-size: 14px;
+      cursor: pointer;
+      color: #007bff;
+    }
+    .link:hover {
+      text-decoration: underline;
+    }
+    .hidden {
+      display: none;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h2 data-i18n="login_title">Login - Photo Print Service</h2>
+      <h2 data-i18n="title">Photo Print Service</h2>
       <button class="language-btn" onclick="toggleLanguage()">🌐</button>
     </div>
-    <input type="text" id="username" placeholder="Username" data-i18n-placeholder="username_placeholder">
-    <input type="password" id="password" placeholder="Password" data-i18n-placeholder="password_placeholder">
-    <button class="login-btn" onclick="login()" data-i18n="login">Login</button>
+
+    <!-- 登录表单 -->
+    <div id="loginSection">
+      <h2 data-i18n="login_title">Login</h2>
+      <label data-i18n="email_label">Email</label>
+      <input type="email" id="loginEmail" data-i18n-placeholder="email_placeholder">
+      <label data-i18n="password_label">Password</label>
+      <input type="password" id="loginPassword" data-i18n-placeholder="password_placeholder">
+      <button onclick="login()" data-i18n="login">Login</button>
+      <div id="loginMessage" class="message"></div>
+      <div class="link" onclick="showRegister()" data-i18n="register_link">Don't have an account? Register</div>
+    </div>
+
+    <!-- 注册表单 -->
+    <div id="registerSection" class="hidden">
+      <h2 data-i18n="register_title">Register</h2>
+      <label data-i18n="name_label">Name</label>
+      <input type="text" id="registerName" data-i18n-placeholder="name_placeholder">
+      <label data-i18n="email_label">Email</label>
+      <input type="email" id="registerEmail" data-i18n-placeholder="email_placeholder">
+      <label data-i18n="phone_label">Phone</label>
+      <input type="text" id="registerPhone" data-i18n-placeholder="phone_placeholder">
+      <label data-i18n="password_label">Password</label>
+      <input type="password" id="registerPassword" data-i18n-placeholder="password_placeholder">
+      <button onclick="register()" data-i18n="register">Register</button>
+      <div id="registerMessage" class="message"></div>
+      <div class="link" onclick="showLogin()" data-i18n="login_link">Already have an account? Login</div>
+    </div>
   </div>
 
   <script>
     const translations = {
       zh: {
-        login_title: "登录 - 照片打印服务",
-        username_placeholder: "用户名",
-        password_placeholder: "密码",
+        title: "照片打印服务",
+        register_title: "注册",
+        login_title: "登录",
+        name_label: "姓名",
+        email_label: "邮箱",
+        phone_label: "电话",
+        password_label: "密码",
+        name_placeholder: "请输入姓名",
+        email_placeholder: "请输入邮箱",
+        phone_placeholder: "请输入电话",
+        password_placeholder: "请输入密码",
+        register: "注册",
         login: "登录",
-        login_failed: "登录失败，请检查用户名和密码！",
-        network_error: "网络错误，请稍后再试！"
+        register_pending: "注册已提交，请等待管理员审核！",
+        register_failed: "请填写所有信息！",
+        login_pending: "您的注册正在审核中，请等待！",
+        login_failed: "登录失败，请检查邮箱和密码！",
+        login_success: "登录成功！您的唯一码是：{code}，请记下来！",
+        register_link: "还没有账号？注册",
+        login_link: "已有账号？登录"
       },
       en: {
-        login_title: "Login - Photo Print Service",
-        username_placeholder: "Username",
-        password_placeholder: "Password",
+        title: "Photo Print Service",
+        register_title: "Register",
+        login_title: "Login",
+        name_label: "Name",
+        email_label: "Email",
+        phone_label: "Phone",
+        password_label: "Password",
+        name_placeholder: "Enter your name",
+        email_placeholder: "Enter your email",
+        phone_placeholder: "Enter your phone",
+        password_placeholder: "Enter your password",
+        register: "Register",
         login: "Login",
-        login_failed: "Login failed, please check your username and password!",
-        network_error: "Network error, please try again later!"
+        register_pending: "Registration submitted, please wait for admin approval!",
+        register_failed: "Please fill in all information!",
+        login_pending: "Your registration is under review, please wait!",
+        login_failed: "Login failed, please check your email and password!",
+        login_success: "Login successful! Your unique code is: {code}, please note it down!",
+        register_link: "Don't have an account? Register",
+        login_link: "Already have an account? Login"
       }
     };
 
-    let currentLang = localStorage.getItem('language') || 'en';
+    let currentLang = localStorage.getItem('language') || 'zh';
     updateLanguage();
 
     function toggleLanguage() {
@@ -144,36 +202,58 @@
         const key = element.getAttribute('data-i18n-placeholder');
         element.placeholder = translations[currentLang][key];
       });
-      document.title = translations[currentLang].login_title;
+      document.title = translations[currentLang].title;
     }
 
-    async function login() {
-      const username = document.getElementById('username').value.trim();
-      const password = document.getElementById('password').value.trim();
+    function showRegister() {
+      document.getElementById('loginSection').classList.add('hidden');
+      document.getElementById('registerSection').classList.remove('hidden');
+    }
 
-      if (!username || !password) {
-        alert(translations[currentLang].login_failed);
+    function showLogin() {
+      document.getElementById('registerSection').classList.add('hidden');
+      document.getElementById('loginSection').classList.remove('hidden');
+    }
+
+    function register() {
+      const name = document.getElementById('registerName').value.trim();
+      const email = document.getElementById('registerEmail').value.trim();
+      const phone = document.getElementById('registerPhone').value.trim();
+      const password = document.getElementById('registerPassword').value.trim();
+      const printerEmail = "jmx12814u9q9q8@print.epsonconnect.com";
+
+      if (!name || !email || !phone || !password) {
+        document.getElementById('registerMessage').innerText = translations[currentLang].register_failed;
         return;
       }
 
-      try {
-        const response = await fetch('/.netlify/functions/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'login', username, password })
-        });
-        const data = await response.json();
-        if (data.success) {
-          // 直接通过URL参数传递username和remainingUses
-          const remainingUses = data.remainingUses !== undefined ? data.remainingUses : 0;
-          window.location.href = `/dashboard.html?username=${encodeURIComponent(username)}&remainingUses=${remainingUses}`;
-        } else {
-          alert(data.message || translations[currentLang].login_failed);
-        }
-      } catch (error) {
-        console.error('Login error:', error);
-        alert(translations[currentLang].network_error);
+      // 模拟提交注册，实际会存到 Supabase（status=pending）
+      document.getElementById('registerMessage').innerText = translations[currentLang].register_pending;
+    }
+
+    function login() {
+      const email = document.getElementById('loginEmail').value.trim();
+      const password = document.getElementById('loginPassword').value.trim();
+
+      if (!email || !password) {
+        document.getElementById('loginMessage').innerText = translations[currentLang].login_failed;
+        return;
       }
+
+      // 模拟登录逻辑，实际会查 Supabase
+      const simulatedStatus = "pending"; // 模拟审核状态
+      const simulatedUniqueCode = "FRANCHISEE_abc123";
+
+      if (simulatedStatus === "pending") {
+        document.getElementById('loginMessage').innerText = translations[currentLang].login_pending;
+        return;
+      }
+
+      // 模拟登录成功
+      document.getElementById('loginMessage').innerText = translations[currentLang].login_success.replace('{code}', simulatedUniqueCode);
+      setTimeout(() => {
+        window.location.href = `dashboard.html?email=${encodeURIComponent(email)}&code=${simulatedUniqueCode}`;
+      }, 2000);
     }
   </script>
 </body>
