@@ -57,17 +57,17 @@
       font-size: 16px;
       color: #333;
     }
-    #qrCode, #photoPreview {
-      margin: 20px auto;
-      display: block;
+    .preview-section {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 20px 0;
     }
-    #qrCode {
-      width: 128px;
-      height: 128px;
+    #qrCode, #photoPreview {
+      width: 150px;
+      height: 150px;
     }
     #photoPreview {
-      width: 200px;
-      height: 200px;
       border: 2px dashed #ccc;
       display: flex;
       align-items: center;
@@ -122,8 +122,10 @@
     <div class="info" id="remainingPrints" data-i18n="remaining_prints">剩余打印次数：0</div>
     <div class="info" id="printerStatus" data-i18n="printer_status">打印机状态：Unknown</div>
 
-    <div id="qrCode"></div>
-    <div id="photoPreview"></div>
+    <div class="preview-section">
+      <div id="qrCode"></div>
+      <div id="photoPreview"></div>
+    </div>
 
     <div class="task-section" id="taskSection">
       <div class="info" id="taskType" data-i18n="task_type">Type: Unknown</div>
@@ -277,8 +279,8 @@
       qrCodeDiv.innerHTML = ''; // 清空之前的内容
       new QRCode(qrCodeDiv, {
         text: `https://photo-print-app.netlify.app/upload.html?userId=${userId}`, // 跳转到上传界面
-        width: 128,
-        height: 128,
+        width: 150,
+        height: 150,
         colorDark: '#000000',
         colorLight: '#ffffff',
         correctLevel: QRCode.CorrectLevel.H
