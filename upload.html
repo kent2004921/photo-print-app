@@ -3,40 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="upload_title">上传照片打印</title>
-  <!-- 引入 TensorFlow.js 和 Face-api.js -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.9.0/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@0.0.3/dist/face-landmarks-detection.js"></script>
+  <title data-i18n="title">Upload Photo - Photo Print Service</title>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
       display: flex;
-      flex-direction: column;
+      justify-content: center;
       align-items: center;
       min-height: 100vh;
       margin: 0;
-      background: linear-gradient(135deg, #74ebd5, #acb6e5);
+      background: #f0f0f0;
     }
     .container {
       background: white;
-      padding: 30px;
-      border-radius: 15px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
       width: 90%;
-      max-width: 500px;
-      margin: 20px 0;
+      max-width: 400px;
       text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-    .container::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 5px;
-      background: linear-gradient(to right, #ff6b6b, #feca57);
     }
     .header {
       display: flex;
@@ -46,70 +31,42 @@
     }
     h2 {
       color: #333;
-      font-size: 24px;
+      font-size: 20px;
       margin: 0;
     }
-    canvas {
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      max-width: 100%;
-      margin: 10px 0;
-      touch-action: none; /* 防止触摸时触发默认行为 */
+    label {
+      display: block;
+      text-align: left;
+      margin: 10px 0 5px;
+      color: #333;
+      font-size: 14px;
     }
-    input[type="file"] {
+    input, select {
       width: 100%;
-      padding: 12px;
-      margin: 10px 0;
+      padding: 10px;
+      margin-bottom: 10px;
       border: 1px solid #ddd;
-      border-radius: 8px;
+      border-radius: 5px;
       box-sizing: border-box;
-      font-size: 16px;
+      font-size: 14px;
       background-color: #f9f9f9;
     }
     button {
       width: 100%;
-      padding: 12px;
+      padding: 10px;
       margin: 10px 0;
       border: none;
-      border-radius: 8px;
+      border-radius: 5px;
       cursor: pointer;
       font-size: 16px;
-      transition: transform 0.1s, background 0.3s;
+      background: #007bff;
+      color: white;
     }
     button:hover {
-      transform: scale(1.02);
-    }
-    .print-btn {
-      background: linear-gradient(to right, #007bff, #00c4ff);
-      color: white;
-    }
-    .print-btn:hover {
-      background: linear-gradient(to right, #0056b3, #0099cc);
-    }
-    .remove-emoji-btn {
-      background: linear-gradient(to right, #ff4b4b, #ff7878);
-      color: white;
-    }
-    .remove-emoji-btn:hover {
-      background: linear-gradient(to right, #cc3a3a, #cc6060);
-    }
-    .delete-selected-btn {
-      background: linear-gradient(to right, #ff7878, #ff9999);
-      color: white;
-      display: none;
-    }
-    .delete-selected-btn:hover {
-      background: linear-gradient(to right, #cc6060, #cc7a7a);
-    }
-    .clear-all-btn {
-      background: linear-gradient(to right, #ff9999, #ffbaba);
-      color: white;
-    }
-    .clear-all-btn:hover {
-      background: linear-gradient(to right, #cc7a7a, #cc9999);
+      background: #0056b3;
     }
     .language-btn {
-      background: linear-gradient(to right, #28a745, #34d058);
+      background: #28a745;
       color: white;
       width: 40px;
       height: 40px;
@@ -120,193 +77,133 @@
       cursor: pointer;
       font-size: 20px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      transition: transform 0.1s, background 0.3s;
     }
     .language-btn:hover {
-      background: linear-gradient(to right, #218838, #28a745);
-      transform: scale(1.1);
+      background: #218838;
+    }
+    .message {
+      margin-top: 10px;
+      color: #333;
+      font-size: 14px;
+    }
+    .canvas-container {
+      position: relative;
+      width: 300px;
+      height: 300px;
+      margin: 20px auto;
+      border: 1px solid #ddd;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    #mask {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
     }
     .controls {
+      margin: 10px 0;
+    }
+    .controls button {
+      width: auto;
+      padding: 5px 10px;
+      margin: 0 5px;
+    }
+    .mask-selector {
       display: flex;
       flex-wrap: wrap;
-      gap: 15px;
-      justify-content: center;
-    }
-    .control-group {
-      margin: 15px 0;
-      padding: 10px;
-      background-color: #f9f9f9;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    .control-group label {
-      display: block;
-      margin-bottom: 8px;
-      color: #444;
-      font-size: 16px;
-    }
-    .control-group input[type="range"] {
-      width: 100%;
-      cursor: pointer;
-    }
-    .sticker-picker {
-      margin: 15px 0;
-      position: relative;
-      z-index: 10;
-    }
-    .sticker-picker label {
-      display: block;
-      margin-bottom: 8px;
-      color: #444;
-      font-size: 16px;
-    }
-    .sticker-select {
-      width: 100%;
+      gap: 10px;
+      max-height: 150px;
+      overflow-y: auto;
+      margin: 10px 0;
       padding: 10px;
       border: 1px solid #ddd;
-      border-radius: 8px;
-      background-color: #fff;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      border-radius: 5px;
     }
-    .overlay-controls {
-      display: none;
-      margin: 15px 0;
-      padding: 10px;
-      background-color: #f9f9f9;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    .overlay-controls label {
-      display: block;
-      margin-bottom: 8px;
-      color: #444;
-      font-size: 16px;
-    }
-    .overlay-controls input[type="range"] {
-      width: 100%;
+    .mask-option {
+      width: 60px;
+      height: 60px;
       cursor: pointer;
+      border: 2px solid transparent;
+      border-radius: 5px;
     }
-    .loading-message {
-      display: none;
-      color: #666;
-      font-size: 14px;
-      margin: 10px 0;
+    .mask-option:hover {
+      border-color: #007bff;
+    }
+    .mask-option.selected {
+      border-color: #28a745;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h2 data-i18n="upload_title">上传照片打印</h2>
+      <h2 data-i18n="title">Upload Photo - Photo Print Service</h2>
       <button class="language-btn" onclick="toggleLanguage()">🌐</button>
     </div>
-    <input type="file" id="photoInput" accept="image/*">
-    <div id="loadingMessage" class="loading-message" data-i18n="loading_model">正在加载人脸检测模型，请稍候...</div>
-    <canvas id="photoCanvas"></canvas>
-    <div class="sticker-picker">
-      <label data-i18n="select_sticker">选择面部贴纸</label>
-      <select id="stickerSelect" class="sticker-select" onchange="addStickerToCanvas(this.value)">
-        <option value="" data-i18n="select_sticker_option">选择一个贴纸</option>
-        <option value="https://picsum.photos/50?random=1">🐶 <span data-i18n="sticker_dog">狗狗耳朵</span></option>
-        <option value="https://picsum.photos/50?random=2">👓 <span data-i18n="sticker_glasses">眼镜</span></option>
-        <option value="https://picsum.photos/50?random=3">🎩 <span data-i18n="sticker_hat">帽子</span></option>
-        <option value="https://picsum.photos/50?random=4">👨 <span data-i18n="sticker_mustache">胡子</span></option>
-        <option value="https://picsum.photos/50?random=5">🐰 <span data-i18n="sticker_bunny">兔子耳朵</span></option>
-      </select>
-    </div>
-    <div class="overlay-controls" id="overlayControls">
-      <div class="control-group">
-        <label data-i18n="overlay_size">贴纸大小</label>
-        <input type="range" id="overlaySize" min="20" max="100" step="1" value="40" oninput="adjustOverlaySize()">
-      </div>
-      <div class="control-group">
-        <label data-i18n="overlay_rotation">贴纸角度</label>
-        <input type="range" id="overlayRotation" min="0" max="360" step="1" value="0" oninput="adjustOverlayRotation()">
-      </div>
+
+    <label data-i18n="print_type_label">Print Type</label>
+    <select id="printType" onchange="updateMaskOptions()">
+      <option value="摇摇乐" data-i18n="print_type_1">摇摇乐</option>
+      <option value="冰箱贴" data-i18n="print_type_2">冰箱贴</option>
+      <option value="钥匙圈" data-i18n="print_type_3">钥匙圈</option>
+    </select>
+
+    <div id="maskSelector" class="mask-selector" style="display: none;"></div>
+
+    <input type="file" id="photoInput" accept="image/*" capture="environment" onchange="loadPhoto()">
+    <div class="canvas-container">
+      <canvas id="photoCanvas"></canvas>
+      <img id="mask" src="assets/mask_shake.png">
     </div>
     <div class="controls">
-      <button class="print-btn" onclick="printPhoto()" data-i18n="print">打印</button>
-      <button class="remove-emoji-btn" onclick="removeLastOverlay()" data-i18n="remove_last_overlay">删除最后一个贴纸</button>
-      <button class="delete-selected-btn" id="deleteSelectedBtn" onclick="deleteSelectedOverlay()" data-i18n="delete_selected_overlay">删除选中贴纸</button>
-      <button class="clear-all-btn" onclick="clearAllOverlays()" data-i18n="clear_all_overlays">清空所有贴纸</button>
+      <label data-i18n="zoom_label">Zoom</label>
+      <input type="range" id="zoomSlider" min="0.1" max="2" step="0.1" value="1" oninput="updateScale(this.value)">
+      <label data-i18n="brightness_label">Brightness</label>
+      <input type="range" id="brightnessSlider" min="0" max="2" step="0.1" value="1" oninput="updatePhoto()">
+      <label data-i18n="contrast_label">Contrast</label>
+      <input type="range" id="contrastSlider" min="0" max="2" step="0.1" value="1" oninput="updatePhoto()">
+      <button onclick="rotateLeft()" data-i18n="rotate_left">Rotate Left</button>
+      <button onclick="rotateRight()" data-i18n="rotate_right">Rotate Right</button>
     </div>
-    <div class="control-group">
-      <label data-i18n="brightness">亮度</label>
-      <input type="range" id="brightness" min="0" max="2" step="0.1" value="1" oninput="adjustColor()">
-    </div>
-    <div class="control-group">
-      <label data-i18n="contrast">对比度</label>
-      <input type="range" id="contrast" min="0" max="2" step="0.1" value="1" oninput="adjustColor()">
-    </div>
-    <div class="control-group">
-      <label data-i18n="saturation">饱和度</label>
-      <input type="range" id="saturation" min="0" max="2" step="0.1" value="1" oninput="adjustColor()">
-    </div>
+    <button onclick="submitPhoto()" data-i18n="submit">Submit</button>
+    <div id="submitMessage" class="message"></div>
   </div>
 
   <script>
     const translations = {
       zh: {
-        upload_title: "上传照片打印",
-        select_sticker: "选择面部贴纸",
-        select_sticker_option: "选择一个贴纸",
-        sticker_dog: "狗狗耳朵",
-        sticker_glasses: "眼镜",
-        sticker_hat: "帽子",
-        sticker_mustache: "胡子",
-        sticker_bunny: "兔子耳朵",
-        overlay_size: "贴纸大小",
-        overlay_rotation: "贴纸角度",
-        print: "打印",
-        remove_last_overlay: "删除最后一个贴纸",
-        delete_selected_overlay: "删除选中贴纸",
-        clear_all_overlays: "清空所有贴纸",
-        brightness: "亮度",
-        contrast: "对比度",
-        saturation: "饱和度",
-        invalid_qr: "无效的二维码，请重新扫描！",
-        no_photo: "请先上传照片！",
-        missing_data: "缺少用户名或照片数据，请刷新页面重试！",
-        print_success: "打印成功！",
-        print_failed: "打印失败！",
-        network_error: "网络错误，请稍后再试！",
-        no_emoji_to_remove: "没有贴纸可以删除！",
-        sticker_load_failed: "加载贴纸失败，请选择其他选项！",
-        loading_model: "正在加载人脸检测模型，请稍候...",
-        no_face_detected: "未检测到人脸，贴纸已放置在默认位置！",
-        photo_too_small: "照片过小，可能难以操作！",
-        language_btn: "English"
+        title: "上传照片 - 照片打印服务",
+        zoom_label: "缩放",
+        brightness_label: "亮度",
+        contrast_label: "对比度",
+        rotate_left: "左转",
+        rotate_right: "右转",
+        print_type_label: "打印类型",
+        print_type_1: "摇摇乐",
+        print_type_2: "冰箱贴",
+        print_type_3: "钥匙圈",
+        submit: "提交",
+        submit_success: "照片已提交，等待打印！",
+        submit_failed: "请先上传照片！"
       },
       en: {
-        upload_title: "Upload Photo to Print",
-        select_sticker: "Select Face Sticker",
-        select_sticker_option: "Select a Sticker",
-        sticker_dog: "Dog Ears",
-        sticker_glasses: "Glasses",
-        sticker_hat: "Hat",
-        sticker_mustache: "Mustache",
-        sticker_bunny: "Bunny Ears",
-        overlay_size: "Sticker Size",
-        overlay_rotation: "Sticker Rotation",
-        print: "Print",
-        remove_last_overlay: "Remove Last Sticker",
-        delete_selected_overlay: "Delete Selected Sticker",
-        clear_all_overlays: "Clear All Stickers",
-        brightness: "Brightness",
-        contrast: "Contrast",
-        saturation: "Saturation",
-        invalid_qr: "Invalid QR code, please scan again!",
-        no_photo: "Please upload a photo first!",
-        missing_data: "Missing username or photo data, please refresh and try again!",
-        print_success: "Print successful!",
-        print_failed: "Print failed!",
-        network_error: "Network error, please try again later!",
-        no_emoji_to_remove: "No stickers to remove!",
-        sticker_load_failed: "Failed to load sticker, please select another one!",
-        loading_model: "Loading face detection model, please wait...",
-        no_face_detected: "No face detected, sticker placed at default position!",
-        photo_too_small: "Photo is too small, may be difficult to operate!",
-        language_btn: "中文"
+        title: "Upload Photo - Photo Print Service",
+        zoom_label: "Zoom",
+        brightness_label: "Brightness",
+        contrast_label: "Contrast",
+        rotate_left: "Rotate Left",
+        rotate_right: "Rotate Right",
+        print_type_label: "Print Type",
+        print_type_1: "Shake Toy",
+        print_type_2: "Fridge Magnet",
+        print_type_3: "Keychain",
+        submit: "Submit",
+        submit_success: "Photo submitted, waiting for printing!",
+        submit_failed: "Please upload a photo first!"
       }
     };
 
@@ -324,424 +221,289 @@
         const key = element.getAttribute('data-i18n');
         element.textContent = translations[currentLang][key];
       });
-      document.querySelectorAll('#stickerSelect option').forEach(option => {
-        const key = option.getAttribute('data-i18n');
-        if (key) {
-          const span = option.querySelector('span');
-          if (span) {
-            span.textContent = translations[currentLang][key];
-          }
-        }
-      });
-      document.title = translations[currentLang].upload_title;
+      document.title = translations[currentLang].title;
     }
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const username = urlParams.get('username');
-    if (!username) {
-      alert(translations[currentLang].invalid_qr);
-      window.location.href = '/index.html';
-    } else {
-      console.log('Username from URL:', username);
-    }
-
-    let image = new Image();
-    let photoScale = 1;
-    let photoRotation = 0;
-    let posX = 0;
-    let posY = 0;
-    let isDraggingImage = false;
-    let isDraggingOverlay = false;
-    let draggedOverlayIndex = -1;
-    let selectedOverlayIndex = -1;
-    let startX, startY;
+    const canvas = document.getElementById('photoCanvas');
+    const ctx = canvas.getContext('2d');
+    const mask = document.getElementById('mask');
+    let img = new Image();
+    let scale = 1;
+    let rotation = 0;
     let brightness = 1;
     let contrast = 1;
-    let saturation = 1;
-    let overlays = [];
-
-    // 触摸手势相关变量
-    let isPinching = false;
+    let offsetX = 0;
+    let offsetY = 0;
+    let isDragging = false;
+    let startX, startY;
     let initialDistance = 0;
     let initialAngle = 0;
     let initialScale = 1;
     let initialRotation = 0;
 
-    // Face-api.js 相关变量
-    let faceDetector = null;
-    let isModelLoaded = false;
+    // 设置 Canvas 尺寸
+    canvas.width = 300;
+    canvas.height = 300;
 
-    const canvas = document.getElementById('photoCanvas');
-    const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = 300 * dpr;
-    canvas.height = 300 * dpr;
-    canvas.style.width = '300px';
-    canvas.style.height = '300px';
-    ctx.scale(dpr, dpr);
+    // 蒙版原始尺寸和比例
+    const maskOriginalWidth = 875;
+    const maskOriginalHeight = 1252;
+    const maskAspectRatio = maskOriginalWidth / maskOriginalHeight; // 约 0.698
+    const displayHeight = 300; // 显示区域高度
+    const displayWidth = displayHeight * maskAspectRatio; // 保持比例，宽度约 209.66
 
-    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
-    const overlayControls = document.getElementById('overlayControls');
-    const overlaySizeInput = document.getElementById('overlaySize');
-    const overlayRotationInput = document.getElementById('overlayRotation');
-    const loadingMessage = document.getElementById('loadingMessage');
+    // 模拟蒙版数据
+    const maskOptions = {
+      '摇摇乐': [
+        { name: '默认', src: 'assets/mask_shake.png' }
+      ],
+      '冰箱贴': [
+        { name: '动物-猫咪', src: 'assets/mask_magnet_cat.png' },
+        { name: '动物-小狗', src: 'assets/mask_magnet_dog.png' },
+        { name: '风景-海洋', src: 'assets/mask_magnet_ocean.png' }
+      ],
+      '钥匙圈': [
+        { name: '圆形-简约', src: 'assets/mask_keychain_circle.png' },
+        { name: '方形-经典', src: 'assets/mask_keychain_square.png' },
+        { name: '心形-浪漫', src: 'assets/mask_keychain_heart.png' }
+      ]
+    };
 
-    // 加载 Face-api.js 模型
-    async function loadFaceDetector() {
-      loadingMessage.style.display = 'block';
-      try {
-        faceDetector = await faceLandmarksDetection.load(
-          faceLandmarksDetection.SupportedPackages.mediapipeFacemesh,
-          { maxFaces: 1 }
-        );
-        isModelLoaded = true;
-        console.log('Face-api.js model loaded successfully');
-        loadingMessage.style.display = 'none';
-      } catch (error) {
-        console.error('Failed to load Face-api.js model:', error);
-        loadingMessage.textContent = 'Failed to load face detection model!';
+    let selectedMaskSrc = 'assets/mask_shake.png';
+
+    function updateMaskOptions() {
+      const printType = document.getElementById('printType').value;
+      const maskSelector = document.getElementById('maskSelector');
+      maskSelector.innerHTML = '';
+
+      if (printType === '摇摇乐') {
+        maskSelector.style.display = 'none';
+        selectedMaskSrc = maskOptions[printType][0].src;
+      } else {
+        maskSelector.style.display = 'flex';
+        maskOptions[printType].forEach((option, index) => {
+          const img = document.createElement('img');
+          img.className = 'mask-option';
+          img.src = option.src;
+          img.alt = option.name;
+          img.title = option.name;
+          if (index === 0) {
+            img.classList.add('selected');
+            selectedMaskSrc = option.src;
+          }
+          img.onclick = () => {
+            document.querySelectorAll('.mask-option').forEach(opt => opt.classList.remove('selected'));
+            img.classList.add('selected');
+            selectedMaskSrc = option.src;
+            updateMask();
+          };
+          maskSelector.appendChild(img);
+        });
+      }
+      updateMask();
+    }
+
+    function updateMask() {
+      mask.src = selectedMaskSrc;
+      mask.style.width = `${displayWidth}px`;
+      mask.style.height = `${displayHeight}px`;
+      mask.style.left = `${(300 - displayWidth) / 2}px`; // 居中
+      mask.style.top = '0px';
+      updatePhoto();
+    }
+
+    // 初始化蒙版选项
+    updateMaskOptions();
+
+    function loadPhoto() {
+      const file = document.getElementById('photoInput').files[0];
+      if (file) {
+        img.src = URL.createObjectURL(file);
+        img.onload = () => {
+          // 模拟抠图 API 调用
+          removeBackground(img).then(processedImg => {
+            img = processedImg;
+            scale = 1;
+            rotation = 0;
+            brightness = 1;
+            contrast = 1;
+            offsetX = 0;
+            offsetY = 0;
+            updatePhoto();
+          });
+        };
       }
     }
 
-    // 初始化时加载模型
-    loadFaceDetector();
-
-    document.getElementById('photoInput').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        console.log('Photo selected:', file.name);
-        image.src = URL.createObjectURL(file);
-        image.onload = () => {
-          console.log('Photo loaded successfully');
-          drawImage();
-        };
-        image.onerror = () => {
-          console.error('Failed to load photo');
-          alert('Failed to load photo, please try another one!');
-        };
-      }
-    });
-
-    function drawImage() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (image.src) {
-        ctx.save();
-        ctx.filter = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation})`;
-        ctx.translate((canvas.width / dpr) / 2 + posX, (canvas.height / dpr) / 2 + posY);
-        ctx.rotate((photoRotation * Math.PI) / 180);
-        ctx.scale(photoScale, photoScale);
-        ctx.drawImage(image, -image.width / 2, -image.height / 2);
-        ctx.restore();
-      }
-
-      overlays.forEach((overlay, index) => {
-        ctx.save();
-        ctx.translate(overlay.x + overlay.size / 2, overlay.y + overlay.size / 2);
-        ctx.rotate((overlay.rotation * Math.PI) / 180);
-        if (index === selectedOverlayIndex) {
-          ctx.strokeStyle = 'red';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(-overlay.size / 2 - 2, -overlay.size / 2 - 2, overlay.size + 4, overlay.size + 4);
-        }
-        if (overlay.image) {
-          ctx.drawImage(overlay.image, -overlay.size / 2, -overlay.size / 2, overlay.size, overlay.size);
-        }
-        ctx.restore();
+    function removeBackground(image) {
+      // 占位：模拟抠图 API
+      return new Promise(resolve => {
+        // 实际会调用抠图 API，这里直接返回原图
+        resolve(image);
       });
     }
 
-    async function addStickerToCanvas(stickerUrl) {
-      if (!stickerUrl) return;
-      console.log('Adding sticker:', stickerUrl);
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.src = stickerUrl;
-      img.onload = async () => {
-        console.log('Sticker loaded successfully:', stickerUrl);
-        let x = 50 + overlays.length * 10;
-        let y = 50 + overlays.length * 10;
-
-        // 使用 Face-api.js 检测人脸并放置贴纸
-        if (isModelLoaded && image.src) {
-          const faces = await faceDetector.estimateFaces(canvas, { flipHorizontal: false });
-          if (faces.length > 0) {
-            const face = faces[0];
-            const landmarks = face.landmarks;
-            // 使用额头位置（landmarks[10] 是额头中心）
-            const forehead = landmarks[10];
-            x = forehead[0] * (canvas.width / dpr / canvas.width) - img.width / 2;
-            y = forehead[1] * (canvas.height / dpr / canvas.height) - img.height;
-          } else {
-            console.log('No face detected, placing sticker at default position');
-            alert(translations[currentLang].no_face_detected);
-          }
-        }
-
-        overlays.push({
-          image: img,
-          x: x,
-          y: y,
-          size: 40,
-          rotation: 0,
-          type: 'sticker'
-        });
-        drawImage();
-      };
-      img.onerror = () => {
-        console.error('Failed to load sticker:', stickerUrl);
-        alert(translations[currentLang].sticker_load_failed);
-      };
+    function updateScale(value) {
+      scale = parseFloat(value);
+      updatePhoto();
     }
 
-    function removeLastOverlay() {
-      if (overlays.length > 0) {
-        overlays.pop();
-        selectedOverlayIndex = -1;
-        overlayControls.style.display = 'none';
-        deleteSelectedBtn.style.display = 'none';
-        drawImage();
+    function updatePhoto() {
+      scale = Math.max(0.1, Math.min(2, scale)); // 限制缩放范围
+      document.getElementById('zoomSlider').value = scale;
+      brightness = parseFloat(document.getElementById('brightnessSlider').value);
+      contrast = parseFloat(document.getElementById('contrastSlider').value);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.filter = `brightness(${brightness}) contrast(${contrast})`;
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((rotation * Math.PI) / 180);
+      ctx.scale(scale, scale);
+
+      // 计算照片的绘制尺寸，保持原始比例
+      const aspectRatio = img.width / img.height;
+      let drawWidth, drawHeight;
+      if (aspectRatio > 1) {
+        // 宽图
+        drawWidth = 300;
+        drawHeight = 300 / aspectRatio;
       } else {
-        alert(translations[currentLang].no_emoji_to_remove);
+        // 高图
+        drawHeight = 300;
+        drawWidth = 300 * aspectRatio;
       }
+      ctx.translate(-drawWidth / 2 + offsetX, -drawHeight / 2 + offsetY);
+      ctx.drawImage(img, 0, 0, drawWidth, drawHeight);
+      ctx.restore();
     }
 
-    function deleteSelectedOverlay() {
-      if (selectedOverlayIndex !== -1) {
-        overlays.splice(selectedOverlayIndex, 1);
-        selectedOverlayIndex = -1;
-        overlayControls.style.display = 'none';
-        deleteSelectedBtn.style.display = 'none';
-        drawImage();
-      }
+    function rotateLeft() {
+      rotation -= 90;
+      updatePhoto();
     }
 
-    function clearAllOverlays() {
-      overlays = [];
-      selectedOverlayIndex = -1;
-      overlayControls.style.display = 'none';
-      deleteSelectedBtn.style.display = 'none';
-      drawImage();
+    function rotateRight() {
+      rotation += 90;
+      updatePhoto();
     }
 
-    function getOverlayAtPosition(x, y) {
-      for (let i = overlays.length - 1; i >= 0; i--) {
-        const overlay = overlays[i];
-        const centerX = overlay.x + overlay.size / 2;
-        const centerY = overlay.y + overlay.size / 2;
-        const dx = x - centerX;
-        const dy = y - centerY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        if (distance <= overlay.size / 2) {
-          return i;
-        }
-      }
-      return -1;
-    }
-
-    // 鼠标事件：拖动照片或贴纸
+    // 鼠标事件（桌面端）
     canvas.addEventListener('mousedown', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX - rect.left) * (canvas.width / dpr / rect.width);
-      const y = (e.clientY - rect.top) * (canvas.height / dpr / rect.height);
-
-      draggedOverlayIndex = getOverlayAtPosition(x, y);
-      if (draggedOverlayIndex !== -1) {
-        isDraggingOverlay = true;
-        isDraggingImage = false;
-        selectedOverlayIndex = draggedOverlayIndex;
-        overlayControls.style.display = 'block';
-        deleteSelectedBtn.style.display = 'block';
-        overlaySizeInput.value = overlays[selectedOverlayIndex].size;
-        overlayRotationInput.value = overlays[selectedOverlayIndex].rotation;
-      } else {
-        isDraggingImage = true;
-        isDraggingOverlay = false;
-        selectedOverlayIndex = -1;
-        overlayControls.style.display = 'none';
-        deleteSelectedBtn.style.display = 'none';
-      }
-
-      startX = e.clientX;
-      startY = e.clientY;
+      isDragging = true;
+      startX = e.offsetX;
+      startY = e.offsetY;
     });
 
     canvas.addEventListener('mousemove', (e) => {
-      if (isDraggingImage || isDraggingOverlay) {
-        const dx = (e.clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
-        const dy = (e.clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
-
-        if (isDraggingImage) {
-          posX += dx;
-          posY += dy;
-        } else if (isDraggingOverlay && draggedOverlayIndex !== -1) {
-          overlays[draggedOverlayIndex].x += dx;
-          overlays[draggedOverlayIndex].y += dy;
-        }
-
-        startX = e.clientX;
-        startY = e.clientY;
-        drawImage();
+      if (isDragging) {
+        offsetX += (e.offsetX - startX) / scale;
+        offsetY += (e.offsetY - startY) / scale;
+        startX = e.offsetX;
+        startY = e.offsetY;
+        updatePhoto();
       }
     });
 
     canvas.addEventListener('mouseup', () => {
-      isDraggingImage = false;
-      isDraggingOverlay = false;
-      draggedOverlayIndex = -1;
+      isDragging = false;
     });
 
-    // 触摸事件：双指缩放和旋转照片
+    canvas.addEventListener('mouseleave', () => {
+      isDragging = false;
+    });
+
+    // 触屏事件（手机端）
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
       const touches = e.touches;
-
       if (touches.length === 1) {
-        // 单指拖动照片或贴纸
-        const x = (touches[0].clientX - rect.left) * (canvas.width / dpr / rect.width);
-        const y = (touches[0].clientY - rect.top) * (canvas.height / dpr / rect.height);
-
-        draggedOverlayIndex = getOverlayAtPosition(x, y);
-        if (draggedOverlayIndex !== -1) {
-          isDraggingOverlay = true;
-          isDraggingImage = false;
-          selectedOverlayIndex = draggedOverlayIndex;
-          overlayControls.style.display = 'block';
-          deleteSelectedBtn.style.display = 'block';
-          overlaySizeInput.value = overlays[selectedOverlayIndex].size;
-          overlayRotationInput.value = overlays[selectedOverlayIndex].rotation;
-        } else {
-          isDraggingImage = true;
-          isDraggingOverlay = false;
-          selectedOverlayIndex = -1;
-          overlayControls.style.display = 'none';
-          deleteSelectedBtn.style.display = 'none';
-        }
-
-        startX = touches[0].clientX;
-        startY = touches[0].clientY;
+        // 单指拖动
+        isDragging = true;
+        const touch = touches[0];
+        startX = touch.clientX - canvas.getBoundingClientRect().left;
+        startY = touch.clientY - canvas.getBoundingClientRect().top;
       } else if (touches.length === 2) {
-        // 双指缩放和旋转照片
-        isPinching = true;
-        isDraggingImage = false;
-        isDraggingOverlay = false;
-        selectedOverlayIndex = -1;
-        overlayControls.style.display = 'none';
-        deleteSelectedBtn.style.display = 'none';
-
-        const dx = touches[0].clientX - touches[1].clientX;
-        const dy = touches[0].clientY - touches[1].clientY;
-        initialDistance = Math.sqrt(dx * dx + dy * dy);
-        initialAngle = Math.atan2(dy, dx);
-        initialScale = photoScale;
-        initialRotation = photoRotation;
+        // 双指缩放和旋转
+        isDragging = false;
+        const touch1 = touches[0];
+        const touch2 = touches[1];
+        initialDistance = Math.hypot(
+          touch1.clientX - touch2.clientX,
+          touch1.clientY - touch2.clientY
+        );
+        initialAngle = Math.atan2(
+          touch2.clientY - touch1.clientY,
+          touch2.clientX - touch1.clientX
+        );
+        initialScale = scale;
+        initialRotation = rotation;
       }
     });
 
     canvas.addEventListener('touchmove', (e) => {
       e.preventDefault();
       const touches = e.touches;
-
-      if (touches.length === 1 && (isDraggingImage || isDraggingOverlay)) {
-        const dx = (touches[0].clientX - startX) * (canvas.width / dpr / canvas.getBoundingClientRect().width);
-        const dy = (touches[0].clientY - startY) * (canvas.height / dpr / canvas.getBoundingClientRect().height);
-
-        if (isDraggingImage) {
-          posX += dx;
-          posY += dy;
-        } else if (isDraggingOverlay && draggedOverlayIndex !== -1) {
-          overlays[draggedOverlayIndex].x += dx;
-          overlays[draggedOverlayIndex].y += dy;
-        }
-
-        startX = touches[0].clientX;
-        startY = touches[0].clientY;
-        drawImage();
-      } else if (touches.length === 2 && isPinching) {
-        const dx = touches[0].clientX - touches[1].clientX;
-        const dy = touches[0].clientY - touches[1].clientY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const angle = Math.atan2(dy, dx);
-
-        // 计算缩放比例
-        const scaleFactor = distance / initialDistance;
-        photoScale = initialScale * scaleFactor;
-        photoScale = Math.max(0.1, Math.min(photoScale, 5)); // 放宽缩放范围到 10% - 500%
-
-        // 提示用户如果照片过小
-        if (photoScale < 0.2) {
-          alert(translations[currentLang].photo_too_small);
-        }
-
-        // 计算旋转角度
-        const angleDiff = (angle - initialAngle) * (180 / Math.PI);
-        photoRotation = initialRotation + angleDiff;
-
-        drawImage();
+      if (touches.length === 1 && isDragging) {
+        // 单指拖动
+        const touch = touches[0];
+        const currentX = touch.clientX - canvas.getBoundingClientRect().left;
+        const currentY = touch.clientY - canvas.getBoundingClientRect().top;
+        offsetX += (currentX - startX) / scale;
+        offsetY += (currentY - startY) / scale;
+        startX = currentX;
+        startY = currentY;
+        updatePhoto();
+      } else if (touches.length === 2) {
+        // 双指缩放和旋转
+        const touch1 = touches[0];
+        const touch2 = touches[1];
+        const currentDistance = Math.hypot(
+          touch1.clientX - touch2.clientX,
+          touch1.clientY - touch2.clientY
+        );
+        const currentAngle = Math.atan2(
+          touch2.clientY - touch1.clientY,
+          touch2.clientX - touch1.clientX
+        );
+        // 缩放
+        scale = initialScale * (currentDistance / initialDistance);
+        scale = Math.max(0.1, Math.min(2, scale)); // 限制缩放范围
+        // 旋转
+        const angleDiff = (currentAngle - initialAngle) * (180 / Math.PI);
+        rotation = initialRotation + angleDiff;
+        updatePhoto();
       }
     });
 
     canvas.addEventListener('touchend', (e) => {
       e.preventDefault();
-      isDraggingImage = false;
-      isDraggingOverlay = false;
-      isPinching = false;
-      draggedOverlayIndex = -1;
+      isDragging = false;
+      initialDistance = 0;
+      initialAngle = 0;
     });
 
-    function adjustOverlaySize() {
-      if (selectedOverlayIndex !== -1) {
-        overlays[selectedOverlayIndex].size = parseInt(overlaySizeInput.value);
-        drawImage();
-      }
-    }
+    // 模拟 print_jobs 数据
+    let printJobs = window.printJobs || [];
 
-    function adjustOverlayRotation() {
-      if (selectedOverlayIndex !== -1) {
-        overlays[selectedOverlayIndex].rotation = parseInt(overlayRotationInput.value);
-        drawImage();
-      }
-    }
-
-    function adjustColor() {
-      brightness = document.getElementById('brightness').value;
-      contrast = document.getElementById('contrast').value;
-      saturation = document.getElementById('saturation').value;
-      drawImage();
-    }
-
-    async function printPhoto() {
-      if (!image.src) {
-        alert(translations[currentLang].no_photo);
+    function submitPhoto() {
+      if (!img.src) {
+        document.getElementById('submitMessage').innerText = translations[currentLang].submit_failed;
         return;
       }
 
-      const dataUrl = canvas.toDataURL('image/jpeg');
-      if (!username || !dataUrl) {
-        alert(translations[currentLang].missing_data);
-        return;
-      }
-
-      try {
-        const response = await fetch('/.netlify/functions/print', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({ username, dataUrl })
-        });
-
-        const data = await response.json();
-        if (data.success) {
-          alert(translations[currentLang].print_success);
-        } else {
-          alert(data.message || translations[currentLang].print_failed);
-        }
-      } catch (error) {
-        console.error('Print photo error:', error);
-        alert(translations[currentLang].network_error);
-      }
+      const printType = document.getElementById('printType').value;
+      // 模拟提交，存到 printJobs（后续会存到 Supabase）
+      const photoUrl = canvas.toDataURL('image/png'); // 将 Canvas 转为 Base64
+      printJobs.push({
+        id: printJobs.length + 1,
+        photoUrl: photoUrl,
+        type: printType,
+        mask: selectedMaskSrc,
+        status: 'pending'
+      });
+      window.printJobs = printJobs; // 存储到全局变量，供 dashboard.html 使用
+      document.getElementById('submitMessage').innerText = translations[currentLang].submit_success;
     }
   </script>
 </body>
