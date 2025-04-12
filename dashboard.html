@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title data-i18n="dashboard_title">Dashboard - Photo Print Service</title>
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <title data-i18n="title">Dashboard - Photo Print Service</title>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -13,27 +12,16 @@
       align-items: center;
       min-height: 100vh;
       margin: 0;
-      background: linear-gradient(135deg, #74ebd5, #acb6e5);
+      background: #f0f0f0;
     }
     .container {
       background: white;
-      padding: 30px;
-      border-radius: 15px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
       width: 90%;
-      max-width: 500px;
+      max-width: 800px;
       text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
-    .container::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 5px;
-      background: linear-gradient(to right, #ff6b6b, #feca57);
     }
     .header {
       display: flex;
@@ -43,64 +31,35 @@
     }
     h2 {
       color: #333;
-      font-size: 24px;
+      font-size: 20px;
       margin: 0;
     }
-    p {
-      color: #666;
-      font-size: 16px;
-      margin: 10px 0;
-    }
     h3 {
-      color: #444;
+      color: #333;
       font-size: 18px;
-      margin-top: 20px;
-      margin-bottom: 10px;
-    }
-    input {
-      width: 100%;
-      padding: 12px;
       margin: 10px 0;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      box-sizing: border-box;
-      font-size: 16px;
-      background-color: #f9f9f9;
     }
     button {
-      width: 100%;
-      padding: 12px;
-      margin: 10px 0;
+      padding: 8px 16px;
+      margin: 5px;
       border: none;
-      border-radius: 8px;
+      border-radius: 5px;
       cursor: pointer;
-      font-size: 16px;
-      transition: transform 0.1s, background 0.3s;
+      font-size: 14px;
+      background: #007bff;
+      color: white;
     }
     button:hover {
-      transform: scale(1.02);
+      background: #0056b3;
     }
-    .bind-btn, .generate-btn {
-      background: linear-gradient(to right, #007bff, #00c4ff);
-      color: white;
+    .delete-btn {
+      background: #dc3545;
     }
-    .bind-btn:hover, .generate-btn:hover {
-      background: linear-gradient(to right, #0056b3, #0099cc);
-    }
-    .logout-btn {
-      background: linear-gradient(to right, #ff4b4b, #ff7878);
-      color: white;
-    }
-    .logout-btn:hover {
-      background: linear-gradient(to right, #cc3a3a, #cc6060);
-    }
-    #qrcode {
-      margin: 20px 0;
-      display: flex;
-      justify-content: center;
+    .delete-btn:hover {
+      background: #c82333;
     }
     .language-btn {
-      background: linear-gradient(to right, #28a745, #34d058);
+      background: #28a745;
       color: white;
       width: 40px;
       height: 40px;
@@ -111,156 +70,317 @@
       cursor: pointer;
       font-size: 20px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      transition: transform 0.1s, background 0.3s;
     }
     .language-btn:hover {
-      background: linear-gradient(to right, #218838, #28a745);
-      transform: scale(1.1);
+      background: #218838;
+    }
+    .section {
+      margin: 20px 0;
+      text-align: left;
+    }
+    .franchisee {
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+    }
+    .task {
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      background: #f9f9f9;
+    }
+    .task img.photo-preview {
+      width: 60px;
+      height: 60px;
+      margin-right: 10px;
+      object-fit: cover;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    .task img.mask-preview {
+      width: 30px;
+      height: 30px;
+      margin-right: 10px;
+      object-fit: cover;
+    }
+    .task-details {
+      flex: 1;
+    }
+    .task-actions {
+      margin-left: auto;
+    }
+    .hidden {
+      display: none;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      max-width: 90%;
+      max-height: 90%;
+    }
+    .modal-content img {
+      max-width: 100%;
+      max-height: 70vh;
+      border-radius: 5px;
+    }
+    .close {
+      position: absolute;
+      top: 10px;
+      right: 20px;
+      color: white;
+      font-size: 30px;
+      cursor: pointer;
+    }
+    @media (max-width: 600px) {
+      .task {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .task-actions {
+        margin-left: 0;
+        margin-top: 10px;
+      }
+      .task img.photo-preview {
+        width: 50px;
+        height: 50px;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h2 data-i18n="welcome">Welcome, <span id="username"></span></h2>
+      <h2 data-i18n="title">Dashboard - Photo Print Service</h2>
       <button class="language-btn" onclick="toggleLanguage()">🌐</button>
     </div>
-    <p data-i18n="remaining_prints">Remaining Prints: <span id="remainingUses">0</span></p>
-    <h3 data-i18n="bind_printer">Bind Printer</h3>
-    <input type="text" id="printerId" placeholder="Enter Printer ID" data-i18n-placeholder="printer_id_placeholder">
-    <button class="bind-btn" onclick="bindPrinter()" data-i18n="bind">Bind</button>
-    <h3 data-i18n="generate_qr">Generate QR Code</h3>
-    <button class="generate-btn" onclick="generateQR()" data-i18n="generate_qr_btn">Generate QR Code</button>
-    <div id="qrcode"></div>
-    <button class="logout-btn" onclick="logout()" data-i18n="logout">Logout</button>
+
+    <!-- 管理员审核界面 -->
+    <div id="adminSection" class="section hidden">
+      <h3 data-i18n="pending_franchisees">Pending Franchisees</h3>
+      <div id="pendingList"></div>
+    </div>
+
+    <!-- 加盟商管理界面 -->
+    <div id="franchiseeSection" class="section">
+      <h3 data-i18n="welcome">Welcome, Franchisee!</h3>
+      <p><span data-i18n="print_quota">Remaining Prints:</span> <span id="printQuota">0</span></p>
+      <p><span data-i18n="printer_status">Printer Status:</span> <span id="printerStatus">Unknown</span></p>
+      <h3 data-i18n="qr_code">Your QR Code</h3>
+      <img id="qrCode" src="" alt="QR Code" onerror="this.src='https://via.placeholder.com/150?text=QR+Code+Failed'">
+      <h3 data-i18n="print_tasks">Print Tasks</h3>
+      <div id="taskList"></div>
+    </div>
+
+    <div id="photoModal" class="modal">
+      <div class="modal-content">
+        <span class="close" onclick="closeModal()">×</span>
+        <img id="modalPhoto" src="" alt="Photo Preview">
+      </div>
+    </div>
   </div>
 
   <script>
     const translations = {
       zh: {
-        dashboard_title: "仪表板 - 照片打印服务",
-        welcome: "欢迎，",
-        remaining_prints: "剩余打印次数：",
-        bind_printer: "绑定打印机",
-        printer_id_placeholder: "请输入打印机ID",
-        bind: "绑定",
-        generate_qr: "生成二维码",
-        generate_qr_btn: "生成二维码",
-        logout: "退出登录",
-        no_printer_id: "请输入打印机ID！",
-        bind_success: "绑定打印机成功！",
-        bind_failed: "绑定打印机失败！",
-        network_error: "网络错误，请稍后再试！",
-        invalid_access: "无效访问，请重新登录！"
+        title: "管理面板 - 照片打印服务",
+        pending_franchisees: "待审核加盟商",
+        welcome: "欢迎，加盟商！",
+        print_quota: "剩余打印次数：",
+        printer_status: "打印机状态：",
+        qr_code: "您的二维码",
+        print_tasks: "打印任务",
+        approve: "通过",
+        task_status_pending: "待打印",
+        task_status_printed: "已打印",
+        confirm_print: "确认打印",
+        delete_task: "删除任务",
+        print_failed: "打印失败，请检查打印机状态！"
       },
       en: {
-        dashboard_title: "Dashboard - Photo Print Service",
-        welcome: "Welcome, ",
-        remaining_prints: "Remaining Prints: ",
-        bind_printer: "Bind Printer",
-        printer_id_placeholder: "Enter Printer ID",
-        bind: "Bind",
-        generate_qr: "Generate QR Code",
-        generate_qr_btn: "Generate QR Code",
-        logout: "Logout",
-        no_printer_id: "Please enter a printer ID!",
-        bind_success: "Printer binding successful!",
-        bind_failed: "Printer binding failed!",
-        network_error: "Network error, please try again later!",
-        invalid_access: "Invalid access, please login again!"
+        title: "Dashboard - Photo Print Service",
+        pending_franchisees: "Pending Franchisees",
+        welcome: "Welcome, Franchisee!",
+        print_quota: "Remaining Prints:",
+        printer_status: "Printer Status:",
+        qr_code: "Your QR Code",
+        print_tasks: "Print Tasks",
+        approve: "Approve",
+        task_status_pending: "Pending",
+        task_status_printed: "Printed",
+        confirm_print: "Confirm Print",
+        delete_task: "Delete Task",
+        print_failed: "Printing failed, please check printer status!"
       }
     };
 
-    let currentLang = localStorage.getItem('language') || 'en';
+    let currentLang = localStorage.getItem('language') || 'zh';
     updateLanguage();
 
     function toggleLanguage() {
       currentLang = currentLang === 'zh' ? 'en' : 'zh';
       localStorage.setItem('language', currentLang);
       updateLanguage();
+      loadPendingFranchisees();
+      loadTasks();
     }
 
     function updateLanguage() {
       document.querySelectorAll('[data-i18n]').forEach(element => {
         const key = element.getAttribute('data-i18n');
-        if (element.id === 'welcome' || element.id === 'remaining_prints') {
-          element.innerHTML = translations[currentLang][key] + element.querySelector('span').outerHTML;
-        } else {
-          element.textContent = translations[currentLang][key];
-        }
+        element.textContent = translations[currentLang][key];
       });
-      document.querySelectorAll('[data-i18n-placeholder]').forEach(element => {
-        const key = element.getAttribute('data-i18n-placeholder');
-        element.placeholder = translations[currentLang][key];
-      });
-      document.title = translations[currentLang].dashboard_title;
+      document.title = translations[currentLang].title;
     }
 
-    // 从URL参数中获取username和remainingUses
+    // 模拟数据
     const urlParams = new URLSearchParams(window.location.search);
-    const username = urlParams.get('username');
-    const remainingUses = urlParams.get('remainingUses');
+    const email = urlParams.get('email');
+    const code = urlParams.get('code');
+    const isAdmin = email === 'admin@example.com'; // 模拟管理员
 
-    if (!username || remainingUses === null) {
-      alert(translations[currentLang].invalid_access);
-      window.location.href = '/index.html';
+    // 模拟 print_jobs 数据（从 upload.html 共享）
+    let printJobs = window.printJobs || [
+      { id: 1, photoUrl: 'https://via.placeholder.com/50', type: '摇摇乐', mask: 'assets/mask_shake.png', status: 'pending' }
+    ];
+
+    // 显示管理员或加盟商界面
+    if (isAdmin) {
+      document.getElementById('adminSection').classList.remove('hidden');
+      document.getElementById('franchiseeSection').classList.add('hidden');
+      loadPendingFranchisees();
     } else {
-      document.getElementById('username').textContent = username || 'Unknown User';
-      document.getElementById('remainingUses').textContent = remainingUses || 0;
+      document.getElementById('adminSection').classList.add('hidden');
+      document.getElementById('franchiseeSection').classList.remove('hidden');
+      loadFranchiseeData();
     }
 
-    async function bindPrinter() {
-      const printerId = document.getElementById('printerId').value.trim();
-      if (!printerId) {
-        alert(translations[currentLang].no_printer_id);
-        return;
-      }
+    function loadPendingFranchisees() {
+      // 模拟待审核加盟商数据
+      const pendingFranchisees = [
+        { id: 1, name: 'wing', email: 'kwn998@gmail.com', phone: '0614845451' }
+      ];
+      const pendingList = document.getElementById('pendingList');
+      pendingList.innerHTML = '';
+      pendingFranchisees.forEach(franchisee => {
+        const div = document.createElement('div');
+        div.className = 'franchisee';
+        div.innerHTML = `
+          <p>Name: ${franchisee.name}</p>
+          <p>Email: ${franchisee.email}</p>
+          <p>Phone: ${franchisee.phone}</p>
+          <button onclick="approveFranchisee(${franchisee.id})" data-i18n="approve">Approve</button>
+        `;
+        pendingList.appendChild(div);
+      });
+      updateLanguage();
+    }
 
-      try {
-        const response = await fetch('/.netlify/functions/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'bind-printer', username, printerId })
-        });
-        const data = await response.json();
-        if (data.success) {
-          alert(translations[currentLang].bind_success);
-          // 重新获取remainingUses（如果绑定打印机会影响次数）
-          window.location.href = `/dashboard.html?username=${encodeURIComponent(username)}&remainingUses=${data.remainingUses || remainingUses}`;
-        } else {
-          alert(data.message || translations[currentLang].bind_failed);
+    function approveFranchisee(id) {
+      // 模拟通过审核，实际会更新 Supabase
+      alert('Franchisee approved! Unique code: FRANCHISEE_abc123');
+      loadPendingFranchisees();
+    }
+
+    function loadFranchiseeData() {
+      // 模拟加盟商数据
+      document.getElementById('printQuota').innerText = 10;
+      document.getElementById('printerStatus').innerText = 'Unknown'; // 后续用 Epson API
+      const qrCode = document.getElementById('qrCode');
+      // 动态获取当前域名，避免硬编码
+      const baseUrl = window.location.origin;
+      qrCode.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${baseUrl}/upload.html?code=${code}`)}`;
+      loadTasks();
+    }
+
+    function loadTasks() {
+      const taskList = document.getElementById('taskList');
+      taskList.innerHTML = '';
+      printJobs.forEach(task => {
+        const div = document.createElement('div');
+        div.className = 'task';
+        div.innerHTML = `
+          <img src="${task.photoUrl}" alt="Photo" class="photo-preview" onclick="openModal('${task.photoUrl}')" onerror="this.src='https://via.placeholder.com/60?text=Photo+Failed'">
+          <div class="task-details">
+            <p>Type: <span class="task-type">${task.type}</span></p>
+            <p>Mask: <img src="${task.mask || 'https://via.placeholder.com/30?text=Mask+Failed'}" alt="Mask" class="mask-preview"></p>
+            <p>Status: <span class="task-status" data-i18n="task_status_${task.status}">${translations[currentLang][`task_status_${task.status}`]}</span></p>
+          </div>
+          <div class="task-actions">
+            ${task.status === 'pending' ? `<button onclick="confirmPrint(${task.id})" data-i18n="confirm_print">Confirm Print</button>` : ''}
+            <button class="delete-btn" onclick="deleteTask(${task.id})" data-i18n="delete_task">Delete Task</button>
+          </div>
+        `;
+        taskList.appendChild(div);
+      });
+      updateLanguage();
+    }
+
+    function confirmPrint(id) {
+      const task = printJobs.find(t => t.id === id);
+      if (task) {
+        try {
+          // 模拟调用 Epson API 打印
+          console.log('Sending to printer:', task.photoUrl);
+          // 实际会调用 Epson API /print 端点
+          alert('Printing task ' + id);
+          // 更新任务状态
+          task.status = 'printed';
+          // 实际会更新 Supabase
+          window.printJobs = printJobs; // 更新全局变量
+          loadTasks();
+        } catch (error) {
+          alert(translations[currentLang].print_failed);
+          console.error('Print error:', error);
         }
-      } catch (error) {
-        console.error('Bind printer error:', error);
-        alert(translations[currentLang].network_error);
       }
     }
 
-    function generateQR() {
-      const qrcodeDiv = document.getElementById('qrcode');
-      qrcodeDiv.innerHTML = '';
-      if (!username) {
-        console.error('No username found for QR code generation');
-        return;
-      }
-      const url = `${window.location.origin}/upload.html?username=${username}`;
-      try {
-        new QRCode(qrcodeDiv, {
-          text: url,
-          width: 200,
-          height: 200,
-          colorDark: "#000000",
-          colorLight: "#ffffff",
-          correctLevel: QRCode.CorrectLevel.H
-        });
-      } catch (error) {
-        console.error('Failed to generate QR code:', error);
+    function deleteTask(id) {
+      if (confirm(translations[currentLang].delete_task + '?')) {
+        printJobs = printJobs.filter(task => task.id !== id);
+        window.printJobs = printJobs; // 更新全局变量
+        loadTasks();
       }
     }
 
-    function logout() {
-      window.location.href = '/index.html';
+    function openModal(photoUrl) {
+      const modal = document.getElementById('photoModal');
+      const modalPhoto = document.getElementById('modalPhoto');
+      modalPhoto.src = photoUrl;
+      modal.style.display = 'flex';
     }
+
+    function closeModal() {
+      const modal = document.getElementById('photoModal');
+      modal.style.display = 'none';
+    }
+
+    // 点击模态框外部关闭
+    window.onclick = function(event) {
+      const modal = document.getElementById('photoModal');
+      if (event.target === modal) {
+        modal.style.display = 'none';
+      }
+    };
   </script>
 </body>
 </html>
