@@ -134,7 +134,7 @@
         status_printing: "打印中",
         status_no_task: "没有任何",
         network_error: "网络错误，请稍后再试！",
-        load_error: "加载用户信息失败，请重试！"
+        load_error: "加载用户信息失败，请重试！{message}"
       },
       en: {
         title: "Dashboard - Photo Print Service",
@@ -149,7 +149,7 @@
         status_printing: "Printing",
         status_no_task: "No Task",
         network_error: "Network error, please try again later!",
-        load_error: "Failed to load user info, please try again!"
+        load_error: "Failed to load user info, please try again! {message}"
       }
     };
 
@@ -169,7 +169,7 @@
       const id = urlParams.get('id');
 
       if (!email || !id) {
-        alert(translations[currentLang].load_error);
+        alert(translations[currentLang].load_error.replace('{message}', 'Missing email or id'));
         window.location.href = 'index.html';
         return;
       }
@@ -191,11 +191,11 @@
           const remainingPrints = user.remaining_prints !== undefined ? user.remaining_prints : 100; // 默认 100
           document.getElementById('remainingPrints').innerText = translations[currentLang].remaining_prints.replace('{count}', remainingPrints);
           // 生成二维码
-          generateQRCode(id);
+          generateQRCode(user.id);
           // 更新打印机状态
           updatePrinterStatus();
         } else {
-          alert(translations[currentLang].load_error + ' ' + (data.message || ''));
+          alert(translations[currentLang].load_error.replace('{message}', data.message || 'Unknown error'));
           window.location.href = 'index.html';
         }
       } catch (error) {
