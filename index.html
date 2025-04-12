@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="title">Photo Print Service</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -66,6 +65,10 @@
     button:hover {
       background: #0056b3;
     }
+    button:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
+    }
     .language-btn {
       background: #28a745;
       color: white;
@@ -99,6 +102,11 @@
     .hidden {
       display: none;
     }
+    .loading-message {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
   </style>
 </head>
 <body>
@@ -111,11 +119,12 @@
     <!-- 登录表单 -->
     <div id="loginSection">
       <h2 data-i18n="login_title">Login</h2>
+      <div id="loginLoading" class="loading-message"></div>
       <label data-i18n="email_label">Email</label>
       <input type="email" id="loginEmail" data-i18n-placeholder="email_placeholder">
       <label data-i18n="password_label">Password</label>
       <input type="password" id="loginPassword" data-i18n-placeholder="password_placeholder">
-      <button onclick="login()" data-i18n="login">Login</button>
+      <button id="loginButton" onclick="login()" data-i18n="login" disabled>Login</button>
       <div id="loginMessage" class="message"></div>
       <div class="link" onclick="showRegister()" data-i18n="register_link">Don't have an account? Register</div>
     </div>
@@ -123,6 +132,7 @@
     <!-- 注册表单 -->
     <div id="registerSection" class="hidden">
       <h2 data-i18n="register_title">Register</h2>
+      <div id="registerLoading" class="loading-message"></div>
       <label data-i18n="name_label">Name</label>
       <input type="text" id="registerName" data-i18n-placeholder="name_placeholder">
       <label data-i18n="email_label">Email</label>
@@ -131,25 +141,13 @@
       <input type="text" id="registerPhone" data-i18n-placeholder="phone_placeholder">
       <label data-i18n="password_label">Password</label>
       <input type="password" id="registerPassword" data-i18n-placeholder="password_placeholder">
-      <button onclick="register()" data-i18n="register">Register</button>
+      <button id="registerButton" onclick="register()" data-i18n="register" disabled>Register</button>
       <div id="registerMessage" class="message"></div>
       <div class="link" onclick="showLogin()" data-i18n="login_link">Already have an account? Login</div>
     </div>
   </div>
 
   <script>
-    // Supabase 客户端初始化
-    let supabase;
-    try {
-      supabase = Supabase.createClient(
-        'https://nqapfcosintqipzttflo.supabase.co',
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8'
-      );
-    } catch (err) {
-      console.error('Failed to initialize Supabase client:', err);
-      // 如果 Supabase 初始化失败，仍然允许页面加载和语言切换
-    }
-
     const translations = {
       zh: {
         title: "照片打印服务",
@@ -174,7 +172,9 @@
         login_success: "登录成功！请前往管理页面！",
         register_link: "还没有账号？注册",
         login_link: "已有账号？登录",
-        network_error: "网络错误，请稍后再试！"
+        network_error: "网络错误，请稍后再试！",
+        loading: "正在加载服务，请稍候...",
+        loading_failed: "服务加载失败，请刷新页面重试！"
       },
       en: {
         title: "Photo Print Service",
@@ -199,7 +199,9 @@
         login_success: "Login successful! Proceed to dashboard!",
         register_link: "Don't have an account? Register",
         login_link: "Already have an account? Login",
-        network_error: "Network error, please try again later!"
+        network_error: "Network error, please try again later!",
+        loading: "Loading service, please wait...",
+        loading_failed: "Failed to load service, please refresh the page and try again!"
       }
     };
 
@@ -209,14 +211,64 @@
       localStorage.setItem('language', currentLang);
     }
 
+    let supabase = null;
+    let isSupabaseLoaded = false;
+
     // 页面加载时初始化语言
     updateLanguage();
+
+    // 显示加载提示
+    document.getElementById('loginLoading').innerText = translations[currentLang].loading;
+    document.getElementById('registerLoading').innerText = translations[currentLang].loading;
+
+    // 动态加载 Supabase 客户端
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+    script.onload = () => {
+      try {
+        supabase = Supabase.createClient(
+          'https://nqapfcosintqipzttflo.supabase.co',
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8'
+        );
+        isSupabaseLoaded = true;
+        // 启用按钮
+        document.getElementById('loginButton').disabled = false;
+        document.getElementById('registerButton').disabled = false;
+        // 清除加载提示
+        document.getElementById('loginLoading').innerText = '';
+        document.getElementById('registerLoading').innerText = '';
+      } catch (err) {
+        console.error('Failed to initialize Supabase client:', err);
+        handleSupabaseLoadFailure();
+      }
+    };
+    script.onerror = () => {
+      console.error('Failed to load Supabase script');
+      handleSupabaseLoadFailure();
+    };
+    document.head.appendChild(script);
+
+    function handleSupabaseLoadFailure() {
+      isSupabaseLoaded = false;
+      document.getElementById('loginLoading').innerText = translations[currentLang].loading_failed;
+      document.getElementById('registerLoading').innerText = translations[currentLang].loading_failed;
+      document.getElementById('loginButton').disabled = true;
+      document.getElementById('registerButton').disabled = true;
+    }
 
     function toggleLanguage() {
       currentLang = currentLang === 'zh' ? 'en' : 'zh';
       localStorage.setItem('language', currentLang);
       updateLanguage();
-      // 清空动态提示信息，需重新触发操作以更新翻译
+      // 更新加载提示（如果存在）
+      if (!isSupabaseLoaded) {
+        document.getElementById('loginLoading').innerText = translations[currentLang].loading_failed;
+        document.getElementById('registerLoading').innerText = translations[currentLang].loading_failed;
+      } else {
+        document.getElementById('loginLoading').innerText = '';
+        document.getElementById('registerLoading').innerText = '';
+      }
+      // 清空动态提示信息
       document.getElementById('registerMessage').innerText = '';
       document.getElementById('loginMessage').innerText = '';
     }
@@ -250,6 +302,11 @@
     }
 
     async function register() {
+      if (!isSupabaseLoaded || !supabase) {
+        document.getElementById('registerMessage').innerText = translations[currentLang].network_error;
+        return;
+      }
+
       const name = document.getElementById('registerName').value.trim();
       const email = document.getElementById('registerEmail').value.trim();
       const phone = document.getElementById('registerPhone').value.trim();
@@ -257,11 +314,6 @@
 
       if (!name || !email || !phone || !password) {
         document.getElementById('registerMessage').innerText = translations[currentLang].register_failed;
-        return;
-      }
-
-      if (!supabase) {
-        document.getElementById('registerMessage').innerText = translations[currentLang].network_error;
         return;
       }
 
@@ -288,16 +340,16 @@
     }
 
     async function login() {
+      if (!isSupabaseLoaded || !supabase) {
+        document.getElementById('loginMessage').innerText = translations[currentLang].network_error;
+        return;
+      }
+
       const email = document.getElementById('loginEmail').value.trim();
       const password = document.getElementById('loginPassword').value.trim();
 
       if (!email || !password) {
         document.getElementById('loginMessage').innerText = translations[currentLang].login_failed;
-        return;
-      }
-
-      if (!supabase) {
-        document.getElementById('loginMessage').innerText = translations[currentLang].network_error;
         return;
       }
 
