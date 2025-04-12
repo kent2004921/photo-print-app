@@ -65,7 +65,7 @@
       margin-top: 20px;
       text-align: left;
     }
-    .task-section .hidden {
+    .task-section.hidden {
       display: none;
     }
     .buttons {
@@ -109,9 +109,9 @@
 
     <div id="qrCode"></div>
 
-    <div class="task-section" id="taskSection">
-      <div class="info" id="taskType" data-i18n="task_type">Type: Unknown</div>
-      <div class="info" id="taskMask" data-i18n="task_mask">Mask: Unknown</div>
+    <div class="task-section hidden" id="taskSection">
+      <div class="info" id="taskType"></div>
+      <div class="info" id="taskMask"></div>
       <div class="buttons">
         <button class="start-btn" onclick="startPrint()" data-i18n="start_print">确认打印</button>
         <button class="cancel-btn" onclick="cancelPrint()" data-i18n="cancel_print">删除任务</button>
@@ -126,8 +126,8 @@
         welcome: "欢迎，{name}",
         remaining_prints: "剩余打印次数：{count}",
         printer_status: "打印机状态：{status}",
-        task_type: "Type: 摇摇乐",
-        task_mask: "Mask: Mask",
+        task_type: "Type: {type}",
+        task_mask: "Mask: {mask}",
         start_print: "确认打印",
         cancel_print: "删除任务",
         status_idle: "空闲",
@@ -141,8 +141,8 @@
         welcome: "Welcome, {name}",
         remaining_prints: "Remaining Prints: {count}",
         printer_status: "Printer Status: {status}",
-        task_type: "Type: Unknown",
-        task_mask: "Mask: Unknown",
+        task_type: "Type: {type}",
+        task_mask: "Mask: {mask}",
         start_print: "Start Print",
         cancel_print: "Cancel Print",
         status_idle: "Idle",
@@ -230,6 +230,12 @@
         } else if (key === 'printer_status') {
           const status = element.innerText.match(/打印机状态：(.+)/)?.[1] || element.innerText.match(/Printer Status: (.+)/)?.[1] || 'Unknown';
           text = text.replace('{status}', translations[currentLang][`status_${status.toLowerCase()}`] || status);
+        } else if (key === 'task_type') {
+          const type = element.innerText.match(/Type: (.+)/)?.[1] || 'Unknown';
+          text = text.replace('{type}', type);
+        } else if (key === 'task_mask') {
+          const mask = element.innerText.match(/Mask: (.+)/)?.[1] || 'Unknown';
+          text = text.replace('{mask}', mask);
         }
         element.innerText = text;
       });
@@ -252,14 +258,20 @@
     function updatePrinterStatus() {
       const printerStatus = document.getElementById('printerStatus');
       const taskSection = document.getElementById('taskSection');
+      const taskType = document.getElementById('taskType');
+      const taskMask = document.getElementById('taskMask');
       const hasTask = false; // 假设当前没有打印任务
 
       if (hasTask) {
         printerStatus.innerText = translations[currentLang].printer_status.replace('{status}', translations[currentLang].status_printing);
         taskSection.classList.remove('hidden');
+        taskType.innerText = translations[currentLang].task_type.replace('{type}', '摇摇乐'); // 示例任务类型
+        taskMask.innerText = translations[currentLang].task_mask.replace('{mask}', 'Mask'); // 示例 Mask
       } else {
         printerStatus.innerText = translations[currentLang].printer_status.replace('{status}', translations[currentLang].status_no_task);
         taskSection.classList.add('hidden');
+        taskType.innerText = '';
+        taskMask.innerText = '';
       }
     }
 
