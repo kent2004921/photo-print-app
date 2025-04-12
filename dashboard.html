@@ -57,17 +57,17 @@
       font-size: 16px;
       color: #333;
     }
-    .preview-section {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin: 20px 0;
-    }
     #qrCode, #photoPreview {
+      margin: 20px auto;
+      display: block;
+    }
+    #qrCode {
       width: 128px;
       height: 128px;
     }
     #photoPreview {
+      width: 200px;
+      height: 200px;
       border: 2px dashed #ccc;
       display: flex;
       align-items: center;
@@ -122,10 +122,8 @@
     <div class="info" id="remainingPrints" data-i18n="remaining_prints">剩余打印次数：0</div>
     <div class="info" id="printerStatus" data-i18n="printer_status">打印机状态：Unknown</div>
 
-    <div class="preview-section">
-      <div id="qrCode"></div>
-      <div id="photoPreview"></div>
-    </div>
+    <div id="qrCode"></div>
+    <div id="photoPreview"></div>
 
     <div class="task-section" id="taskSection">
       <div class="info" id="taskType" data-i18n="task_type">Type: Unknown</div>
@@ -278,7 +276,7 @@
       const qrCodeDiv = document.getElementById('qrCode');
       qrCodeDiv.innerHTML = ''; // 清空之前的内容
       new QRCode(qrCodeDiv, {
-        text: `user:${userId}`, // 唯一标识用户的二维码内容
+        text: `https://photo-print-app.netlify.app/upload.html?userId=${userId}`, // 跳转到上传界面
         width: 128,
         height: 128,
         colorDark: '#000000',
@@ -290,7 +288,6 @@
     async function loadPrintPhoto() {
       const photoPreview = document.getElementById('photoPreview');
       try {
-        // 模拟调用 API 获取照片 URL
         const response = await fetch('/.netlify/functions/get_print_photo', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' }
@@ -304,12 +301,10 @@
           photoPreview.innerHTML = '';
           photoPreview.appendChild(img);
         } else {
-          // 没有照片，显示空白框框
           photoPreview.innerHTML = '';
         }
       } catch (error) {
         console.error('Load photo error:', error);
-        // 加载失败，显示空白框框
         photoPreview.innerHTML = '';
       }
     }
@@ -322,10 +317,10 @@
         });
         const data = await response.json();
         console.log('Printer status:', data);
-        return data; // 期望返回 { connected: true, brand: "Epson", model: "L3150" } 或 { connected: false }
+        return data;
       } catch (error) {
         console.error('Check printer status error:', error);
-        return { connected: true, brand: "Epson", model: "L3150" }; // 模拟已连接
+        return { connected: true, brand: "Epson", model: "L3150" };
       }
     }
 
@@ -333,9 +328,8 @@
       const printerStatus = document.getElementById('printerStatus');
       const taskType = document.getElementById('taskType');
       const taskMask = document.getElementById('taskMask');
-      const hasTask = false; // 假设当前没有打印任务
+      const hasTask = false;
 
-      // 更新打印机状态
       if (printerInfo.connected) {
         printerStatus.innerText = translations[currentLang].printer_status.replace(
           '{status}',
@@ -350,10 +344,9 @@
         );
       }
 
-      // 更新任务状态
       if (hasTask) {
-        taskType.innerText = translations[currentLang].task_type.replace('{type}', '摇摇乐'); // 示例任务类型
-        taskMask.innerText = translations[currentLang].task_mask.replace('{mask}', 'Mask'); // 示例 Mask
+        taskType.innerText = translations[currentLang].task_type.replace('{type}', '摇摇乐');
+        taskMask.innerText = translations[currentLang].task_mask.replace('{mask}', 'Mask');
       } else {
         taskType.innerText = translations[currentLang].task_type.replace('{type}', translations[currentLang].task_idle);
         taskMask.innerText = translations[currentLang].task_mask.replace('{mask}', translations[currentLang].task_not_loaded);
