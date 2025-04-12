@@ -30,7 +30,6 @@ exports.handler = async (event) => {
 
   try {
     if (action === 'register') {
-      // 验证注册字段
       if (!name || !email || !phone || !password) {
         return {
           statusCode: 400,
@@ -38,7 +37,6 @@ exports.handler = async (event) => {
         };
       }
 
-      // 插入新用户，设置默认 status 为 'pending' 和 remaining_prints 为 100
       const { data, error } = await supabase
         .from('franchisees')
         .insert([{ name, email, phone, password, status: 'pending', remaining_prints: 100 }]);
@@ -100,7 +98,7 @@ exports.handler = async (event) => {
 
       const { data, error } = await supabase
         .from('franchisees')
-        .select('name, remaining_prints')
+        .select('id, name, remaining_prints')
         .eq('email', email)
         .eq('id', id)
         .single();
