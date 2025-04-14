@@ -92,12 +92,18 @@ exports.handler = async (event) => {
       };
     }
 
-    log('File uploaded successfully', { data });
+    // 获取文件的公共URL
+    const { data: urlData } = supabase.storage
+      .from('print-photos')
+      .getPublicUrl(filename);
+
+    log('File uploaded successfully', { data, url: urlData.publicUrl });
     return {
       statusCode: 200,
       body: JSON.stringify({
+        success: true,
+        photoUrl: urlData.publicUrl,
         message: 'File uploaded successfully',
-        data,
       }),
     };
   } catch (error) {
