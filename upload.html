@@ -183,7 +183,7 @@
     <input type="file" id="photoInput" accept="image/*" onchange="photoEditor.loadPhoto()">
     <div class="canvas-container">
       <canvas id="photoCanvas"></canvas>
-      <img id="mask" src="https://via.placeholder.com/300?text=Mask">
+      <img id="mask" src="https://picsum.photos/300/300">
       <div id="loadingOverlay" class="loading-overlay" data-i18n="loading">加载中...</div>
     </div>
     <div class="controls">
@@ -267,7 +267,7 @@
       window.location.href = 'index.html';
     }
 
-    // 初始化Supabase客户端（修正大小写）
+    // 初始化Supabase客户端
     const supabaseUrl = 'https://nqapfcosintqipzttflo.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8';
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
@@ -312,7 +312,7 @@
         // 蒙版选项
         this.maskOptions = {
           '摇摇乐': [
-            { name: '默认', src: 'https://via.placeholder.com/300?text=Mask' }
+            { name: '默认', src: 'https://picsum.photos/300/300' }
           ],
           '冰箱贴': [
             { name: '动物-猫咪', src: 'https://via.placeholder.com/60?text=Cat' },
@@ -381,7 +381,7 @@
         };
         this.mask.onerror = () => {
           console.error('Failed to load mask:', this.selectedMaskSrc);
-          this.submitMessage.innerText = 'Failed to load mask image.';
+          this.submitMessage.innerText = 'Failed to load mask image. Please try a different mask.';
         };
       }
 
