@@ -104,12 +104,15 @@
       position: absolute;
       top: 0;
       left: 0;
+      z-index: 1; /* 确保Canvas在底层 */
     }
     #mask {
       position: absolute;
       top: 0;
       left: 0;
       pointer-events: none;
+      z-index: 2; /* 确保mask在Canvas之上 */
+      display: none; /* 初始隐藏，等加载完成再显示 */
     }
     .controls {
       margin: 10px 0;
@@ -157,6 +160,7 @@
       font-size: 14px;
       color: #333;
       display: none;
+      z-index: 3; /* 确保loading在最上层 */
     }
   </style>
 </head>
@@ -169,9 +173,9 @@
 
     <label data-i18n="print_type_label">Print Type</label>
     <select id="printType" onchange="photoEditor.updateMaskOptions()">
-      <option value="摇摇乐" data-i18n="print_type_1">摇摇乐</option>
-      <option value="冰箱贴" data-i18n="print_type_2">冰箱贴</option>
-      <option value="钥匙圈" data-i18n="print_type_3">钥匙圈</option>
+      <option value="Shake Toy" data-i18n="print_type_1">Shake Toy</option>
+      <option value="Fridge Magnet" data-i18n="print_type_2">Fridge Magnet</option>
+      <option value="Keychain" data-i18n="print_type_3">Keychain</option>
     </select>
 
     <div id="maskSelector" class="mask-selector" style="display: none;"></div>
@@ -180,7 +184,7 @@
     <div class="canvas-container">
       <canvas id="photoCanvas"></canvas>
       <img id="mask" src="assets/mask_shake.png">
-      <div id="loadingOverlay" class="loading-overlay" data-i18n="loading">加载中...</div>
+      <div id="loadingOverlay" class="loading-overlay" data-i18n="loading">Loading...</div>
     </div>
     <div class="controls">
       <label data-i18n="zoom_label">Zoom</label>
@@ -238,7 +242,7 @@
       }
     };
 
-    let currentLang = localStorage.getItem('language') || 'zh';
+    let currentLang = localStorage.getItem('language') || 'en';
     updateLanguage();
 
     function toggleLanguage() {
@@ -307,22 +311,22 @@
 
         // 蒙版选项
         this.maskOptions = {
-          '摇摇乐': [
-            { name: '默认', src: 'assets/mask_shake.png' }
+          'Shake Toy': [
+            { name: 'Default', src: 'assets/mask_shake.png' }
           ],
-          '冰箱贴': [
-            { name: '动物-猫咪', src: 'https://via.placeholder.com/60?text=Cat' },
-            { name: '动物-小狗', src: 'https://via.placeholder.com/60?text=Dog' },
-            { name: '风景-海洋', src: 'https://via.placeholder.com/60?text=Ocean' }
+          'Fridge Magnet': [
+            { name: 'Animal-Cat', src: 'https://via.placeholder.com/60?text=Cat' },
+            { name: 'Animal-Dog', src: 'https://via.placeholder.com/60?text=Dog' },
+            { name: 'Scenery-Ocean', src: 'https://via.placeholder.com/60?text=Ocean' }
           ],
-          '钥匙圈': [
-            { name: '圆形-简约', src: 'https://via.placeholder.com/60?text=Circle' },
-            { name: '方形-经典', src: 'https://via.placeholder.com/60?text=Square' },
-            { name: '心形-浪漫', src: 'https://via.placeholder.com/60?text=Heart' }
+          'Keychain': [
+            { name: 'Circle-Simple', src: 'https://via.placeholder.com/60?text=Circle' },
+            { name: 'Square-Classic', src: 'https://via.placeholder.com/60?text=Square' },
+            { name: 'Heart-Romantic', src: 'https://via.placeholder.com/60?text=Heart' }
           ]
         };
 
-        this.selectedMaskSrc = this.maskOptions['摇摇乐'][0].src;
+        this.selectedMaskSrc = this.maskOptions['Shake Toy'][0].src;
 
         // 初始化蒙版选项
         this.updateMaskOptions();
@@ -336,7 +340,7 @@
         const maskSelector = document.getElementById('maskSelector');
         maskSelector.innerHTML = '';
 
-        if (printType === '摇摇乐') {
+        if (printType === 'Shake Toy') {
           maskSelector.style.display = 'none';
           this.selectedMaskSrc = this.maskOptions[printType][0].src;
         } else {
@@ -364,32 +368,54 @@
       }
 
       updateMask() {
+        console.log('Updating mask with src:', this.selectedMaskSrc);
         this.mask.src = this.selectedMaskSrc;
         this.mask.style.width = `${this.displayWidth}px`;
         this.mask.style.height = `${this.displayHeight}px`;
         this.mask.style.left = `${(300 - this.displayWidth) / 2}px`; // 居中
         this.mask.style.top = '0px';
-        this.updatePhoto();
+        this.mask.onload = () => {
+          console.log('Mask loaded successfully');
+          this.mask.style.display = 'block'; // 加载成功后显示
+          this.updatePhoto();
+        };
+        this.mask.onerror = () => {
+          console.error('Failed to load mask:', this.selectedMaskSrc);
+          this.submitMessage.innerText = 'Failed to load mask image.';
+        };
       }
 
       async loadPhoto() {
         const file = document.getElementById('photoInput').files[0];
-        if (!file) return;
+        if (!file) {
+          console.log('No file selected');
+          return;
+        }
 
         // 限制文件大小（5MB）
         const maxSize = 5 * 1024 * 1024; // 5MB
         if (file.size > maxSize) {
           this.submitMessage.innerText = translations[currentLang].file_too_large;
+          console.log('File too large:', file.size);
           return;
         }
 
         this.showLoading(true);
         try {
+          console.log('Loading photo:', file.name);
           this.img.src = URL.createObjectURL(file);
-          await new Promise(resolve => this.img.onload = resolve);
-          // 模拟抠图 API 调用
-          const processedImg = await this.removeBackground(this.img);
-          this.img = processedImg;
+          await new Promise((resolve, reject) => {
+            this.img.onload = () => {
+              console.log('Photo loaded successfully');
+              resolve();
+            };
+            this.img.onerror = () => {
+              console.error('Failed to load photo');
+              reject(new Error('Failed to load photo'));
+            };
+          });
+
+          // 重置状态
           this.state = {
             ...this.state,
             scale: 1,
@@ -402,31 +428,34 @@
           document.getElementById('zoomSlider').value = 1;
           document.getElementById('brightnessSlider').value = 1;
           document.getElementById('contrastSlider').value = 1;
+          console.log('Updating photo after load');
           this.updatePhoto();
         } catch (error) {
           console.error('Load photo error:', error);
-          this.submitMessage.innerText = translations[currentLang].network_error;
+          this.submitMessage.innerText = translations[currentLang].network_error + ` (${error.message})`;
         } finally {
           this.showLoading(false);
         }
       }
 
-      removeBackground(image) {
-        // 占位：模拟抠图 API
-        return new Promise(resolve => resolve(image));
-      }
-
       updateScale(value) {
         this.state.scale = parseFloat(value);
+        console.log('Updating scale:', this.state.scale);
         this.updatePhoto();
       }
 
       updatePhoto() {
+        console.log('Updating photo, img.src:', this.img.src);
         this.state.scale = Math.max(0.1, Math.min(2, this.state.scale));
         this.state.brightness = parseFloat(document.getElementById('brightnessSlider').value);
         this.state.contrast = parseFloat(document.getElementById('contrastSlider').value);
 
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        if (!this.img.src) {
+          console.log('No image to draw');
+          return;
+        }
+
         this.ctx.save();
         this.ctx.filter = `brightness(${this.state.brightness}) contrast(${this.state.contrast})`;
         this.ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
@@ -443,29 +472,34 @@
           drawWidth = 300 * aspectRatio;
         }
         this.ctx.translate(-drawWidth / 2 + this.state.offsetX, -drawHeight / 2 + this.state.offsetY);
+        console.log('Drawing image, width:', drawWidth, 'height:', drawHeight);
         this.ctx.drawImage(this.img, 0, 0, drawWidth, drawHeight);
         this.ctx.restore();
       }
 
       rotateLeft() {
         this.state.rotation -= 90;
+        console.log('Rotating left, rotation:', this.state.rotation);
         this.updatePhoto();
       }
 
       rotateRight() {
         this.state.rotation += 90;
+        console.log('Rotating right, rotation:', this.state.rotation);
         this.updatePhoto();
       }
 
       async submitPhoto() {
         if (!this.img.src) {
           this.submitMessage.innerText = translations[currentLang].submit_failed;
+          console.log('No image to submit');
           return;
         }
 
         this.submitButton.disabled = true;
         this.showLoading(true, translations[currentLang].submitting);
         try {
+          console.log('Submitting photo');
           const printType = document.getElementById('printType').value;
           const photoDataUrl = this.canvas.toDataURL('image/png');
 
@@ -484,6 +518,7 @@
           // 生成文件名
           const timestamp = Date.now();
           const filename = `user_${userId}_${timestamp}.png`;
+          console.log('Uploading to Supabase, filename:', filename);
 
           // 直接上传到Supabase
           const { data, error } = await supabase.storage
@@ -493,14 +528,17 @@
             });
 
           if (error) {
+            console.error('Supabase upload error:', error);
             throw new Error(`Failed to upload photo to Supabase: ${error.message}`);
           }
 
+          console.log('Upload successful, getting public URL');
           // 获取文件的公共URL
           const { data: urlData } = supabase.storage
             .from('print-photos')
             .getPublicUrl(filename);
 
+          console.log('Creating print job, photoUrl:', urlData.publicUrl);
           // 创建打印任务
           const taskResponse = await fetch('/.netlify/functions/create_print_job', {
             method: 'POST',
@@ -516,10 +554,12 @@
 
           const taskData = await taskResponse.json();
           if (!taskData.success) {
+            console.error('Failed to create print job:', taskData);
             throw new Error(`Failed to create print job: ${taskData.message || 'Unknown error'}`);
           }
 
           this.submitMessage.innerText = translations[currentLang].submit_success;
+          console.log('Submit successful, redirecting');
           setTimeout(() => {
             window.location.href = `dashboard.html?email=${encodeURIComponent('kwn998@gmail.com')}&id=${userId}`;
           }, 1000);
@@ -545,7 +585,7 @@
 
         this.canvas.addEventListener('touchstart', (e) => this.handleStart(e));
         this.canvas.addEventListener('touchmove', (e) => this.handleMove(e));
-        this.canvas.addEventListener('touchend', (e) => this.handleEnd());
+        this.canvas.addEventListener('touchend', () => this.handleEnd());
       }
 
       getEventPosition(e) {
