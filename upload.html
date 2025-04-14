@@ -183,7 +183,7 @@
     <input type="file" id="photoInput" accept="image/*" onchange="photoEditor.loadPhoto()">
     <div class="canvas-container">
       <canvas id="photoCanvas"></canvas>
-      <img id="mask" src="assets/mask_shake.png">
+      <img id="mask" src="https://via.placeholder.com/300?text=Mask">
       <div id="loadingOverlay" class="loading-overlay" data-i18n="loading">加载中...</div>
     </div>
     <div class="controls">
@@ -267,10 +267,10 @@
       window.location.href = 'index.html';
     }
 
-    // 初始化Supabase客户端
+    // 初始化Supabase客户端（修正大小写）
     const supabaseUrl = 'https://nqapfcosintqipzttflo.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8';
-    const supabase = Supabase.createClient(supabaseUrl, supabaseKey);
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
     class PhotoEditor {
       constructor() {
@@ -312,7 +312,7 @@
         // 蒙版选项
         this.maskOptions = {
           '摇摇乐': [
-            { name: '默认', src: 'assets/mask_shake.png' }
+            { name: '默认', src: 'https://via.placeholder.com/300?text=Mask' }
           ],
           '冰箱贴': [
             { name: '动物-猫咪', src: 'https://via.placeholder.com/60?text=Cat' },
@@ -410,7 +410,7 @@
               resolve();
             };
             this.img.onerror = () => {
-              console.error('Failed to load photo');
+              console.error('Failed to load photo:', file.name);
               reject(new Error('Failed to load photo'));
             };
           });
@@ -451,8 +451,8 @@
         this.state.contrast = parseFloat(document.getElementById('contrastSlider').value);
 
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        if (!this.img.src) {
-          console.log('No image to draw');
+        if (!this.img.src || !this.img.complete) {
+          console.log('No image to draw or image not fully loaded');
           return;
         }
 
