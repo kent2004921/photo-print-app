@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="title">Upload Photo - Photo Print Service</title>
+  <!-- 引入Supabase JavaScript客户端 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -261,6 +263,11 @@
       window.location.href = 'index.html';
     }
 
+    // 初始化Supabase客户端
+    const supabaseUrl = 'https://nqapfcosintqipzttflo.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8';
+    const supabase = Supabase.createClient(supabaseUrl, supabaseKey);
+
     class PhotoEditor {
       constructor() {
         this.canvas = document.getElementById('photoCanvas');
@@ -462,19 +469,37 @@
           const printType = document.getElementById('printType').value;
           const photoDataUrl = this.canvas.toDataURL('image/png');
 
-          // 上传照片到 Supabase Storage
-          const photoResponse = await fetch('/.netlify/functions/upload_photo', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: userId,
-              photoData: photoDataUrl
-            })
-          });
-          const photoData = await photoResponse.json();
-          if (!photoData.success) {
-            throw new Error(`Failed to upload photo: ${photoData.message || 'Unknown error'}`);
+          // 去掉base64前缀，只保留数据部分
+          const base64Data = photoDataUrl.split(',')[1];
+          // 将base64数据转换为Blob
+          const byteString = atob(base64Data);
+          const mimeString = 'image/png';
+          const ab = new ArrayBuffer(byteString.length);
+          const ia = new Uint8Array(ab);
+          for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
           }
+          const blob = new Blob([ab], { type: mimeString });
+
+          // 生成文件名
+          const timestamp = Date.now();
+          const filename = `user_${userId}_${timestamp}.png`;
+
+          // 直接上传到Supabase
+          const { data, error } = await supabase.storage
+            .from('print-photos')
+            .upload(filename, blob, {
+              contentType: 'image/png',
+            });
+
+          if (error) {
+            throw new Error(`Failed to upload photo to Supabase: ${error.message}`);
+          }
+
+          // 获取文件的公共URL
+          const { data: urlData } = supabase.storage
+            .from('print-photos')
+            .getPublicUrl(filename);
 
           // 创建打印任务
           const taskResponse = await fetch('/.netlify/functions/create_print_job', {
@@ -482,7 +507,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               userId: userId,
-              photoUrl: photoData.photoUrl,
+              photoUrl: urlData.publicUrl,
               type: printType,
               mask: this.selectedMaskSrc,
               status: 'pending'
@@ -563,7 +588,7 @@
         }
       }
 
-      handleMove(e) {
+       handleMove(e) {
         e.preventDefault();
         const { x, y, touches } = this.getEventPosition(e);
         if (this.state.isDragging) {
@@ -600,5 +625,6 @@
 
     const photoEditor = new PhotoEditor();
   </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9303eafcaf48d9a9',t:'MTc0NDY0MTIwMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
 </body>
 </html>
