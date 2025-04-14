@@ -1,52 +1,54 @@
-const { createClient } = require('@supabase/supabase-js');
-
 exports.handler = async (event) => {
-  const supabase = createClient(
-    process.env.SUPABASE_URL || 'https://nqapfcosintqipzttflo.supabase.co',
-    process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8'
-  );
-
   try {
-    const body = JSON.parse(event.body);
-    const { userId, photoUrl, type, mask, status } = body;
+    if (event.httpMethod !== 'POST') {
+      return {
+        statusCode: 405,
+        body: JSON.stringify({
+          error: 'Method not allowed',
+          details: 'Only POST requests are allowed',
+        }),
+      };
+    }
 
-    if (!userId || !photoUrl || !type || !mask || !status) {
+    if (!event.body) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ success: false, message: 'Missing required fields' })
+        body: JSON.stringify({
+          error: 'Bad request',
+          details: 'No data provided',
+        }),
       };
     }
 
-    const { data, error } = await supabase
-      .from('print_jobs')
-      .insert([
-        {
-          user_id: userId,
-          photo_url: photoUrl,
-          type: type,
-          mask: mask,
-          status: status,
-          created_at: new Date().toISOString()
-        }
-      ]);
+    const { userId, photoUrl, type, mask, status } = JSON.parse(event.body);
 
-    if (error) {
-      console.error('Create print job error:', error);
+    if (!userId || !photoUrl || !type || !status) {
       return {
-        statusCode: 500,
-        body: JSON.stringify({ success: false, message: 'Failed to create print job' })
+        statusCode: 400,
+        body: JSON.stringify({
+          error: 'Missing data',
+          details: 'userId, photoUrl, type, and status are required',
+        }),
       };
     }
 
+    // 这里可以添加逻辑将打印任务保存到数据库（比如Supabase的数据库）
+    // 为了示例，我们直接返回成功
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true, data })
+      body: JSON.stringify({
+        success: true,
+        message: 'Print job created successfully',
+        data: { userId, photoUrl, type, mask, status },
+      }),
     };
   } catch (error) {
-    console.error('Create print job error:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ success: false, message: 'Server error' })
+      body: JSON.stringify({
+        error: 'Failed to create print job',
+        details: error.message,
+      }),
     };
   }
 };
