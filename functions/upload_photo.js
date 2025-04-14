@@ -1,56 +1,62 @@
 const { createClient } = require('@supabase/supabase-js');
 
+// 从环境变量读取Supabase配置
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+
+// 初始化Supabase客户端
+let supabase;
+try {
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing SUPABASE_URL or SUPABASE_KEY in environment variables');
+  }
+  supabase = createClient(supabaseUrl, supabaseKey);
+} catch (error) {
+  console.error('Failed to initialize Supabase client:', error.message);
+  return {
+    statusCode: 500,
+    body: JSON.stringify({ error: 'Server configuration error', details: error.message }),
+  };
+}
+
 exports.handler = async (event) => {
-  const supabase = createClient(
-    process.env.SUPABASE_URL || 'https://nqapfcosintqipzttflo.supabase.co',
-    process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8'
-  );
-
   try {
-    const body = JSON.parse(event.body);
-    const { userId, photoData } = body;
-
-    if (!userId || !photoData) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ success: false, message: 'Missing userId or photoData' })
-      };
+    // 检查请求体是否存在
+    if (!event.body) {
+      throw new Error('No file data provided in the request');
     }
 
-    // 将 Base64 数据转换为 Buffer
-    const base64Data = photoData.replace(/^data:image\/\w+;base64,/, '');
-    const buffer = Buffer.from(base64Data, 'base64');
+    // 解析请求体（假设前端发送的是JSON格式）
+    const { file, filename } = JSON.parse(event.body);
 
-    // 上传到 Supabase Storage
+    if (!file || !filename) {
+      throw new Error('Missing file or filename in request body');
+    }
+
+    // 上传文件到print-photos存储桶
     const { data, error } = await supabase.storage
       .from('print-photos')
-      .upload(`user_${userId}_photo.jpg`, buffer, {
-        contentType: 'image/jpeg',
-        upsert: true
+      .upload(filename, Buffer.from(file, 'base64'), {
+        contentType: 'image/png', // 根据实际文件类型调整
       });
 
     if (error) {
-      console.error('Upload to Supabase error:', error);
+      console.error('Supabase upload error:', error);
       return {
         statusCode: 500,
-        body: JSON.stringify({ success: false, message: 'Failed to upload photo to storage' })
+        body: JSON.stringify({ error: 'Failed to upload file to Supabase', details: error.message }),
       };
     }
 
-    // 获取公开 URL
-    const { publicUrl } = supabase.storage
-      .from('print-photos')
-      .getPublicUrl(`user_${userId}_photo.jpg`).data;
-
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true, photoUrl: publicUrl })
+      body: JSON.stringify({ message: 'File uploaded successfully', data }),
     };
   } catch (error) {
-    console.error('Upload photo error:', error);
+    console.error('Function error:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ success: false, message: 'Server error' })
+      body: JSON.stringify({ error: 'Failed to process request', details: error.message }),
     };
   }
 };
