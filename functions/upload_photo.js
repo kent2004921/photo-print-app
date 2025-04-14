@@ -1,47 +1,29 @@
 const { createClient } = require('@supabase/supabase-js');
 
-// 日志函数，便于调试
 const log = (message, data) => {
   console.log(JSON.stringify({ message, data }));
 };
 
-// 从环境变量读取Supabase配置
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 
-// 验证环境变量
 if (!supabaseUrl || !supabaseKey) {
   log('Missing environment variables', { supabaseUrl, supabaseKey });
   return {
     statusCode: 500,
     body: JSON.stringify({
       error: 'Server configuration error',
-      details: 'Missing SUPABASE_URL or SUPABASE_KEY in environment variables',
+      details: 'Missing SUPABASE_URL or SUPABASE_KEY',
     }),
   };
 }
 
-// 初始化Supabase客户端
-let supabase;
-try {
-  supabase = createClient(supabaseUrl, supabaseKey);
-  log('Supabase client initialized', { supabaseUrl });
-} catch (error) {
-  log('Failed to initialize Supabase client', { error: error.message });
-  return {
-    statusCode: 500,
-    body: JSON.stringify({
-      error: 'Failed to initialize Supabase client',
-      details: error.message,
-    }),
-  };
-}
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 exports.handler = async (event) => {
   try {
     log('Function invoked', { event });
 
-    // 检查HTTP方法
     if (event.httpMethod !== 'POST') {
       log('Invalid HTTP method', { method: event.httpMethod });
       return {
@@ -53,19 +35,17 @@ exports.handler = async (event) => {
       };
     }
 
-    // 检查请求体
     if (!event.body) {
       log('No request body', {});
       return {
         statusCode: 400,
         body: JSON.stringify({
           error: 'Bad request',
-          details: 'No file data provided in the request',
+          details: 'No file data provided',
         }),
       };
     }
 
-    // 解析请求体
     let file, filename;
     try {
       const body = JSON.parse(event.body);
@@ -83,7 +63,6 @@ exports.handler = async (event) => {
       };
     }
 
-    // 验证文件和文件名
     if (!file || !filename) {
       log('Missing file or filename', { file: !!file, filename: !!filename });
       return {
@@ -95,7 +74,6 @@ exports.handler = async (event) => {
       };
     }
 
-    // 上传文件到print-photos存储桶
     log('Uploading file to Supabase', { filename });
     const { data, error } = await supabase.storage
       .from('print-photos')
