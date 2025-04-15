@@ -322,32 +322,26 @@
 
         console.log('Fetching print job for userId:', userId);
 
-        let data;
-        try {
-          const response = await fetch(`${FUNCTIONS_BASE_URL}/get_print_job`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: userId })
-          });
+        const response = await fetch(`${FUNCTIONS_BASE_URL}/get_print_job`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: userId })
+        });
 
-          if (!response.ok) {
-            console.error('Fetch get_print_job failed with status:', response.status);
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-
-          data = await response.json();
-          console.log('get_print_job response:', data);
-        } catch (fetchError) {
-          console.error('Fetch error in get_print_job:', fetchError);
-          throw new Error(`Failed to fetch print job: ${fetchError.message}`);
+        if (!response.ok) {
+          console.error('Fetch get_print_job failed with status:', response.status);
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
+
+        const data = await response.json();
+        console.log('get_print_job response:', data);
 
         if (data.success && data.task && data.task.photoUrl) {
           const photoUrl = data.task.photoUrl;
           const img = document.createElement('img');
           img.src = photoUrl;
           img.onload = () => {
-            console.log('Photo loaded successfully from Supabase');
+            console.log('Photo loaded successfully');
             photoPreview.innerHTML = '';
             photoPreview.appendChild(img);
           };
@@ -356,42 +350,8 @@
             photoPreview.innerHTML = translations[currentLang].photo_load_error;
           };
         } else {
-          console.log('No task found, falling back to Supabase storage');
-          const { data: files, error } = await supabase.storage
-            .from('print-photos')
-            .list('', { limit: 1, sortBy: { column: 'created_at', order: 'desc' } });
-
-          if (error) {
-            throw new Error(`Failed to list files: ${error.message}`);
-          }
-
-          if (files && files.length > 0) {
-            const latestFile = files.find(file => file.name.startsWith(`user_${userId}_`));
-            if (latestFile) {
-              const { data: urlData } = supabase.storage
-                .from('print-photos')
-                .getPublicUrl(latestFile.name);
-
-              const photoUrl = urlData.publicUrl;
-              const img = document.createElement('img');
-              img.src = photoUrl;
-              img.onload = () => {
-                console.log('Photo loaded successfully from Supabase');
-                photoPreview.innerHTML = '';
-                photoPreview.appendChild(img);
-              };
-              img.onerror = () => {
-                console.error('Failed to load photo from URL:', photoUrl);
-                photoPreview.innerHTML = translations[currentLang].photo_load_error;
-              };
-            } else {
-              console.log('No matching photo found in storage for userId:', userId);
-              photoPreview.innerHTML = translations[currentLang].photo_load_error;
-            }
-          } else {
-            console.log('No files found in storage');
-            photoPreview.innerHTML = translations[currentLang].photo_load_error;
-          }
+          console.log('No task found in database');
+          photoPreview.innerHTML = translations[currentLang].photo_load_error;
         }
       } catch (error) {
         console.error('Load photo error:', error);
@@ -439,8 +399,6 @@
         );
       }
 
-      let hasTask = false;
-      let task = null;
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('id');
@@ -457,18 +415,16 @@
 
         const data = await response.json();
         console.log('get_print_job response in updatePrinterStatus:', data);
+
         if (data.success && data.task) {
-          hasTask = true;
-          task = data.task;
+          taskType.innerText = translations[currentLang].task_type.replace('{type}', data.task.type || 'Unknown');
+          taskMask.innerText = translations[currentLang].task_mask.replace('{mask}', data.task.mask || 'Unknown');
+        } else {
+          taskType.innerText = translations[currentLang].task_type.replace('{type}', translations[currentLang].task_idle);
+          taskMask.innerText = translations[currentLang].task_mask.replace('{mask}', translations[currentLang].task_not_loaded);
         }
       } catch (error) {
         console.error('Failed to fetch print job in updatePrinterStatus:', error);
-      }
-
-      if (hasTask) {
-        taskType.innerText = translations[currentLang].task_type.replace('{type}', task.type || 'Unknown');
-        taskMask.innerText = translations[currentLang].task_mask.replace('{mask}', task.mask || 'Unknown');
-      } else {
         taskType.innerText = translations[currentLang].task_type.replace('{type}', translations[currentLang].task_idle);
         taskMask.innerText = translations[currentLang].task_mask.replace('{mask}', translations[currentLang].task_not_loaded);
       }
@@ -482,5 +438,5 @@
       alert('Cancel print functionality not implemented yet.');
     }
   </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'930c2dda28fc9ae2',t:'MTc0NDcyNzgyNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
