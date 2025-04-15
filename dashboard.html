@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="title">Dashboard - Photo Print Service</title>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <!-- 引入 Supabase JavaScript 客户端 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -156,7 +158,8 @@
         task_not_loaded: "没有加载",
         network_error: "网络错误，请稍后再试！",
         load_error: "加载用户信息失败，请重试！{message}",
-        photo_load_error: "无法加载照片，请确认照片已上传！"
+        photo_load_error: "无法加载照片，请确认照片已上传！",
+        loading: "加载中..."
       },
       en: {
         title: "Dashboard - Photo Print Service",
@@ -175,7 +178,8 @@
         task_not_loaded: "Not Loaded",
         network_error: "Network error, please try again later!",
         load_error: "Failed to load user info, please try again! {message}",
-        photo_load_error: "Failed to load photo, please ensure the photo is uploaded!"
+        photo_load_error: "Failed to load photo, please ensure the photo is uploaded!",
+        loading: "Loading..."
       }
     };
 
@@ -185,8 +189,16 @@
       localStorage.setItem('language', currentLang);
     }
 
+    // 初始化 Supabase 客户端
+    const supabaseUrl = 'https://nqapfcosintqipzttflo.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8';
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
     // 页面加载时初始化语言
     updateLanguage();
+
+    // 存储用户信息
+    let user = null;
 
     // 加载用户信息和打印次数
     window.onload = async () => {
@@ -212,21 +224,20 @@
         console.log('User data:', data);
 
         if (data.success) {
-          const user = data.user;
+          user = data.user;
           // 更新欢迎信息
           document.getElementById('welcomeMessage').innerText = translations[currentLang].welcome.replace('{name}', user.name || 'Franchisee');
           // 更新打印次数
-          const printQuota = user.print_quota !== undefined ? user.print_quota : 100; // 默认 100
+          const printQuota = user.print_quota !== undefined ? user.print_quota : 100;
           document.getElementById('remainingPrints').innerText = translations[currentLang].remaining_prints.replace('{count}', printQuota);
           // 生成二维码
           if (user.id) {
             generateQRCode(user.id);
           }
-          // 加载打印照片
+          // 加载打印照片和任务信息
           await loadPrintPhoto();
-          // 检查打印机状态并更新
           const printerInfo = await checkPrinterStatus();
-          updatePrinterStatus(printerInfo);
+          await updatePrinterStatus(printerInfo);
         } else {
           alert(translations[currentLang].load_error.replace('{message}', data.message || 'Unknown error'));
           window.location.href = 'index.html';
@@ -242,14 +253,13 @@
       currentLang = currentLang === 'zh' ? 'en' : 'zh';
       localStorage.setItem('language', currentLang);
       updateLanguage();
-      checkPrinterStatus().then(printerInfo => updatePrinterStatus(printerInfo)); // 重新检查打印机状态
+      checkPrinterStatus().then(printerInfo => updatePrinterStatus(printerInfo));
     }
 
     function updateLanguage() {
       document.querySelectorAll('[data-i18n]').forEach(element => {
         const key = element.getAttribute('data-i18n');
         let text = translations[currentLang][key] || '';
-        // 特殊处理 welcome 和 remaining_prints
         if (key === 'welcome') {
           const name = element.innerText.match(/欢迎，(.+)/)?.[1] || element.innerText.match(/Welcome, (.+)/)?.[1] || 'Franchisee';
           text = text.replace('{name}', name);
@@ -278,9 +288,9 @@
 
     function generateQRCode(userId) {
       const qrCodeDiv = document.getElementById('qrCode');
-      qrCodeDiv.innerHTML = ''; // 清空之前的内容
+      qrCodeDiv.innerHTML = '';
       new QRCode(qrCodeDiv, {
-        text: `https://photo-print-app.netlify.app/upload.html?userId=${userId}`, // 跳转到上传界面
+        text: `https://photo-print-app.netlify.app/upload.html?userId=${userId}`,
         width: 150,
         height: 150,
         colorDark: '#000000',
@@ -291,31 +301,71 @@
 
     async function loadPrintPhoto() {
       const photoPreview = document.getElementById('photoPreview');
+      photoPreview.innerHTML = translations[currentLang].loading; // 显示加载中
       try {
-        console.log('Fetching print photo from /get_print_photo');
-        const response = await fetch('/.netlify/functions/get_print_photo', {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('id');
+
+        if (!userId) {
+          throw new Error('Missing userId');
+        }
+
+        // 获取最新的打印任务
+        const response = await fetch('/.netlify/functions/get_print_job', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: userId })
         });
         const data = await response.json();
-        console.log('Photo data:', data);
 
-        if (data.success && data.photoUrl) {
-          console.log('Photo URL found:', data.photoUrl);
+        if (data.success && data.task && data.task.photoUrl) {
+          const photoUrl = data.task.photoUrl;
           const img = document.createElement('img');
-          img.src = data.photoUrl;
+          img.src = photoUrl;
           img.onload = () => {
-            console.log('Photo loaded successfully');
+            console.log('Photo loaded successfully from Supabase');
             photoPreview.innerHTML = '';
             photoPreview.appendChild(img);
           };
           img.onerror = () => {
-            console.error('Failed to load photo from URL:', data.photoUrl);
+            console.error('Failed to load photo from URL:', photoUrl);
             photoPreview.innerHTML = translations[currentLang].photo_load_error;
           };
         } else {
-          console.log('No photo found or request failed:', data);
-          photoPreview.innerHTML = translations[currentLang].photo_load_error;
+          // 如果没有任务，尝试直接从存储桶中获取
+          const { data: files, error } = await supabase.storage
+            .from('print-photos')
+            .list('', { limit: 1, sortBy: { column: 'created_at', order: 'desc' } });
+
+          if (error) {
+            throw new Error(`Failed to list files: ${error.message}`);
+          }
+
+          if (files && files.length > 0) {
+            const latestFile = files.find(file => file.name.startsWith(`user_${userId}_`));
+            if (latestFile) {
+              const { data: urlData } = supabase.storage
+                .from('print-photos')
+                .getPublicUrl(latestFile.name);
+
+              const photoUrl = urlData.publicUrl;
+              const img = document.createElement('img');
+              img.src = photoUrl;
+              img.onload = () => {
+                console.log('Photo loaded successfully from Supabase');
+                photoPreview.innerHTML = '';
+                photoPreview.appendChild(img);
+              };
+              img.onerror = () => {
+                console.error('Failed to load photo from URL:', photoUrl);
+                photoPreview.innerHTML = translations[currentLang].photo_load_error;
+              };
+            } else {
+              photoPreview.innerHTML = translations[currentLang].photo_load_error;
+            }
+          } else {
+            photoPreview.innerHTML = translations[currentLang].photo_load_error;
+          }
         }
       } catch (error) {
         console.error('Load photo error:', error);
@@ -338,12 +388,12 @@
       }
     }
 
-    function updatePrinterStatus(printerInfo) {
+    async function updatePrinterStatus(printerInfo) {
       const printerStatus = document.getElementById('printerStatus');
       const taskType = document.getElementById('taskType');
       const taskMask = document.getElementById('taskMask');
-      const hasTask = false;
 
+      // 更新打印机状态
       if (printerInfo.connected) {
         printerStatus.innerText = translations[currentLang].printer_status.replace(
           '{status}',
@@ -358,9 +408,30 @@
         );
       }
 
+      // 检查是否有任务
+      let hasTask = false;
+      let task = null;
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('id');
+        const response = await fetch('/.netlify/functions/get_print_job', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: userId })
+        });
+        const data = await response.json();
+        if (data.success && data.task) {
+          hasTask = true;
+          task = data.task;
+        }
+      } catch (error) {
+        console.error('Failed to fetch print job:', error);
+      }
+
+      // 更新任务信息
       if (hasTask) {
-        taskType.innerText = translations[currentLang].task_type.replace('{type}', '摇摇乐');
-        taskMask.innerText = translations[currentLang].task_mask.replace('{mask}', 'Mask');
+        taskType.innerText = translations[currentLang].task_type.replace('{type}', task.type || 'Unknown');
+        taskMask.innerText = translations[currentLang].task_mask.replace('{mask}', task.mask || 'Unknown');
       } else {
         taskType.innerText = translations[currentLang].task_type.replace('{type}', translations[currentLang].task_idle);
         taskMask.innerText = translations[currentLang].task_mask.replace('{mask}', translations[currentLang].task_not_loaded);
@@ -375,5 +446,5 @@
       alert('Cancel print functionality not implemented yet.');
     }
   </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'930b78017e04675e',t:'MTc0NDcyMDM3OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
