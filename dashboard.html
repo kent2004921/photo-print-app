@@ -155,7 +155,8 @@
         task_idle: "空闲",
         task_not_loaded: "没有加载",
         network_error: "网络错误，请稍后再试！",
-        load_error: "加载用户信息失败，请重试！{message}"
+        load_error: "加载用户信息失败，请重试！{message}",
+        photo_load_error: "无法加载照片，请确认照片已上传！"
       },
       en: {
         title: "Dashboard - Photo Print Service",
@@ -173,7 +174,8 @@
         task_idle: "Idle",
         task_not_loaded: "Not Loaded",
         network_error: "Network error, please try again later!",
-        load_error: "Failed to load user info, please try again! {message}"
+        load_error: "Failed to load user info, please try again! {message}",
+        photo_load_error: "Failed to load photo, please ensure the photo is uploaded!"
       }
     };
 
@@ -290,6 +292,7 @@
     async function loadPrintPhoto() {
       const photoPreview = document.getElementById('photoPreview');
       try {
+        console.log('Fetching print photo from /get_print_photo');
         const response = await fetch('/.netlify/functions/get_print_photo', {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' }
@@ -298,16 +301,25 @@
         console.log('Photo data:', data);
 
         if (data.success && data.photoUrl) {
+          console.log('Photo URL found:', data.photoUrl);
           const img = document.createElement('img');
           img.src = data.photoUrl;
-          photoPreview.innerHTML = '';
-          photoPreview.appendChild(img);
+          img.onload = () => {
+            console.log('Photo loaded successfully');
+            photoPreview.innerHTML = '';
+            photoPreview.appendChild(img);
+          };
+          img.onerror = () => {
+            console.error('Failed to load photo from URL:', data.photoUrl);
+            photoPreview.innerHTML = translations[currentLang].photo_load_error;
+          };
         } else {
-          photoPreview.innerHTML = '';
+          console.log('No photo found or request failed:', data);
+          photoPreview.innerHTML = translations[currentLang].photo_load_error;
         }
       } catch (error) {
         console.error('Load photo error:', error);
-        photoPreview.innerHTML = '';
+        photoPreview.innerHTML = translations[currentLang].photo_load_error;
       }
     }
 
@@ -363,5 +375,5 @@
       alert('Cancel print functionality not implemented yet.');
     }
   </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'930b78017e04675e',t:'MTc0NDcyMDM3OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
