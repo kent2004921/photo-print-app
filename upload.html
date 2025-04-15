@@ -219,7 +219,9 @@
         submit_success: "照片已提交，等待打印！",
         submit_failed: "请先上传照片！",
         file_too_large: "照片文件过大，请选择小于5MB的照片！",
-        network_error: "网络错误，请稍后再试！"
+        network_error: "网络错误，请稍后再试！",
+        storage_error: "无法上传照片到存储服务，请检查存储权限！",
+        task_creation_error: "无法创建打印任务，请稍后再试！"
       },
       en: {
         title: "Upload Photo - Photo Print Service",
@@ -238,7 +240,9 @@
         submit_success: "Photo submitted, waiting for printing!",
         submit_failed: "Please upload a photo first!",
         file_too_large: "Photo file is too large, please select a photo smaller than 5MB!",
-        network_error: "Network error, please try again later!"
+        network_error: "Network error, please try again later!",
+        storage_error: "Failed to upload photo to storage service, please check storage permissions!",
+        task_creation_error: "Failed to create print job, please try again later!"
       }
     };
 
@@ -520,21 +524,33 @@
           const filename = `user_${userId}_${timestamp}.png`;
           console.log('Uploading to Supabase, filename:', filename);
 
-          const { data, error } = await supabase.storage
+          const { data: uploadData, error: uploadError } = await supabase.storage
             .from('print-photos')
             .upload(filename, blob, {
               contentType: 'image/png',
             });
 
-          if (error) {
-            console.error('Supabase upload error:', error);
-            throw new Error(`Failed to upload photo to Supabase: ${error.message}`);
+          if (uploadError) {
+            console.error('Supabase upload error:', uploadError);
+            throw new Error(translations[currentLang].storage_error + ` (${uploadError.message})`);
           }
 
           console.log('Upload successful, getting public URL');
           const { data: urlData } = supabase.storage
             .from('print-photos')
             .getPublicUrl(filename);
+
+          if (!urlData.publicUrl) {
+            console.error('Failed to get public URL for the uploaded photo');
+            throw new Error(translations[currentLang].storage_error + ' (Failed to get public URL)');
+          }
+
+          // 验证公开 URL 是否可访问
+          const urlCheck = await fetch(urlData.publicUrl, { method: 'HEAD' });
+          if (!urlCheck.ok) {
+            console.error('Public URL is not accessible:', urlData.publicUrl);
+            throw new Error(translations[currentLang].storage_error + ` (Public URL not accessible: ${urlCheck.status})`);
+          }
 
           console.log('Creating print job, photoUrl:', urlData.publicUrl);
           const taskResponse = await fetch(`${FUNCTIONS_BASE_URL}/create_print_job`, {
@@ -551,7 +567,7 @@
 
           if (!taskResponse.ok) {
             console.error('Fetch create_print_job failed with status:', taskResponse.status);
-            throw new Error(`HTTP error! status: ${taskResponse.status}`);
+            throw new Error(translations[currentLang].task_creation_error + ` (HTTP error! status: ${taskResponse.status})`);
           }
 
           let taskData;
@@ -559,12 +575,12 @@
             taskData = await taskResponse.json();
           } catch (jsonError) {
             console.error('Failed to parse create_print_job response:', jsonError);
-            throw new Error(`Failed to parse response: ${jsonError.message}`);
+            throw new Error(translations[currentLang].task_creation_error + ` (Failed to parse response: ${jsonError.message})`);
           }
 
           if (!taskData.success) {
             console.error('Failed to create print job:', taskData);
-            throw new Error(`Failed to create print job: ${taskData.message || 'Unknown error'}`);
+            throw new Error(translations[currentLang].task_creation_error + ` (${taskData.message || 'Unknown error'})`);
           }
 
           this.submitMessage.innerText = translations[currentLang].submit_success;
@@ -574,7 +590,7 @@
           }, 1000);
         } catch (error) {
           console.error('Submit photo error:', error);
-          this.submitMessage.innerText = `${translations[currentLang].network_error} (${error.message})`;
+          this.submitMessage.innerText = `${error.message}`;
         } finally {
           this.submitButton.disabled = false;
           this.showLoading(false);
