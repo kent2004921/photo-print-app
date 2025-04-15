@@ -272,6 +272,11 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8';
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
+    // 动态设置 Functions 路径（支持本地开发和生产环境）
+    const FUNCTIONS_BASE_URL = window.location.hostname === 'localhost' 
+      ? 'http://localhost:8888/.netlify/functions' 
+      : '/.netlify/functions';
+
     class PhotoEditor {
       constructor() {
         this.canvas = document.getElementById('photoCanvas');
@@ -532,7 +537,7 @@
             .getPublicUrl(filename);
 
           console.log('Creating print job, photoUrl:', urlData.publicUrl);
-          const taskResponse = await fetch('/.netlify/functions/create_print_job', {
+          const taskResponse = await fetch(`${FUNCTIONS_BASE_URL}/create_print_job`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -544,7 +549,19 @@
             })
           });
 
-          const taskData = await taskResponse.json();
+          if (!taskResponse.ok) {
+            console.error('Fetch create_print_job failed with status:', taskResponse.status);
+            throw new Error(`HTTP error! status: ${taskResponse.status}`);
+          }
+
+          let taskData;
+          try {
+            taskData = await taskResponse.json();
+          } catch (jsonError) {
+            console.error('Failed to parse create_print_job response:', jsonError);
+            throw new Error(`Failed to parse response: ${jsonError.message}`);
+          }
+
           if (!taskData.success) {
             console.error('Failed to create print job:', taskData);
             throw new Error(`Failed to create print job: ${taskData.message || 'Unknown error'}`);
@@ -658,5 +675,5 @@
 
     const photoEditor = new PhotoEditor();
   </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'930c2df7ce61b03f',t:'MTc0NDcyNzgzMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
