@@ -220,6 +220,11 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'get_user', email, id })
         });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const data = await response.json();
         console.log('User data:', data);
 
@@ -310,13 +315,28 @@
           throw new Error('Missing userId');
         }
 
+        console.log('Fetching print job for userId:', userId);
+
         // 获取最新的打印任务
-        const response = await fetch('/.netlify/functions/get_print_job', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: userId })
-        });
-        const data = await response.json();
+        let data;
+        try {
+          const response = await fetch('/.netlify/functions/get_print_job', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: userId })
+          });
+
+          if (!response.ok) {
+            console.error('Fetch get_print_job failed with status:', response.status);
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          data = await response.json();
+          console.log('get_print_job response:', data);
+        } catch (fetchError) {
+          console.error('Fetch error in get_print_job:', fetchError);
+          throw new Error(`Failed to fetch print job: ${fetchError.message}`);
+        }
 
         if (data.success && data.task && data.task.photoUrl) {
           const photoUrl = data.task.photoUrl;
@@ -332,6 +352,7 @@
             photoPreview.innerHTML = translations[currentLang].photo_load_error;
           };
         } else {
+          console.log('No task found, falling back to Supabase storage');
           // 如果没有任务，尝试直接从存储桶中获取
           const { data: files, error } = await supabase.storage
             .from('print-photos')
@@ -361,9 +382,11 @@
                 photoPreview.innerHTML = translations[currentLang].photo_load_error;
               };
             } else {
+              console.log('No matching photo found in storage for userId:', userId);
               photoPreview.innerHTML = translations[currentLang].photo_load_error;
             }
           } else {
+            console.log('No files found in storage');
             photoPreview.innerHTML = translations[currentLang].photo_load_error;
           }
         }
@@ -379,12 +402,18 @@
           method: 'GET',
           headers: { 'Content-Type': 'application/json' }
         });
+
+        if (!response.ok) {
+          console.error('Fetch check_printer_status failed with status:', response.status);
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const data = await response.json();
         console.log('Printer status:', data);
         return data;
       } catch (error) {
         console.error('Check printer status error:', error);
-        return { connected: true, brand: "Epson", model: "L3150" };
+        return { success: false, connected: true, brand: "Epson", model: "L3150" };
       }
     }
 
@@ -394,7 +423,7 @@
       const taskMask = document.getElementById('taskMask');
 
       // 更新打印机状态
-      if (printerInfo.connected) {
+      if (printerInfo.success && printerInfo.connected) {
         printerStatus.innerText = translations[currentLang].printer_status.replace(
           '{status}',
           translations[currentLang].status_connected
@@ -419,13 +448,20 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: userId })
         });
+
+        if (!response.ok) {
+          console.error('Fetch get_print_job failed in updatePrinterStatus with status:', response.status);
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const data = await response.json();
+        console.log('get_print_job response in updatePrinterStatus:', data);
         if (data.success && data.task) {
           hasTask = true;
           task = data.task;
         }
       } catch (error) {
-        console.error('Failed to fetch print job:', error);
+        console.error('Failed to fetch print job in updatePrinterStatus:', error);
       }
 
       // 更新任务信息
