@@ -183,7 +183,7 @@
     <input type="file" id="photoInput" accept="image/*" onchange="photoEditor.loadPhoto()">
     <div class="canvas-container">
       <canvas id="photoCanvas"></canvas>
-      <img id="mask" src="https://picsum.photos/300/300">
+      <img id="mask" src="assets/mask_shake.png">
       <div id="loadingOverlay" class="loading-overlay" data-i18n="loading">加载中...</div>
     </div>
     <div class="controls">
@@ -312,7 +312,7 @@
         // 蒙版选项
         this.maskOptions = {
           '摇摇乐': [
-            { name: '默认', src: 'https://picsum.photos/300/300' }
+            { name: '默认', src: 'assets/mask_shake.png' }
           ],
           '冰箱贴': [
             { name: '动物-猫咪', src: 'https://via.placeholder.com/60?text=Cat' },
@@ -381,7 +381,7 @@
         };
         this.mask.onerror = () => {
           console.error('Failed to load mask:', this.selectedMaskSrc);
-          this.submitMessage.innerText = 'Failed to load mask image. Please try a different mask.';
+          this.submitMessage.innerText = 'Failed to load mask image. Please ensure assets/mask_shake.png exists.';
         };
       }
 
