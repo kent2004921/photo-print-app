@@ -194,6 +194,11 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8';
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
+    // 动态设置 Functions 路径（支持本地开发和生产环境）
+    const FUNCTIONS_BASE_URL = window.location.hostname === 'localhost' 
+      ? 'http://localhost:8888/.netlify/functions' 
+      : '/.netlify/functions';
+
     // 页面加载时初始化语言
     updateLanguage();
 
@@ -215,7 +220,7 @@
       }
 
       try {
-        const response = await fetch('/.netlify/functions/auth', {
+        const response = await fetch(`${FUNCTIONS_BASE_URL}/auth`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'get_user', email, id })
@@ -306,7 +311,7 @@
 
     async function loadPrintPhoto() {
       const photoPreview = document.getElementById('photoPreview');
-      photoPreview.innerHTML = translations[currentLang].loading; // 显示加载中
+      photoPreview.innerHTML = translations[currentLang].loading;
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('id');
@@ -317,10 +322,9 @@
 
         console.log('Fetching print job for userId:', userId);
 
-        // 获取最新的打印任务
         let data;
         try {
-          const response = await fetch('/.netlify/functions/get_print_job', {
+          const response = await fetch(`${FUNCTIONS_BASE_URL}/get_print_job`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: userId })
@@ -353,7 +357,6 @@
           };
         } else {
           console.log('No task found, falling back to Supabase storage');
-          // 如果没有任务，尝试直接从存储桶中获取
           const { data: files, error } = await supabase.storage
             .from('print-photos')
             .list('', { limit: 1, sortBy: { column: 'created_at', order: 'desc' } });
@@ -398,7 +401,7 @@
 
     async function checkPrinterStatus() {
       try {
-        const response = await fetch('/.netlify/functions/check_printer_status', {
+        const response = await fetch(`${FUNCTIONS_BASE_URL}/check_printer_status`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -422,7 +425,6 @@
       const taskType = document.getElementById('taskType');
       const taskMask = document.getElementById('taskMask');
 
-      // 更新打印机状态
       if (printerInfo.success && printerInfo.connected) {
         printerStatus.innerText = translations[currentLang].printer_status.replace(
           '{status}',
@@ -437,13 +439,12 @@
         );
       }
 
-      // 检查是否有任务
       let hasTask = false;
       let task = null;
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('id');
-        const response = await fetch('/.netlify/functions/get_print_job', {
+        const response = await fetch(`${FUNCTIONS_BASE_URL}/get_print_job`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: userId })
@@ -464,7 +465,6 @@
         console.error('Failed to fetch print job in updatePrinterStatus:', error);
       }
 
-      // 更新任务信息
       if (hasTask) {
         taskType.innerText = translations[currentLang].task_type.replace('{type}', task.type || 'Unknown');
         taskMask.innerText = translations[currentLang].task_mask.replace('{mask}', task.mask || 'Unknown');
