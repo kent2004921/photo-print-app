@@ -282,10 +282,8 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8';
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    // 动态设置 Functions 路径（支持本地开发和生产环境）
-    const FUNCTIONS_BASE_URL = window.location.hostname === 'localhost' 
-      ? 'http://localhost:8888/.netlify/functions' 
-      : '/.netlify/functions';
+    // 动态设置 Functions 路径
+    const FUNCTIONS_BASE_URL = window.location.origin + '/.netlify/functions';
 
     class PhotoEditor {
       constructor() {
@@ -423,7 +421,7 @@
           await new Promise((resolve, reject) => {
             img.onload = () => {
               console.log('Photo loaded successfully');
-              this.img = img; // 确保 this.img 被正确赋值
+              this.img = img;
               resolve();
             };
             img.onerror = () => {
@@ -441,9 +439,9 @@
             offsetX: 0,
             offsetY: 0
           };
-          document.getElementById('zoomSlider').value = 1;
-          document.getElementById('brightnessSlider').value = 1;
-          document.getElementById('contrastSlider').value = 1;
+          document.getElementbyId('zoomSlider').value = 1;
+          document.getElementbyId('brightnessSlider').value = 1;
+          document.getElementbyId('contrastSlider').value = 1;
           console.log('Updating photo after load');
           this.updatePhoto();
         } catch (error) {
@@ -554,7 +552,6 @@
             throw new Error(translations[currentLang].storage_error + ' (Failed to get public URL)');
           }
 
-          // 验证公开 URL 是否可访问
           try {
             const urlCheck = await fetch(urlData.publicUrl, { method: 'HEAD' });
             if (!urlCheck.ok) {
@@ -708,5 +705,5 @@
 
     const photoEditor = new PhotoEditor();
   </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'930c2df7ce61b03f',t:'MTc0NDcyNzgzMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
