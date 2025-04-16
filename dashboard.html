@@ -4,8 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="title">Dashboard - Photo Print Service</title>
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-  <!-- 引入 Supabase JavaScript 客户端 -->
+  <link rel="icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAAAAAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA/4QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     body {
@@ -23,7 +22,7 @@
       border-radius: 10px;
       box-shadow: 0 4px 10px rgba(0,0,0,0.1);
       width: 90%;
-      max-width: 400px;
+      max-width: 600px;
       text-align: center;
     }
     .header {
@@ -53,140 +52,126 @@
     .language-btn:hover {
       background: #218838;
     }
-    .info {
-      text-align: left;
+    .message {
       margin: 10px 0;
-      font-size: 16px;
       color: #333;
+      font-size: 14px;
     }
-    .preview-section {
+    .photo-grid {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin: 20px 0;
-    }
-    #qrCode, #photoPreview {
-      width: 150px;
-      height: 150px;
-    }
-    #photoPreview {
-      border: 2px dashed #ccc;
-      display: flex;
-      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
       justify-content: center;
+    }
+    .photo-item {
       background: #f9f9f9;
-    }
-    #photoPreview img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    .task-section {
-      margin-top: 20px;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ddd;
       text-align: left;
+      width: 200px;
     }
-    .buttons {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 20px;
+    .photo-item img {
+      width: 100%;
+      height: auto;
+      border-radius: 5px;
+      margin-bottom: 10px;
+    }
+    .photo-item p {
+      margin: 5px 0;
+      font-size: 12px;
+      color: #555;
     }
     button {
+      width: 100%;
       padding: 10px;
+      margin: 10px 0;
       border: none;
       border-radius: 5px;
       cursor: pointer;
       font-size: 16px;
-      color: white;
-      width: 48%;
-    }
-    .start-btn {
       background: #007bff;
+      color: white;
     }
-    .start-btn:hover {
+    button:hover {
       background: #0056b3;
     }
-    .cancel-btn {
-      background: #dc3545;
-    }
-    .cancel-btn:hover {
-      background: #c82333;
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: #333;
+      display: none;
+      z-index: 1000;
     }
   </style>
 </head>
 <body>
+  <div class="loading-overlay" id="loadingOverlay" data-i18n="loading">加载中...</div>
   <div class="container">
     <div class="header">
       <h2 data-i18n="title">Dashboard - Photo Print Service</h2>
       <button class="language-btn" onclick="toggleLanguage()">🌐</button>
     </div>
 
-    <div class="info" id="welcomeMessage" data-i18n="welcome">欢迎，Franchisee</div>
-    <div class="info" id="remainingPrints" data-i18n="remaining_prints">剩余打印次数：0</div>
-    <div class="info" id="printerStatus" data-i18n="printer_status">打印机状态：Unknown</div>
-
-    <div class="preview-section">
-      <div id="qrCode"></div>
-      <div id="photoPreview"></div>
-    </div>
-
-    <div class="task-section" id="taskSection">
-      <div class="info" id="taskType" data-i18n="task_type">Type: Unknown</div>
-      <div class="info" id="taskMask" data-i18n="task_mask">Mask: Unknown</div>
-      <div class="buttons">
-        <button class="start-btn" onclick="startPrint()" data-i18n="start_print">确认打印</button>
-        <button class="cancel-btn" onclick="cancelPrint()" data-i18n="cancel_print">删除任务</button>
-      </div>
-    </div>
+    <div class="message" id="message"></div>
+    <div class="photo-grid" id="photoGrid"></div>
+    <button onclick="window.location.href='upload.html?userId=' + userId" data-i18n="upload_new">上传新照片</button>
   </div>
 
   <script>
     const translations = {
       zh: {
-        title: "管理面板 - 照片打印服务",
-        welcome: "欢迎，{name}",
-        remaining_prints: "剩余打印次数：{count}",
-        printer_status: "打印机状态：{status}",
-        task_type: "Type: {type}",
-        task_mask: "Mask: {mask}",
-        start_print: "确认打印",
-        cancel_print: "删除任务",
-        status_not_connected: "未连接",
-        status_connected: "已连接 - {brand} {model}",
-        status_idle: "空闲",
-        status_printing: "打印中",
-        task_idle: "空闲",
-        task_not_loaded: "没有加载",
+        title: "仪表板 - 照片打印服务",
+        loading: "加载中...",
+        upload_new: "上传新照片",
+        no_photos: "无法加载照片，请确认已上传！",
         network_error: "网络错误，请稍后再试！",
-        load_error: "加载用户信息失败，请重试！{message}",
-        photo_load_error: "无法加载照片，请确认照片已上传！",
-        loading: "加载中..."
+        fetch_error: "无法获取打印任务，请稍后再试！",
+        fetch_not_found: "打印任务服务不可用，请检查服务器部署！"
       },
       en: {
         title: "Dashboard - Photo Print Service",
-        welcome: "Welcome, {name}",
-        remaining_prints: "Remaining Prints: {count}",
-        printer_status: "Printer Status: {status}",
-        task_type: "Type: {type}",
-        task_mask: "Mask: {mask}",
-        start_print: "Start Print",
-        cancel_print: "Cancel Print",
-        status_not_connected: "Not Connected",
-        status_connected: "Connected - {brand} {model}",
-        status_idle: "Idle",
-        status_printing: "Printing",
-        task_idle: "Idle",
-        task_not_loaded: "Not Loaded",
+        loading: "Loading...",
+        upload_new: "Upload New Photo",
+        no_photos: "No photos found, please upload one!",
         network_error: "Network error, please try again later!",
-        load_error: "Failed to load user info, please try again! {message}",
-        photo_load_error: "Failed to load photo, please ensure the photo is uploaded!",
-        loading: "Loading..."
+        fetch_error: "Failed to fetch print jobs, please try again later!",
+        fetch_not_found: "Print job service is unavailable, please check server deployment!"
       }
     };
 
-    let currentLang = localStorage.getItem('language');
-    if (!currentLang || !translations[currentLang]) {
-      currentLang = 'zh';
+    let currentLang = localStorage.getItem('language') || 'zh';
+    updateLanguage();
+
+    function toggleLanguage() {
+      currentLang = currentLang === 'zh' ? 'en' : 'zh';
       localStorage.setItem('language', currentLang);
+      updateLanguage();
+    }
+
+    function updateLanguage() {
+      document.querySelectorAll('[data-i18n]').forEach(element => {
+        const key = element.getAttribute('data-i18n');
+        element.textContent = translations[currentLang][key];
+      });
+      document.title = translations[currentLang].title;
+    }
+
+    // 获取 userId 和 email
+    const urlParams = new URLSearchParams(window.location.search);
+    const userId = urlParams.get('id');
+    const email = urlParams.get('email');
+    if (!userId || !email) {
+      alert('Missing userId or email');
+      window.location.href = 'index.html';
     }
 
     // 初始化 Supabase 客户端
@@ -194,249 +179,71 @@
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xYXBmY29zaW50cWlwenR0ZmxvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMjIyMzgsImV4cCI6MjA1ODg5ODIzOH0.EekW0qIKeikF6jEAMXDa_RsKWHeMLsj8LKQBqoPLov8';
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    // 动态设置 Functions 路径（支持本地开发和生产环境）
-    const FUNCTIONS_BASE_URL = window.location.hostname === 'localhost' 
-      ? 'http://localhost:8888/.netlify/functions' 
-      : '/.netlify/functions';
+    // 动态设置 Functions 路径
+    const FUNCTIONS_BASE_URL = window.location.origin + '/.netlify/functions';
 
-    // 页面加载时初始化语言
-    updateLanguage();
+    async function loadPhotos() {
+      const messageDiv = document.getElementById('message');
+      const photoGrid = document.getElementById('photoGrid');
+      const loadingOverlay = document.getElementById('loadingOverlay');
 
-    // 存储用户信息
-    let user = null;
-
-    // 加载用户信息和打印次数
-    window.onload = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const email = urlParams.get('email');
-      const id = urlParams.get('id');
-
-      console.log('URL params:', { email, id });
-
-      if (!email || !id) {
-        alert(translations[currentLang].load_error.replace('{message}', 'Missing email or id'));
-        window.location.href = 'index.html';
-        return;
-      }
-
+      loadingOverlay.style.display = 'flex';
       try {
-        const response = await fetch(`${FUNCTIONS_BASE_URL}/auth`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'get_user', email, id })
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log('User data:', data);
-
-        if (data.success) {
-          user = data.user;
-          // 更新欢迎信息
-          document.getElementById('welcomeMessage').innerText = translations[currentLang].welcome.replace('{name}', user.name || 'Franchisee');
-          // 更新打印次数
-          const printQuota = user.print_quota !== undefined ? user.print_quota : 100;
-          document.getElementById('remainingPrints').innerText = translations[currentLang].remaining_prints.replace('{count}', printQuota);
-          // 生成二维码
-          if (user.id) {
-            generateQRCode(user.id);
-          }
-          // 加载打印照片和任务信息
-          await loadPrintPhoto();
-          const printerInfo = await checkPrinterStatus();
-          await updatePrinterStatus(printerInfo);
-        } else {
-          alert(translations[currentLang].load_error.replace('{message}', data.message || 'Unknown error'));
-          window.location.href = 'index.html';
-        }
-      } catch (error) {
-        console.error('Load user error:', error);
-        alert(translations[currentLang].network_error);
-        window.location.href = 'index.html';
-      }
-    };
-
-    function toggleLanguage() {
-      currentLang = currentLang === 'zh' ? 'en' : 'zh';
-      localStorage.setItem('language', currentLang);
-      updateLanguage();
-      checkPrinterStatus().then(printerInfo => updatePrinterStatus(printerInfo));
-    }
-
-    function updateLanguage() {
-      document.querySelectorAll('[data-i18n]').forEach(element => {
-        const key = element.getAttribute('data-i18n');
-        let text = translations[currentLang][key] || '';
-        if (key === 'welcome') {
-          const name = element.innerText.match(/欢迎，(.+)/)?.[1] || element.innerText.match(/Welcome, (.+)/)?.[1] || 'Franchisee';
-          text = text.replace('{name}', name);
-        } else if (key === 'remaining_prints') {
-          const count = element.innerText.match(/剩余打印次数：(\d+)/)?.[1] || element.innerText.match(/Remaining Prints: (\d+)/)?.[1] || '0';
-          text = text.replace('{count}', count);
-        } else if (key === 'printer_status') {
-          const status = element.innerText.match(/打印机状态：(.+)/)?.[1] || element.innerText.match(/Printer Status: (.+)/)?.[1] || 'Unknown';
-          if (status.includes('-')) {
-            const [_, brand, model] = status.match(/(.+) - (.+)/) || [status, '', ''];
-            text = translations[currentLang].status_connected.replace('{brand}', brand).replace('{model}', model);
-          } else {
-            text = text.replace('{status}', translations[currentLang][`status_${status.toLowerCase()}`] || status);
-          }
-        } else if (key === 'task_type') {
-          const type = element.innerText.match(/Type: (.+)/)?.[1] || 'Unknown';
-          text = text.replace('{type}', type);
-        } else if (key === 'task_mask') {
-          const mask = element.innerText.match(/Mask: (.+)/)?.[1] || 'Unknown';
-          text = text.replace('{mask}', mask);
-        }
-        element.innerText = text;
-      });
-      document.title = translations[currentLang].title;
-    }
-
-    function generateQRCode(userId) {
-      const qrCodeDiv = document.getElementById('qrCode');
-      qrCodeDiv.innerHTML = '';
-      new QRCode(qrCodeDiv, {
-        text: `https://photo-print-app.netlify.app/upload.html?userId=${userId}`,
-        width: 150,
-        height: 150,
-        colorDark: '#000000',
-        colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.H
-      });
-    }
-
-    async function loadPrintPhoto() {
-      const photoPreview = document.getElementById('photoPreview');
-      photoPreview.innerHTML = translations[currentLang].loading;
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const userId = urlParams.get('id');
-
-        if (!userId) {
-          throw new Error('Missing userId');
-        }
-
-        console.log('Fetching print job for userId:', userId);
-
+        console.log('Fetching print jobs for userId:', userId);
         const response = await fetch(`${FUNCTIONS_BASE_URL}/get_print_job`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: userId })
+          body: JSON.stringify({ userId })
         });
 
         if (!response.ok) {
           console.error('Fetch get_print_job failed with status:', response.status);
-          throw new Error(`HTTP error! status: ${response.status}`);
+          if (response.status === 404) {
+            throw new Error(translations[currentLang].fetch_not_found + ` (HTTP error! status: ${response.status})`);
+          }
+          throw new Error(translations[currentLang].fetch_error + ` (HTTP error! status: ${response.status})`);
         }
 
-        const data = await response.json();
-        console.log('get_print_job response:', data);
-
-        if (data.success && data.task && data.task.photoUrl) {
-          const photoUrl = data.task.photoUrl;
-          const img = document.createElement('img');
-          img.src = photoUrl;
-          img.onload = () => {
-            console.log('Photo loaded successfully');
-            photoPreview.innerHTML = '';
-            photoPreview.appendChild(img);
-          };
-          img.onerror = () => {
-            console.error('Failed to load photo from URL:', photoUrl);
-            photoPreview.innerHTML = translations[currentLang].photo_load_error;
-          };
-        } else {
-          console.log('No task found in database');
-          photoPreview.innerHTML = translations[currentLang].photo_load_error;
+        let data;
+        try {
+          data = await response.json();
+        } catch (jsonError) {
+          console.error('Failed to parse get_print_job response:', jsonError);
+          throw new Error(translations[currentLang].fetch_error + ` (Failed to parse response: ${jsonError.message})`);
         }
-      } catch (error) {
-        console.error('Load photo error:', error);
-        photoPreview.innerHTML = translations[currentLang].photo_load_error;
-      }
-    }
 
-    async function checkPrinterStatus() {
-      try {
-        const response = await fetch(`${FUNCTIONS_BASE_URL}/check_printer_status`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' }
+        if (!data.success) {
+          console.error('Failed to fetch print jobs:', data);
+          throw new Error(translations[currentLang].fetch_error + ` (${data.message || 'Unknown error'})`);
+        }
+
+        const printJobs = data.data;
+        if (!printJobs || printJobs.length === 0) {
+          messageDiv.innerText = translations[currentLang].no_photos;
+          return;
+        }
+
+        photoGrid.innerHTML = '';
+        printJobs.forEach(job => {
+          const photoItem = document.createElement('div');
+          photoItem.className = 'photo-item';
+          photoItem.innerHTML = `
+            <img src="${job.photo_url}" alt="Print Job Photo">
+            <p>Type: ${job.type}</p>
+            <p>Status: ${job.status}</p>
+          `;
+          photoGrid.appendChild(photoItem);
         });
-
-        if (!response.ok) {
-          console.error('Fetch check_printer_status failed with status:', response.status);
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log('Printer status:', data);
-        return data;
       } catch (error) {
-        console.error('Check printer status error:', error);
-        return { success: false, connected: true, brand: "Epson", model: "L3150" };
+        console.error('Load photos error:', error);
+        messageDiv.innerText = `${error.message}`;
+      } finally {
+        loadingOverlay.style.display = 'none';
       }
     }
 
-    async function updatePrinterStatus(printerInfo) {
-      const printerStatus = document.getElementById('printerStatus');
-      const taskType = document.getElementById('taskType');
-      const taskMask = document.getElementById('taskMask');
-
-      if (printerInfo.success && printerInfo.connected) {
-        printerStatus.innerText = translations[currentLang].printer_status.replace(
-          '{status}',
-          translations[currentLang].status_connected
-            .replace('{brand}', printerInfo.brand)
-            .replace('{model}', printerInfo.model)
-        );
-      } else {
-        printerStatus.innerText = translations[currentLang].printer_status.replace(
-          '{status}',
-          translations[currentLang].status_not_connected
-        );
-      }
-
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const userId = urlParams.get('id');
-        const response = await fetch(`${FUNCTIONS_BASE_URL}/get_print_job`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: userId })
-        });
-
-        if (!response.ok) {
-          console.error('Fetch get_print_job failed in updatePrinterStatus with status:', response.status);
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log('get_print_job response in updatePrinterStatus:', data);
-
-        if (data.success && data.task) {
-          taskType.innerText = translations[currentLang].task_type.replace('{type}', data.task.type || 'Unknown');
-          taskMask.innerText = translations[currentLang].task_mask.replace('{mask}', data.task.mask || 'Unknown');
-        } else {
-          taskType.innerText = translations[currentLang].task_type.replace('{type}', translations[currentLang].task_idle);
-          taskMask.innerText = translations[currentLang].task_mask.replace('{mask}', translations[currentLang].task_not_loaded);
-        }
-      } catch (error) {
-        console.error('Failed to fetch print job in updatePrinterStatus:', error);
-        taskType.innerText = translations[currentLang].task_type.replace('{type}', translations[currentLang].task_idle);
-        taskMask.innerText = translations[currentLang].task_mask.replace('{mask}', translations[currentLang].task_not_loaded);
-      }
-    }
-
-    async function startPrint() {
-      alert('Start print functionality not implemented yet.');
-    }
-
-    async function cancelPrint() {
-      alert('Cancel print functionality not implemented yet.');
-    }
+    // 页面加载时获取照片
+    window.onload = loadPhotos;
   </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'930c2dda28fc9ae2',t:'MTc0NDcyNzgyNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
