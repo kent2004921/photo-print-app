@@ -404,6 +404,7 @@
         const file = document.getElementById('photoInput').files[0];
         if (!file) {
           console.log('No file selected');
+          this.submitMessage.innerText = translations[currentLang].submit_failed;
           return;
         }
 
@@ -417,13 +418,15 @@
         this.showLoading(true);
         try {
           console.log('Loading photo:', file.name);
-          this.img.src = URL.createObjectURL(file);
+          const img = new Image();
+          img.src = URL.createObjectURL(file);
           await new Promise((resolve, reject) => {
-            this.img.onload = () => {
+            img.onload = () => {
               console.log('Photo loaded successfully');
+              this.img = img; // 确保 this.img 被正确赋值
               resolve();
             };
-            this.img.onerror = () => {
+            img.onerror = () => {
               console.error('Failed to load photo:', file.name);
               reject(new Error('Failed to load photo'));
             };
@@ -614,34 +617,6 @@
       showLoading(show, message = translations[currentLang].loading) {
         this.loadingOverlay.style.display = show ? 'flex' : 'none';
         this.loadingOverlay.textContent = message;
-      }
-
-      bindEvents() {
-        this.canvas.addEventListener('mousedown', (e) => this.handleStart(e));
-        this.canvas.addEventListener('mousemove', (e) => this.handleMove(e));
-        this.canvas.addEventListener('mouseup', () => this.handleEnd());
-        this.canvas.addEventListener('mouseleave', () => this.handleEnd());
-
-        this.canvas.addEventListener('touchstart', (e) => this.handleStart(e));
-        this.canvas.addEventListener('touchmove', (e) => this.handleMove(e));
-        this.canvas.addEventListener('touchend', () => this.handleEnd());
-      }
-
-      getEventPosition(e) {
-        const rect = this.canvas.getBoundingClientRect();
-        if (e.type.includes('touch')) {
-          const touch = e.touches[0] || e.changedTouches[0];
-          return {
-            x: touch.clientX - rect.left,
-            y: touch.clientY - rect.top,
-            touches: e.touches
-          };
-        }
-        return {
-          x: e.offsetX,
-          y: e.offsetY,
-          touches: null
-        };
       }
 
       bindEvents() {
