@@ -1,0 +1,25 @@
+name: Install Dependencies
+
+on:
+  push:
+    branches: [ main ]  # 触发条件：推送到 main 分支
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'  # 与 package.json 中的 engines 一致
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Verify installation
+        run: npm list --depth=0  # 列出已安装的依赖，检查是否成功
