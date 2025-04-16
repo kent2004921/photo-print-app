@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="title">Upload Photo - Photo Print Service</title>
+  <!-- 添加默认 favicon 避免 404 错误 -->
+  <link rel="icon" href="data:image/x-icon;base64,AAABAAEAEBAQAAAAAAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA/4QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA">
   <!-- 引入 Supabase JavaScript 客户端 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
@@ -221,6 +223,7 @@
         file_too_large: "照片文件过大，请选择小于5MB的照片！",
         network_error: "网络错误，请稍后再试！",
         storage_error: "无法上传照片到存储服务，请检查存储权限！",
+        storage_access_error: "无法访问上传的照片，请确保存储服务配置正确！",
         task_creation_error: "无法创建打印任务，请稍后再试！"
       },
       en: {
@@ -242,6 +245,7 @@
         file_too_large: "Photo file is too large, please select a photo smaller than 5MB!",
         network_error: "Network error, please try again later!",
         storage_error: "Failed to upload photo to storage service, please check storage permissions!",
+        storage_access_error: "Failed to access the uploaded photo, please ensure storage service is configured correctly!",
         task_creation_error: "Failed to create print job, please try again later!"
       }
     };
@@ -546,10 +550,15 @@
           }
 
           // 验证公开 URL 是否可访问
-          const urlCheck = await fetch(urlData.publicUrl, { method: 'HEAD' });
-          if (!urlCheck.ok) {
-            console.error('Public URL is not accessible:', urlData.publicUrl);
-            throw new Error(translations[currentLang].storage_error + ` (Public URL not accessible: ${urlCheck.status})`);
+          try {
+            const urlCheck = await fetch(urlData.publicUrl, { method: 'HEAD' });
+            if (!urlCheck.ok) {
+              console.error('Public URL is not accessible:', urlData.publicUrl);
+              throw new Error(translations[currentLang].storage_access_error + ` (HTTP status: ${urlCheck.status})`);
+            }
+          } catch (fetchError) {
+            console.error('Failed to verify public URL:', fetchError);
+            throw new Error(translations[currentLang].storage_access_error + ` (${fetchError.message})`);
           }
 
           console.log('Creating print job, photoUrl:', urlData.publicUrl);
