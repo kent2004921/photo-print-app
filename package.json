@@ -2,12 +2,17 @@
   "name": "photo-print-app",
   "version": "1.0.0",
   "description": "A photo printing service",
-  "main": "index.js",
+  "main": "index.js",  // 如果没有 index.js，可以删除此字段
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npm install",  // 添加构建脚本，与 netlify.toml 一致
+    "dev": "netlify dev"     // 添加本地开发脚本（需要安装 netlify-cli）
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"  // 添加 netlify-cli 用于本地测试
   },
   "engines": {
     "node": "18.x"
