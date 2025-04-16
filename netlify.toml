@@ -1,4 +1,7 @@
 [build]
-  command = "echo 'No build command needed'"
-  publish = "."
-  functions = "netlify/functions"
+  command = "npm install"         # 安装依赖
+  publish = "."                   # 发布根目录
+  functions = "netlify/functions" # 函数目录
+
+[functions]
+  node_bundler = "esbuild"        # 使用 esbuild 打包函数
