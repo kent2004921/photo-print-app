@@ -224,7 +224,8 @@
         network_error: "网络错误，请稍后再试！",
         storage_error: "无法上传照片到存储服务，请检查存储权限！",
         storage_access_error: "无法访问上传的照片，请确保存储服务配置正确！",
-        task_creation_error: "无法创建打印任务，请稍后再试！"
+        task_creation_error: "无法创建打印任务，请稍后再试！",
+        task_creation_not_found: "打印任务服务不可用，请检查服务器部署！"
       },
       en: {
         title: "Upload Photo - Photo Print Service",
@@ -246,7 +247,8 @@
         network_error: "Network error, please try again later!",
         storage_error: "Failed to upload photo to storage service, please check storage permissions!",
         storage_access_error: "Failed to access the uploaded photo, please ensure storage service is configured correctly!",
-        task_creation_error: "Failed to create print job, please try again later!"
+        task_creation_error: "Failed to create print job, please try again later!",
+        task_creation_not_found: "Print job service is unavailable, please check server deployment!"
       }
     };
 
@@ -576,6 +578,9 @@
 
           if (!taskResponse.ok) {
             console.error('Fetch create_print_job failed with status:', taskResponse.status);
+            if (taskResponse.status === 404) {
+              throw new Error(translations[currentLang].task_creation_not_found + ` (HTTP error! status: ${taskResponse.status})`);
+            }
             throw new Error(translations[currentLang].task_creation_error + ` (HTTP error! status: ${taskResponse.status})`);
           }
 
@@ -609,6 +614,34 @@
       showLoading(show, message = translations[currentLang].loading) {
         this.loadingOverlay.style.display = show ? 'flex' : 'none';
         this.loadingOverlay.textContent = message;
+      }
+
+      bindEvents() {
+        this.canvas.addEventListener('mousedown', (e) => this.handleStart(e));
+        this.canvas.addEventListener('mousemove', (e) => this.handleMove(e));
+        this.canvas.addEventListener('mouseup', () => this.handleEnd());
+        this.canvas.addEventListener('mouseleave', () => this.handleEnd());
+
+        this.canvas.addEventListener('touchstart', (e) => this.handleStart(e));
+        this.canvas.addEventListener('touchmove', (e) => this.handleMove(e));
+        this.canvas.addEventListener('touchend', () => this.handleEnd());
+      }
+
+      getEventPosition(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        if (e.type.includes('touch')) {
+          const touch = e.touches[0] || e.changedTouches[0];
+          return {
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top,
+            touches: e.touches
+          };
+        }
+        return {
+          x: e.offsetX,
+          y: e.offsetY,
+          touches: null
+        };
       }
 
       bindEvents() {
